@@ -1,6 +1,6 @@
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
-import 'package:shreerajmandir_pos/services/kot_service.dart';
-import 'package:shreerajmandir_pos/domain/models/kot_model.dart';
+import 'package:coffee_katta_pos/services/kot_service.dart';
+import 'package:coffee_katta_pos/domain/models/kot_model.dart';
 
 void main() async {
   try {

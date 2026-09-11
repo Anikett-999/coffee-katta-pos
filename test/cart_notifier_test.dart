@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shreerajmandir_pos/domain/models/item.dart';
-import 'package:shreerajmandir_pos/presentation/screens/order_screen.dart';
+import 'package:coffee_katta_pos/domain/models/item.dart';
+import 'package:coffee_katta_pos/presentation/screens/waiter/order_screen.dart';
 
 void main() {
   group('CartNotifier Unit Tests', () {

@@ -24,7 +24,7 @@ void main() async {
       overrides: [
         sharedPrefsProvider.overrideWithValue(prefs),
       ],
-      child: const ShreeRajmandirPOSApp(),
+      child: const CoffeeKattaPOSApp(),
     ),
   );
 
@@ -32,15 +32,17 @@ void main() async {
   FlutterNativeSplash.remove();
 }
 
-class ShreeRajmandirPOSApp extends ConsumerWidget {
-  const ShreeRajmandirPOSApp({super.key});
+typedef ShreeRajmandirPOSApp = CoffeeKattaPOSApp;
+
+class CoffeeKattaPOSApp extends ConsumerWidget {
+  const CoffeeKattaPOSApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeProvider);
 
     return MaterialApp(
-      title: 'Shree Rajmandir POS',
+      title: 'Coffee Katta POS',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,

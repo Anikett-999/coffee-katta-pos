@@ -5,19 +5,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shreerajmandir_pos/core/app_theme.dart';
-import 'package:shreerajmandir_pos/domain/models/category.dart';
-import 'package:shreerajmandir_pos/domain/models/item.dart';
-import 'package:shreerajmandir_pos/domain/models/table_model.dart';
-import 'package:shreerajmandir_pos/domain/models/kot_model.dart';
-import 'package:shreerajmandir_pos/services/menu_service.dart';
-import 'package:shreerajmandir_pos/services/kot_service.dart';
-import 'package:shreerajmandir_pos/presentation/providers/auth_provider.dart';
-import 'package:shreerajmandir_pos/presentation/providers/printer_provider.dart';
-import 'package:shreerajmandir_pos/presentation/providers/active_branch_provider.dart';
-import 'package:shreerajmandir_pos/presentation/widgets/global/profile_menu.dart';
-import 'package:shreerajmandir_pos/presentation/widgets/global/base_widgets.dart'; // Added for LoadingIndicator
-import 'package:shreerajmandir_pos/presentation/widgets/global/editorial_background.dart';
+import 'package:coffee_katta_pos/core/app_theme.dart';
+import 'package:coffee_katta_pos/domain/models/category.dart';
+import 'package:coffee_katta_pos/domain/models/item.dart';
+import 'package:coffee_katta_pos/domain/models/table_model.dart';
+import 'package:coffee_katta_pos/domain/models/kot_model.dart';
+import 'package:coffee_katta_pos/services/menu_service.dart';
+import 'package:coffee_katta_pos/services/kot_service.dart';
+import 'package:coffee_katta_pos/presentation/providers/auth_provider.dart';
+import 'package:coffee_katta_pos/presentation/providers/printer_provider.dart';
+import 'package:coffee_katta_pos/presentation/providers/active_branch_provider.dart';
+import 'package:coffee_katta_pos/presentation/widgets/global/profile_menu.dart';
+import 'package:coffee_katta_pos/presentation/widgets/global/base_widgets.dart'; // Added for LoadingIndicator
+import 'package:coffee_katta_pos/presentation/widgets/global/editorial_background.dart';
 import 'package:uuid/uuid.dart';
 
 // --- State Providers ---

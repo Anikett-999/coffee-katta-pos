@@ -1,8 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
-import 'package:shreerajmandir_pos/services/kot_service.dart';
-import 'package:shreerajmandir_pos/domain/models/kot_model.dart';
-import 'package:shreerajmandir_pos/domain/models/table_model.dart';
+import 'package:coffee_katta_pos/services/kot_service.dart';
+import 'package:coffee_katta_pos/domain/models/kot_model.dart';
 
 void main() {
   group('KOTService Transaction Tests', () {
@@ -67,7 +66,7 @@ void main() {
         expect(tableData['activeOrderId'], isNotNull);
         expect(tableData['kotCount'], equals(1));
 
-      } catch (e, stackTrace) {
+      } catch (e) {
         fail(e.toString());
       }
     });

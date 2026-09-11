@@ -1,11 +1,11 @@
 {
-    "name": "shreerajmandir_pos",
-    "short_name": "shreerajmandir_pos",
+    "name": "Coffee Katta POS",
+    "short_name": "Coffee Katta",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#F9F6F0",
+    "theme_color": "#4A2C11",
+    "description": "Coffee Katta Specialty Cafe POS & Kitchen Management System",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
-import 'package:shreerajmandir_pos/services/kot_service.dart';
-import 'package:shreerajmandir_pos/domain/models/kot_model.dart';
-import 'package:shreerajmandir_pos/core/app_theme.dart';
+import 'package:coffee_katta_pos/services/kot_service.dart';
+import 'package:coffee_katta_pos/domain/models/kot_model.dart';
+import 'package:coffee_katta_pos/core/app_theme.dart';
 import '../../widgets/global/profile_menu.dart';
-import 'package:shreerajmandir_pos/presentation/providers/active_branch_provider.dart';
+import 'package:coffee_katta_pos/presentation/providers/active_branch_provider.dart';
 import '../../widgets/global/editorial_background.dart';
 
 final kotServiceProvider = Provider<KOTService>((ref) {

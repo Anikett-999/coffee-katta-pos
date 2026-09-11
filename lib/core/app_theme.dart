@@ -2,27 +2,32 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  // Brand Identity Colors
-  static const Color maroon = Color(0xFF650012); // Premium Maroon
-  static const Color cream = Color(0xFFFCF9F4);  // Warm Cream Background
-  static const Color deepGreen = Color(0xFF1F6B3E); // Royal Green
-  static const Color softGrey = Color(0xFFE5E5E5);
+  // Brand Identity Colors (Coffee Katta Warm Palette)
+  static const Color espressoBrown = Color(0xFF4A2C11); // Deep Espresso
+  static const Color warmCaramel   = Color(0xFF8C5835); // Warm Coffee/Caramel
+  static const Color latteCream    = Color(0xFFF9F6F0); // Warm Latte Cream Background
+  static const Color warmAmber     = Color(0xFFD4A373); // Amber Accent
+  static const Color softGrey      = Color(0xFFE8ECEF);
   
-  // Status Colors (Editorial & Premium)
-  static const Color statusAvailable = deepGreen;
-  static const Color statusOccupied = Color(0xFFC27D0E); // Deep Gold/Amber
-  static const Color statusBilling = maroon;
-  static const Color darkBg = Color(0xFF1A1A1A);
+  // Backwards-Compatible Aliases (Keeps existing screens compile-clean)
+  static const Color maroon        = espressoBrown; // Remaps old maroon to espresso
+  static const Color cream         = latteCream;
+  static const Color deepGreen     = Color(0xFF2D6A4F); // Rich Emerald (Available)
+  static const Color darkBg        = Color(0xFF1E1E1E);
   
-  // Color Aliases for legacy code and status
-  static const Color successGreen = deepGreen;
+  // Table Status Colors
+  static const Color statusAvailable = Color(0xFF2D6A4F); // Green (रिकामे टेबल)
+  static const Color statusOccupied  = Color(0xFFD97706); // Warm Amber (सुरू टेबल)
+  static const Color statusBilling   = Color(0xFF78350F); // Deep Brown (बिलिंग)
+  
+  static const Color successGreen   = statusAvailable;
   static const Color occupiedOrange = statusOccupied;
-  static const Color billingBlue = Color(0xFF1F4E6B); // Deep Steel Blue
-  static const Color primaryRed = maroon;
+  static const Color billingBlue    = Color(0xFF1E3A8A);
+  static const Color primaryRed     = Color(0xFFDC2626);
 
   // Premium Button Style (Editorial look)
   static final _buttonStyle = ElevatedButton.styleFrom(
-    backgroundColor: maroon,
+    backgroundColor: espressoBrown,
     foregroundColor: Colors.white,
     minimumSize: const Size(64, 56), 
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)), // Sharper corners for editorial feel
@@ -37,11 +42,11 @@ class AppTheme {
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
-      scaffoldBackgroundColor: cream,
+      scaffoldBackgroundColor: latteCream,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: maroon,
-        primary: maroon,
-        secondary: deepGreen,
+        seedColor: espressoBrown,
+        primary: espressoBrown,
+        secondary: warmCaramel,
         surface: Colors.white,
         brightness: Brightness.light,
       ),
@@ -57,13 +62,13 @@ class AppTheme {
         margin: const EdgeInsets.all(8),
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: cream,
-        foregroundColor: maroon,
+        backgroundColor: latteCream,
+        foregroundColor: espressoBrown,
         elevation: 0,
         titleTextStyle: GoogleFonts.epilogue(
           fontSize: 20,
           fontWeight: FontWeight.bold,
-          color: maroon,
+          color: espressoBrown,
         ),
       ),
     );
@@ -73,9 +78,9 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: maroon,
-        primary: maroon,
-        secondary: deepGreen,
+        seedColor: espressoBrown,
+        primary: espressoBrown,
+        secondary: warmAmber,
         brightness: Brightness.dark,
         surface: darkBg,
       ),

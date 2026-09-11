@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:shreerajmandir_pos/core/app_theme.dart';
-import 'package:shreerajmandir_pos/domain/models/table_model.dart';
-import 'package:shreerajmandir_pos/presentation/screens/waiter/order_screen.dart';
-import 'package:shreerajmandir_pos/presentation/screens/admin/billing_screen.dart';
+import 'package:coffee_katta_pos/core/app_theme.dart';
+import 'package:coffee_katta_pos/domain/models/table_model.dart';
+import 'package:coffee_katta_pos/presentation/screens/waiter/order_screen.dart';
+import 'package:coffee_katta_pos/presentation/screens/admin/billing_screen.dart';
 
 class TableCard extends StatelessWidget {
   final TableModel table;
