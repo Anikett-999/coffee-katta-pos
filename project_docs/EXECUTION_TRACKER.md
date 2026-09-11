@@ -34,19 +34,35 @@
 
 ---
 
-### [X] Phase 2: Database Multi-Tenancy Scoping & Menu Catalog Seeding
-- [x] Re-scope Firestore business ID to `'coffee_katta'` in 8 service & provider files
+### [X] Phase 2: Database Multi-Tenancy Scoping
+- [x] Re-scope Firestore business ID to `'coffee_katta'` in 8 service & provider files:
+  - `billing_service.dart`, `kot_service.dart`, `menu_service.dart`, `table_service.dart`
+  - `seed_data_service.dart`, `branch_service.dart`, `analytics_service.dart`, `branch_provider.dart`
 - [x] Set default branch to `'latur_main'`
+- [x] Verified zero touch / zero harm to `/businesses/rajmandir_main/...` (0 occurrences in lib/)
+- [x] Root & Branch Firestore document initialization (`/businesses/coffee_katta/branches/latur_main`)
+- [x] 20 Tables (T1–T20) across Indoor AC (T1-T8), Outdoor Patio (T9-T14), and Katta High Tops (T15-T20)
+- [x] Global sequence counters initialized (`kotCounter: 1000`, `billCounter: 1000`)
+- [x] Automated test suite `test/phase2_database_scope_test.dart` (PASSED)
+- [x] Gate 2 Review: Completed & Verified
+
+---
+
+### [X] Phase 3: Menu & Categories Seed Data
 - [x] Replace `assets/data/menu_items.json` with 45-item Coffee Katta cafe catalog
+- [x] 6 official Menu Categories:
+  - Cold Coffee & Shakes (10 items)
+  - Hot Beverages (10 items)
+  - Sandwiches & Toasts (8 items)
+  - Burgers & Wraps (6 items)
+  - Snacks & Fries (6 items)
+  - Pizzas & Combos (5 items)
 - [x] Update `SeedDataService` to persist beverage/food variants
 - [x] Write & execute automated Firestore seeder `scripts/seed_coffee_katta_data.py`:
-  - 6 Menu Categories (Cold Coffee & Shakes, Hot Beverages, Sandwiches & Toasts, Burgers & Wraps, Snacks & Fries, Pizzas & Combos)
-  - 45 Menu Items mapped with Indian Rupee (₹) prices and variants
-  - 20 Tables (T1–T20) across Indoor AC (T1-T8), Outdoor Patio (T9-T14), and Katta High Tops (T15-T20)
-  - Global counters initialized (`kotCounter: 1000`, `billCounter: 1000`)
-- [x] Verified zero touch / zero harm to `/businesses/rajmandir_main/...` (0 occurrences in lib/)
-- [x] Automated test suite `test/phase2_database_scope_test.dart` & `test/kot_service_test.dart` (21/21 tests passed)
-- [x] Gate 2 Review: Ready for User Verification
+  - Cleaned up old placeholder items
+  - Seeded 45 items with Indian Rupee (₹) prices and size variant options
+- [x] Automated test suite verifying 45 items and 6 categories (PASSED)
+- [x] Gate 3 Review: Completed & Verified
 
 ---
 
