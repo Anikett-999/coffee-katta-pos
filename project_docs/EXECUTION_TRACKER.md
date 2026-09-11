@@ -2,9 +2,21 @@
 
 **Target System**: Coffee Katta Flagship Cafe, Near Rajiv Gandhi Chowk, Latur, Maharashtra 413512  
 **Branch**: `feature/coffee-katta-pos`  
-**Protocol**: Strict Phased-Gate Protocol (1 Phase per gate)
+**Protocol**: Strict Phased-Gate Protocol (1 Phase per gate)  
+**Git Remote**: Disconnected from Shree Rajmandir; targeted to `https://github.com/Anikett-999/coffee-katta-pos.git`  
+**Firebase Backend**: `coffee-katta-pos` (Location: `asia-south1` Mumbai, Firestore & Auth Active)
 
 ---
+
+## 🛡️ Cloud & Repo Isolation Status
+- [x] Disconnect from `https://github.com/Anikett-999/shreerajmandir-v2.git`
+- [x] Target remote origin set to `https://github.com/Anikett-999/coffee-katta-pos.git`
+- [x] Create dedicated GCP/Firebase project: `coffee-katta-pos`
+- [x] Enable Firestore & Identity Toolkit APIs
+- [x] Create Firestore Native DB in `asia-south1` (Mumbai, India)
+- [x] Register Android app (`com.coffeekatta.pos`) & generate new `google-services.json`
+- [x] Register Web app & generate new `firebase_options.dart`
+- [x] Deploy initial `firestore.rules` to `coffee-katta-pos`
 
 ## 🚦 Phase Tracking
 
