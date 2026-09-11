@@ -548,7 +548,7 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
 
                   if (isBeverage) {
                     _showBeverageCustomizer(item, catName);
-                  } else if (item.variants.isNotEmpty) {
+                  } else if (item.variants.length > 1) {
                     _showVariantDialog(item, catName);
                   } else {
                     ref.read(cartProvider(widget.table.tableId).notifier).addItem(item, catName);
@@ -576,9 +576,9 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                       const SizedBox(height: 8),
                       Text('₹${item.price.toStringAsFixed(0)}',
                           style: const TextStyle(color: AppTheme.deepGreen, fontWeight: FontWeight.bold, fontSize: 18)),
-                      if (item.variants.isNotEmpty) ...[
+                      if (item.variants.length > 1) ...[
                         const SizedBox(height: 4),
-                        const Text('Has Variants', style: TextStyle(color: Colors.grey, fontSize: 10)),
+                        const Text('Has Sizes / Variants', style: TextStyle(color: AppTheme.warmCaramel, fontSize: 10, fontWeight: FontWeight.bold)),
                       ],
                     ],
                   ),
@@ -629,10 +629,13 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                 {'name': 'Extra Ice Cream', 'price': 30.0},
                 {'name': 'Extra Espresso Shot', 'price': 30.0},
                 {'name': 'Chocolate Syrup', 'price': 20.0},
+                {'name': 'Whipped Cream', 'price': 25.0},
               ]
             : [
-                {'name': 'Extra Espresso Shot', 'price': 30.0},
                 {'name': 'Extra Milk / Cream', 'price': 15.0},
+                {'name': 'Extra Espresso Shot', 'price': 30.0},
+                {'name': 'Extra Ice Cream', 'price': 30.0},
+                {'name': 'Whipped Cream', 'price': 25.0},
               ];
 
         showModalBottomSheet(
@@ -1501,7 +1504,7 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
 
         // 3. Cart Right Panel (Persistent)
         SizedBox(
-          width: 350,
+          width: 380,
           child: Column(
             children: [
               const Padding(padding: EdgeInsets.all(16.0), child: Text('CURRENT KOT', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18))),
@@ -1564,127 +1567,211 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
     return Consumer(
       builder: (context, ref, child) {
         final cart = ref.watch(cartProvider(widget.table.tableId));
-        if(cart.isEmpty) return const Center(child: Text('Add items from the menu.', style: TextStyle(color: Colors.grey, fontSize: 18)));
+        if (cart.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.shopping_bag_outlined, size: 44, color: Colors.brown[200]),
+                const SizedBox(height: 10),
+                Text(
+                  'Cart is empty',
+                  style: TextStyle(color: Colors.brown[400], fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Tap items to add to order',
+                  style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                ),
+              ],
+            ),
+          );
+        }
 
         return ListView.separated(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           itemCount: cart.length,
           separatorBuilder: (context, index) => const SizedBox(height: 8),
           itemBuilder: (context, index) {
             final i = cart[index];
+            final lineTotal = i.price * i.quantity;
+
             return Container(
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFEADBCE), width: 1),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                title: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(i.item.name, 
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                          const SizedBox(height: 2),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                            decoration: BoxDecoration(
-                              color: Colors.grey[200],
-                              borderRadius: BorderRadius.circular(4),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Top Row: Item Name + Variant (Left), and Compact Stepper (Right)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 6,
+                          runSpacing: 2,
+                          children: [
+                            Text(
+                              i.item.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: AppTheme.espressoBrown,
+                              ),
                             ),
-                            child: Text(i.categoryName.toUpperCase(), 
-                              style: TextStyle(color: Colors.grey[700], fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (i.variant != null && i.variant!.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 8),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppTheme.warmCaramel.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: AppTheme.warmCaramel.withValues(alpha: 0.3)),
-                          ),
-                          child: Text(i.variant!, 
-                            style: const TextStyle(color: AppTheme.espressoBrown, fontSize: 11, fontWeight: FontWeight.bold)),
+                            if (i.variant != null && i.variant!.isNotEmpty && i.variant != 'Standard')
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.warmCaramel.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  i.variant!,
+                                  style: const TextStyle(
+                                    color: AppTheme.warmCaramel,
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
-                  ],
-                ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 4),
-                    Wrap(
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: 6,
-                      children: [
-                        Text('₹${(i.price * i.quantity).toStringAsFixed(0)}', 
-                          style: const TextStyle(color: AppTheme.deepGreen, fontSize: 16, fontWeight: FontWeight.bold)),
-                        if (i.quantity > 1 || i.price != i.item.price)
-                          Text('(₹${i.price.toStringAsFixed(0)} each)', 
-                            style: TextStyle(color: Colors.brown[600], fontSize: 12, fontWeight: FontWeight.w500)),
-                      ],
-                    ),
-                    if (i.note.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
+                      const SizedBox(width: 8),
+
+                      // Compact Quantity Stepper
+                      Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF7F4EF),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFE2D7CC)),
+                        ),
                         child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.tune, size: 14, color: AppTheme.warmCaramel),
-                            const SizedBox(width: 4),
-                            Expanded(
+                            InkWell(
+                              onTap: () => ref.read(cartProvider(widget.table.tableId).notifier).updateQuantity(i.cartId, -1),
+                              borderRadius: const BorderRadius.horizontal(left: Radius.circular(8)),
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                                child: Icon(Icons.remove, size: 15, color: AppTheme.espressoBrown),
+                              ),
+                            ),
+                            Container(
+                              constraints: const BoxConstraints(minWidth: 22),
+                              alignment: Alignment.center,
                               child: Text(
-                                i.note, 
-                                style: const TextStyle(color: AppTheme.warmCaramel, fontSize: 12, fontWeight: FontWeight.w600),
+                                '${i.quantity}',
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.espressoBrown),
+                              ),
+                            ),
+                            InkWell(
+                              onTap: () => ref.read(cartProvider(widget.table.tableId).notifier).updateQuantity(i.cartId, 1),
+                              borderRadius: const BorderRadius.horizontal(right: Radius.circular(8)),
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                                child: Icon(Icons.add, size: 15, color: AppTheme.espressoBrown),
                               ),
                             ),
                           ],
                         ),
                       ),
-                    const SizedBox(height: 2),
-                    TextButton.icon(
-                      onPressed: () => _showNoteDialog(i.cartId, i.note),
-                      icon: const Icon(Icons.edit_note, size: 18),
-                      label: Text(i.note.isEmpty ? 'Add Note' : 'Edit Note', style: const TextStyle(fontSize: 12)),
-                      style: TextButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        foregroundColor: AppTheme.espressoBrown,
+                    ],
+                  ),
+
+                  // Customization Note Box
+                  if (i.note.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFAF3EC),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: const Color(0xFFF0E0D0)),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.tune, size: 13, color: AppTheme.warmCaramel),
+                          const SizedBox(width: 5),
+                          Expanded(
+                            child: Text(
+                              i.note,
+                              style: const TextStyle(
+                                color: AppTheme.warmCaramel,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                        icon: const Icon(Icons.remove_circle_outline, size: 24), 
-                        onPressed: () => ref.read(cartProvider(widget.table.tableId).notifier).updateQuantity(i.cartId, -1)
-                    ),
-                    Container(
-                        alignment: Alignment.center,
-                        width: 32,
-                        child: Text('${i.quantity}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))
-                    ),
-                    IconButton(
-                        icon: const Icon(Icons.add_circle, size: 24), 
-                        color: AppTheme.maroon, 
-                        onPressed: () => ref.read(cartProvider(widget.table.tableId).notifier).updateQuantity(i.cartId, 1)
-                    ),
-                  ],
-                ),
+
+                  const SizedBox(height: 5),
+
+                  // Bottom Row: Price & Edit Note Button
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            '₹${lineTotal.toStringAsFixed(0)}',
+                            style: const TextStyle(
+                              color: AppTheme.deepGreen,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                          ),
+                          if (i.quantity > 1)
+                            Text(
+                              ' (₹${i.price.toStringAsFixed(0)} ea)',
+                              style: TextStyle(color: Colors.brown[400], fontSize: 11),
+                            ),
+                        ],
+                      ),
+                      InkWell(
+                        onTap: () => _showNoteDialog(i.cartId, i.note),
+                        borderRadius: BorderRadius.circular(4),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.edit_note, size: 16, color: Colors.brown[400]),
+                              const SizedBox(width: 2),
+                              Text(
+                                i.note.isEmpty ? 'Add note' : 'Edit note',
+                                style: TextStyle(fontSize: 11, color: Colors.brown[600], fontWeight: FontWeight.w500),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             );
           },
         );
-      }
+      },
     );
   }
 
