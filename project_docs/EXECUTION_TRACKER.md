@@ -71,13 +71,17 @@
 - [x] Implemented Beverage Customizer bottom sheet modal:
   - Cup size selection with dynamic price parsing (`Regular (250ml):0`, `Large (350ml):30`, etc.)
   - Sugar level quick buttons (`No Sugar`, `Less Sugar`, `Normal Sugar`)
-  - Optional Add-on chips (`Extra Ice Cream ₹30`, `Extra Espresso Shot ₹30`, `Chocolate Syrup ₹20`, `Extra Milk ₹15`)
+  - Optional Add-on chips for both Cold & Hot Beverages: `+ Extra Ice Cream (₹30)`, `+ Extra Espresso Shot (₹30)`, `+ Extra Milk / Cream (₹15)`, `+ Whipped Cream (₹25)`, etc.
   - Special instructions text field
   - Live unit price calculator and action button (`Add to Order • ₹...`)
-- [x] Implemented Food Variant bottom sheet modal for non-beverage categories (Pizzas, Fries, etc.)
-- [x] Upgraded `CartItem` and `CartNotifier` to store and calculate based on custom unit prices (`final double price`)
-- [x] Updated KOT dispatch in `_sendToKitchen` to map customized prices, variants, and notes into `KOTItem`
-- [x] Preserved distinct line items when same item is ordered with different customization notes (e.g. No Sugar vs Normal Sugar)
+- [x] Streamlined 1-Tap Ordering: Non-variant items (combos, sandwiches, burgers) add immediately to cart without redundant "Standard" modal
+- [x] Pizza Catalog Cleanup: Cleaned item titles in Firestore/JSON (`Margherita Pizza`, `Farmhouse Veg Pizza`, `Paneer Special Pizza`) so size upgrades cleanly show `7 inch` and `9 inch`
+- [x] Cart UI Overhaul:
+  - Redesigned cart cards to a compact, non-squished cafe layout with inline variant badges
+  - Dedicated custom stepper `[-] Qty [+]` with clean touch targets
+  - Subtle customization note container with tune icon
+  - Clean bottom price & edit note row without repetitive `(₹X each)` when qty is 1
+  - Expanded desktop cart column width to 380px for breathing room
 - [x] Automated test suite `test/phase4_beverage_customizer_test.dart` & `test/cart_notifier_test.dart` (27/27 tests passed)
 - [x] Gate 4 Review: Ready for User Verification
 
