@@ -18,7 +18,7 @@ class SettingsScreen extends ConsumerWidget {
     final Uri emailLaunchUri = Uri(
       scheme: 'mailto',
       path: 'support@ldma.in',
-      query: 'subject=Support Request - Shree Rajmandir POS v2.0',
+      query: 'subject=Support Request - Coffee Katta POS',
     );
 
     try {
@@ -182,7 +182,7 @@ class SettingsScreen extends ConsumerWidget {
                 children: [
                   Image.asset('assets/branding/splash_logo.png', height: 40),
                   const SizedBox(height: 8),
-                  const Text('Shree Rajmandir POS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  const Text('Coffee Katta POS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                   const Text('Powered by LDMA Technologies', style: TextStyle(fontSize: 10)),
                 ],
               ),

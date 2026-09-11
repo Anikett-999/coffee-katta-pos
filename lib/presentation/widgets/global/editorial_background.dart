@@ -33,10 +33,10 @@ class EditorialBackground extends StatelessWidget {
           ),
         ),
 
-        // Tint Layer: Maroon overlay with very low opacity
+        // Tint Layer: Warm Espresso overlay with subtle opacity
         Positioned.fill(
           child: Container(
-            color: AppTheme.maroon.withOpacity(0.08),
+            color: AppTheme.espressoBrown.withValues(alpha: 0.04),
           ),
         ),
 

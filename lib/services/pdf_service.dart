@@ -30,7 +30,7 @@ class PdfService {
               pw.Center(
                 child: pw.Column(
                   children: [
-                    pw.Text('SHREE RAJMANDIR',
+                    pw.Text(branch.branchName.isNotEmpty ? branch.branchName.toUpperCase() : 'COFFEE KATTA',
                         style: pw.TextStyle(
                             fontSize: 14, fontWeight: pw.FontWeight.bold)),
                     pw.Text(branch.location.toUpperCase(),
@@ -280,7 +280,7 @@ class PdfService {
               child: pw.Column(
                 children: [
                    pw.Text(dsep, style: baseStyle),
-                  pw.Text('SHREE RAJMANDIR', 
+                  pw.Text(branch.branchName.isNotEmpty ? branch.branchName.toUpperCase() : 'COFFEE KATTA', 
                     style: pw.TextStyle(font: courierBold, fontSize: 10)),
                   pw.Text(branch.branchName.toUpperCase(), 
                     style: pw.TextStyle(font: courierBold, fontSize: 8)),
@@ -395,7 +395,7 @@ class PdfService {
               child: pw.Column(
                 children: [
                   pw.Text(dsep, style: baseStyle),
-                  pw.Text('SHREE RAJMANDIR', 
+                  pw.Text(branch.branchName.isNotEmpty ? branch.branchName.toUpperCase() : 'COFFEE KATTA', 
                     style: pw.TextStyle(font: courierBold, fontSize: 10)),
                   pw.Text(branch.branchName.toUpperCase(), 
                     style: pw.TextStyle(font: courierBold, fontSize: 8)),

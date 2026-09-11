@@ -110,7 +110,7 @@ class BranchSelectionScreen extends ConsumerWidget {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('Welcome to Shree Rajmandir'),
+        title: const Text('Welcome to Coffee Katta'),
         content: const Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,

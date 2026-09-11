@@ -56,7 +56,7 @@ class AppDrawer extends ConsumerWidget {
                       child: Image.asset(
                         'assets/branding/app_icon.png',
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const Icon(Icons.store_rounded, color: AppTheme.maroon, size: 40),
+                        errorBuilder: (_, __, ___) => const Icon(Icons.coffee_rounded, color: AppTheme.warmAmber, size: 40),
                       ),
                     ),
                   ),
@@ -74,7 +74,7 @@ class AppDrawer extends ConsumerWidget {
                       ),
                     ),
                     loading: () => const Text('Loading...', style: TextStyle(color: Colors.white70)),
-                    error: (_, __) => const Text('Rajmandir POS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    error: (_, __) => const Text('Coffee Katta POS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
                   const SizedBox(height: 4),
                   // User Name

@@ -16,12 +16,12 @@ class ForgotPasswordScreen extends ConsumerStatefulWidget {
 
 class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
   with WidgetsBindingObserver {
-  static const Color _primary = Color(0xFF8C0D20);
-  static const Color _background = Color(0xFFFDFBF7);
+  static const Color _primary = Color(0xFF4A2C11); // Deep Espresso
+  static const Color _background = Color(0xFFF9F6F0); // Warm Latte Cream
   static const Color _surface = Colors.white;
   static const Color _onSurface = Color(0xFF1C1C19);
-  static const Color _onSurfaceVariant = Color(0xFF594140);
-  static const Color _inputBackground = Color(0xFFF7F5F2);
+  static const Color _onSurfaceVariant = Color(0xFF6F4E37); // Warm Roast
+  static const Color _inputBackground = Color(0xFFF5EFEB); // Soft Latte Cream
 
   final _emailCtrl = TextEditingController();
   bool _loading = false;
@@ -168,16 +168,23 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
                       width: double.infinity,
                       child: Center(
                         child: Container(
-                          constraints: const BoxConstraints(maxWidth: 300, maxHeight: 130),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          constraints: const BoxConstraints(maxWidth: 320, maxHeight: 110),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                           decoration: BoxDecoration(
-                            border: Border.all(color: Colors.black, width: 1.5),
-                            borderRadius: BorderRadius.circular(10),
+                            color: Colors.black,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF4A2C11).withValues(alpha: 0.25),
+                                blurRadius: 16,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
                           child: Image.asset(
                             'assets/branding/splash_logo.png', 
                             fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) => const SizedBox(),
+                            errorBuilder: (context, error, stackTrace) => const Icon(Icons.coffee_rounded, size: 70, color: Color(0xFFD4A373)),
                           ),
                         ),
                       ),

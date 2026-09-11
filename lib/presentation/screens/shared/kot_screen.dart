@@ -150,7 +150,7 @@ class _KOTCardState extends ConsumerState<_KOTCard> {
             padding: const EdgeInsets.all(16),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [AppTheme.maroon, Color(0xFF500000)],
+                colors: [AppTheme.espressoBrown, Color(0xFF2E1A09)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),

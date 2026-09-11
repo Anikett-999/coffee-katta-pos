@@ -127,7 +127,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
       
       await Share.shareXFiles(
         [XFile(file.path)],
-        text: 'E-Bill for Table ${bill.tableName} at Shree Rajmandir',
+        text: 'E-Bill for Table ${bill.tableName} at Coffee Katta',
       );
     } catch (e) {
       if (mounted) {

@@ -139,7 +139,7 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
         27, 64, // Initialize
         10, 
         ...utf8.encode('================================\n'),
-        ...utf8.encode('      SHREE RAJMANDIR POS       \n'),
+        ...utf8.encode('      COFFEE KATTA POS          \n'),
         ...utf8.encode('      PRINTER TEST TICKET       \n'),
         ...utf8.encode('================================\n'),
         ...utf8.encode('Status: ALIVE & CONNECTED\n'),
@@ -661,12 +661,12 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         gradient: const LinearGradient(
-          colors: [AppTheme.maroon, Color(0xFF5D1212)],
+          colors: [AppTheme.espressoBrown, Color(0xFF2E1A09)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         boxShadow: [
-          BoxShadow(color: AppTheme.maroon.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(color: AppTheme.espressoBrown.withValues(alpha: 0.3), blurRadius: 10, offset: const Offset(0, 4)),
         ],
       ),
       child: ElevatedButton.icon(

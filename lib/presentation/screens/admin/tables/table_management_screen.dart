@@ -159,13 +159,13 @@ class _TableManagementScreenState extends ConsumerState<TableManagementScreen> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           gradient: const LinearGradient(
-            colors: [AppTheme.maroon, Color(0xFF800000)],
+            colors: [AppTheme.espressoBrown, Color(0xFF2E1A09)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           boxShadow: [
             BoxShadow(
-              color: AppTheme.maroon.withOpacity(0.35),
+              color: AppTheme.espressoBrown.withValues(alpha: 0.35),
               blurRadius: 10,
               spreadRadius: 1,
               offset: const Offset(0, 4),

@@ -194,7 +194,7 @@ class PrintService {
 
     // 1. Branding Header
     bytes += generator.text(dsep);
-    bytes += generator.text('SHREE RAJMANDIR', 
+    bytes += generator.text(branch.branchName.isNotEmpty ? branch.branchName.toUpperCase() : 'COFFEE KATTA', 
         styles: const PosStyles(align: PosAlign.center, bold: true, height: PosTextSize.size2, width: PosTextSize.size2));
     bytes += generator.text(branch.location.toUpperCase(), styles: const PosStyles(align: PosAlign.center, bold: true));
     bytes += generator.text(branch.address, styles: const PosStyles(align: PosAlign.center));
@@ -453,7 +453,7 @@ class PrintService {
     const String warmMessage =
         "Loved your visit?\n"
         "Scan the QR to rate us and stay connected\n"
-        "for more sweet moments with Shree Rajmandir.";
+        "for great coffee and conversations at Coffee Katta.";
     
     // Message text
     final messagePainter = TextPainter(
