@@ -45,10 +45,10 @@ class AuthService extends ChangeNotifier {
       profileIssueMessage = null;
       await _auth.signInWithEmailAndPassword(email: email, password: password);
       
-      // Update last login timestamp
-      await _firestore.collection('users').doc(_auth.currentUser?.uid).update({
+      // Update last login timestamp safely
+      await _firestore.collection('users').doc(_auth.currentUser?.uid).set({
         'lastLogin': FieldValue.serverTimestamp(),
-      });
+      }, SetOptions(merge: true));
       
       return null; // success
     } on FirebaseAuthException catch (e) {
