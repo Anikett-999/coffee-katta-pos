@@ -72,6 +72,45 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
     });
   }
 
+  void _showSuccessDialog(String email) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.mark_email_read_rounded, color: Color(0xFF2E7D32), size: 28),
+            SizedBox(width: 10),
+            Text('Link Dispatched', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          ],
+        ),
+        content: Text(
+          'A password reset link has been dispatched to $email.\n\nPlease check your inbox and spam/junk folder. Click the link in the email to set your new password, then return here to log in.',
+          style: const TextStyle(fontSize: 14, height: 1.45),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Stay Here', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.pop(context);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Back to Login'),
+          ),
+        ],
+      ),
+    );
+  }
+
   String? _validateEmail(String email) {
     if (email.isEmpty) return 'Email is required';
     final regex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
@@ -116,18 +155,14 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
       if (!mounted) return;
       setState(() => _sent = true);
       _startCooldown();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Reset link sent. Please check inbox/spam folder.'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      _showSuccessDialog(email);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Unable to send reset link. Please verify email and try again.'),
           backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     } finally {
@@ -274,7 +309,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
                                 backgroundColor: _primary,
                                 foregroundColor: Colors.white,
                                 elevation: 8,
-                                shadowColor: const Color.fromRGBO(140, 13, 32, 0.24),
+                                shadowColor: const Color.fromRGBO(74, 44, 17, 0.24),
                               ),
                               child: _loading
                                   ? const SizedBox(
