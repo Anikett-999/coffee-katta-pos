@@ -7,8 +7,8 @@ import 'package:uuid/uuid.dart';
 
 class SeedDataService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final String businessId = 'rajmandir_main';
-  final String branchId = 'branch_001';
+  final String businessId = 'coffee_katta';
+  final String branchId = 'latur_main';
 
   Future<void> seedMenuData() async {
     try {
@@ -54,6 +54,7 @@ class SeedDataService {
           name: itemData['name'],
           categoryId: catId,
           price: (itemData['price'] as num).toDouble(),
+          variants: (itemData['variants'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [],
           isAvailable: true,
         );
 
@@ -74,8 +75,18 @@ class SeedDataService {
 
   Future<void> seedInitialTables() async {
     try {
-      for (int i = 1; i <= 10; i++) {
+      for (int i = 1; i <= 20; i++) {
         final tableId = 'T$i';
+        String section = 'Indoor AC';
+        int capacity = 4;
+        if (i >= 9 && i <= 14) {
+          section = 'Outdoor Patio';
+          capacity = (i >= 13) ? 6 : 4;
+        } else if (i >= 15) {
+          section = 'Katta High Tops';
+          capacity = 2;
+        }
+
         await _firestore
             .collection('businesses')
             .doc(businessId)
@@ -86,7 +97,8 @@ class SeedDataService {
             .set({
           'tableId': tableId,
           'name': 'Table $i',
-          'capacity': 4,
+          'section': section,
+          'capacity': capacity,
           'status': 'available',
           'updatedAt': FieldValue.serverTimestamp(),
         });

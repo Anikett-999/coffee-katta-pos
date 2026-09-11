@@ -10,7 +10,7 @@ class BranchService {
   Future<void> updateBranchDetails(BranchModel branch) async {
     try {
       await _firestore
-          .doc('businesses/rajmandir_main/branches/${branch.branchId}')
+          .doc('businesses/coffee_katta/branches/${branch.branchId}')
           .update(branch.toJson());
     } catch (e) {
       throw 'Failed to update branch details: $e';
@@ -20,7 +20,7 @@ class BranchService {
   Future<void> createBranch(BranchModel branch) async {
     try {
       await _firestore
-          .doc('businesses/rajmandir_main/branches/${branch.branchId}')
+          .doc('businesses/coffee_katta/branches/${branch.branchId}')
           .set(branch.toJson());
     } catch (e) {
       throw 'Failed to create branch: $e';

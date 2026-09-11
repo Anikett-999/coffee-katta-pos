@@ -9,7 +9,7 @@ final branchProvider = StreamProvider<BranchModel>((ref) {
   if (activeBranchId == null) {
      throw Exception('No active branch selected');
   }
-  final branchPath = 'businesses/rajmandir_main/branches/$activeBranchId';
+  final branchPath = 'businesses/coffee_katta/branches/$activeBranchId';
   
   return FirebaseFirestore.instance
       .doc(branchPath)
@@ -24,7 +24,7 @@ final branchProvider = StreamProvider<BranchModel>((ref) {
 
 final allBranchesProvider = StreamProvider<List<BranchModel>>((ref) {
   return FirebaseFirestore.instance
-      .collection('businesses/rajmandir_main/branches')
+      .collection('businesses/coffee_katta/branches')
       .snapshots()
       .map((snapshot) => snapshot.docs
           .map((doc) {

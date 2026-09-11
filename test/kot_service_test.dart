@@ -15,9 +15,9 @@ void main() {
       // Seed a table
       await fakeFirestore
           .collection('businesses')
-          .doc('rajmandir_main')
+          .doc('coffee_katta')
           .collection('branches')
-          .doc('branch_001')
+          .doc('latur_main')
           .collection('tables')
           .doc('T3')
           .set({
@@ -38,10 +38,10 @@ void main() {
             const KOTItem(
               uniqueId: 'item_1_test',
               itemId: 'I1',
-              name: 'Vanilla Ice Cream',
+              name: 'Classic Cold Coffee',
               category: 'C1',
               qty: 2,
-              price: 100,
+              price: 120,
             ),
           ],
           userId: 'dev123',
@@ -54,9 +54,9 @@ void main() {
 
         final tableSnapshot = await fakeFirestore
            .collection('businesses')
-           .doc('rajmandir_main')
+           .doc('coffee_katta')
            .collection('branches')
-           .doc('branch_001')
+           .doc('latur_main')
            .collection('tables')
            .doc('T3')
            .get();

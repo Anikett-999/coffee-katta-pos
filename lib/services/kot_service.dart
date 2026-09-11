@@ -5,13 +5,13 @@ import 'package:uuid/uuid.dart';
 
 class KOTService {
   final FirebaseFirestore _firestore;
-  final String businessId = 'rajmandir_main';
+  final String businessId = 'coffee_katta';
   final String branchId;
 
   // Make branchId optional for tests; production code should pass explicit branchId.
   KOTService({FirebaseFirestore? firestore, String? branchId})
       : _firestore = firestore ?? FirebaseFirestore.instance,
-        branchId = branchId ?? 'branch_001';
+        branchId = branchId ?? 'latur_main';
 
   DocumentReference get _branchRef => _firestore
       .collection('businesses')

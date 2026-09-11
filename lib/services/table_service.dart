@@ -4,7 +4,7 @@ import '../domain/models/table_model.dart';
 
 class TableService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final String businessId = 'rajmandir_main';
+  final String businessId = 'coffee_katta';
   final String branchId;
 
   TableService({required this.branchId});

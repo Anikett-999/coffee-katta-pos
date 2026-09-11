@@ -6,7 +6,7 @@ import 'analytics_service.dart';
 
 class BillingService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final String businessId = 'rajmandir_main';
+  final String businessId = 'coffee_katta';
   final String branchId;
   final AnalyticsService _analyticsService = AnalyticsService();
 

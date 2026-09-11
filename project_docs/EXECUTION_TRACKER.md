@@ -34,16 +34,19 @@
 
 ---
 
-### [ ] Phase 2: Database Multi-Tenancy Scoping (HOLD)
-- [ ] Re-scope Firestore business ID to `'coffee_katta'` in 8 service & provider files
-- [ ] Set default branch to `'latur_main'`
-- [ ] Verify zero touch / zero harm to `/businesses/rajmandir_main/...`
-
----
-
-### [ ] Phase 3: Menu & Categories Seed Data (HOLD)
-- [ ] Replace `assets/data/menu_items.json` with 45-item Coffee Katta catalog
-- [ ] Update `SeedDataService` to persist variants
+### [X] Phase 2: Database Multi-Tenancy Scoping & Menu Catalog Seeding
+- [x] Re-scope Firestore business ID to `'coffee_katta'` in 8 service & provider files
+- [x] Set default branch to `'latur_main'`
+- [x] Replace `assets/data/menu_items.json` with 45-item Coffee Katta cafe catalog
+- [x] Update `SeedDataService` to persist beverage/food variants
+- [x] Write & execute automated Firestore seeder `scripts/seed_coffee_katta_data.py`:
+  - 6 Menu Categories (Cold Coffee & Shakes, Hot Beverages, Sandwiches & Toasts, Burgers & Wraps, Snacks & Fries, Pizzas & Combos)
+  - 45 Menu Items mapped with Indian Rupee (₹) prices and variants
+  - 20 Tables (T1–T20) across Indoor AC (T1-T8), Outdoor Patio (T9-T14), and Katta High Tops (T15-T20)
+  - Global counters initialized (`kotCounter: 1000`, `billCounter: 1000`)
+- [x] Verified zero touch / zero harm to `/businesses/rajmandir_main/...` (0 occurrences in lib/)
+- [x] Automated test suite `test/phase2_database_scope_test.dart` & `test/kot_service_test.dart` (21/21 tests passed)
+- [x] Gate 2 Review: Ready for User Verification
 
 ---
 

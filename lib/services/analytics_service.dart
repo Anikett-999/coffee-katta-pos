@@ -12,7 +12,7 @@ import 'package:intl/intl.dart';
 
 class AnalyticsService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  static const String _businessId = 'rajmandir_main';
+  static const String _businessId = 'coffee_katta';
 
   DocumentReference _getBranchRef(String branchId) {
     return _firestore
