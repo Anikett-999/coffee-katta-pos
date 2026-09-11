@@ -15,6 +15,15 @@ void main() {
       variants: ['Half', 'Full'],
     );
 
+    final coffeeItem = Item(
+      itemId: 'C101',
+      name: 'Thick Cold Coffee',
+      categoryId: 'cat_cold_coffee',
+      price: 90,
+      isAvailable: true,
+      variants: ['Regular (250ml):0', 'Large (350ml):30'],
+    );
+
     setUp(() {
       cartNotifier = CartNotifier();
     });
@@ -61,6 +70,62 @@ void main() {
        final cartId = cartNotifier.debugState.first.cartId;
        cartNotifier.updateNote(cartId, 'No Spicy');
        expect(cartNotifier.debugState.first.note, 'No Spicy');
+    });
+
+    test('addItem with customized variant price updates unit price and calculates total accurately', () {
+      // Base price 90, Large +30, Extra Ice Cream +30 -> unit price = 150
+      cartNotifier.addItem(
+        coffeeItem,
+        'Cold Coffee & Shakes',
+        variant: 'Large (350ml)',
+        price: 150.0,
+        note: 'Less Sugar, + Extra Ice Cream',
+      );
+
+      expect(cartNotifier.debugState.length, 1);
+      final item = cartNotifier.debugState.first;
+      expect(item.price, 150.0);
+      expect(item.quantity, 1);
+      expect(item.variant, 'Large (350ml)');
+      expect(item.note, 'Less Sugar, + Extra Ice Cream');
+      expect(cartNotifier.total, 150.0);
+
+      // Add another identical one
+      cartNotifier.addItem(
+        coffeeItem,
+        'Cold Coffee & Shakes',
+        variant: 'Large (350ml)',
+        price: 150.0,
+        note: 'Less Sugar, + Extra Ice Cream',
+      );
+      expect(cartNotifier.debugState.length, 1);
+      expect(cartNotifier.debugState.first.quantity, 2);
+      expect(cartNotifier.total, 300.0);
+    });
+
+    test('addItem with same variant but different notes keeps distinct line items', () {
+      // Cup 1: No Sugar
+      cartNotifier.addItem(
+        coffeeItem,
+        'Cold Coffee & Shakes',
+        variant: 'Regular (250ml)',
+        price: 90.0,
+        note: 'No Sugar',
+      );
+
+      // Cup 2: Normal Sugar
+      cartNotifier.addItem(
+        coffeeItem,
+        'Cold Coffee & Shakes',
+        variant: 'Regular (250ml)',
+        price: 90.0,
+        note: 'Normal Sugar',
+      );
+
+      expect(cartNotifier.debugState.length, 2);
+      expect(cartNotifier.debugState[0].note, 'No Sugar');
+      expect(cartNotifier.debugState[1].note, 'Normal Sugar');
+      expect(cartNotifier.total, 180.0);
     });
   });
 }

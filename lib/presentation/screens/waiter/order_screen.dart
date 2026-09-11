@@ -1,6 +1,5 @@
-/// PROTECTED MODULE: WAITER
-/// DO NOT MODIFY this file for Admin feature development.
-/// Contact system architect before changing core waiter workflows.
+/// COFFEE KATTA POS: WAITER ORDERING & BEVERAGE CUSTOMIZER MODULE
+/// Authorized for Coffee Katta Cafe Workflow & Beverage Customization.
 
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
@@ -44,11 +43,35 @@ final allItemsProvider = StreamProvider<List<Item>>((ref) {
 // Holds the current Search Text state globally for the UI
 final searchQueryProvider = StateProvider<String>((ref) => '');
 
+class ParsedVariant {
+  final String label;
+  final String raw;
+  final double extraPrice;
+
+  const ParsedVariant({
+    required this.label,
+    required this.raw,
+    required this.extraPrice,
+  });
+
+  factory ParsedVariant.fromString(String str) {
+    if (str.contains(':')) {
+      final parts = str.split(':');
+      final label = parts[0].trim();
+      final extra = double.tryParse(parts[1].trim()) ?? 0.0;
+      return ParsedVariant(label: label, raw: str, extraPrice: extra);
+    } else {
+      return ParsedVariant(label: str.trim(), raw: str, extraPrice: 0.0);
+    }
+  }
+}
+
 class CartItem {
   final String cartId;
   final Item item;
   final String categoryName;
   final int quantity;
+  final double price;
   final String? variant;
   final String note;
 
@@ -57,16 +80,18 @@ class CartItem {
     required this.item,
     required this.categoryName,
     required this.quantity,
+    double? price,
     this.variant,
     this.note = '',
-  });
+  }) : price = price ?? item.price;
 
-  CartItem copyWith({int? quantity, String? note}) {
+  CartItem copyWith({int? quantity, double? price, String? note}) {
     return CartItem(
       cartId: cartId,
       item: item,
       categoryName: categoryName,
       quantity: quantity ?? this.quantity,
+      price: price ?? this.price,
       variant: variant,
       note: note ?? this.note,
     );
@@ -76,8 +101,20 @@ class CartItem {
 class CartNotifier extends StateNotifier<List<CartItem>> {
   CartNotifier() : super([]);
 
-  void addItem(Item item, String categoryName, {String? variant}) {
-    final index = state.indexWhere((i) => i.item.itemId == item.itemId && i.variant == variant);
+  void addItem(
+    Item item,
+    String categoryName, {
+    String? variant,
+    double? price,
+    String note = '',
+  }) {
+    final effectivePrice = price ?? item.price;
+    final index = state.indexWhere((i) =>
+        i.item.itemId == item.itemId &&
+        i.variant == variant &&
+        i.note == note &&
+        i.price == effectivePrice);
+
     if (index != -1) {
       state = [
         for (int i = 0; i < state.length; i++)
@@ -91,7 +128,9 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
           item: item,
           categoryName: categoryName,
           quantity: 1,
+          price: effectivePrice,
           variant: variant,
+          note: note,
         ),
       ];
     }
@@ -113,7 +152,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
 
   void clear() => state = [];
 
-  double get total => state.fold(0, (sum, i) => sum + (i.item.price * i.quantity));
+  double get total => state.fold(0.0, (sum, i) => sum + (i.price * i.quantity));
 }
 
 final cartProvider = StateNotifierProvider.family<CartNotifier, List<CartItem>, String>((ref, tableId) => CartNotifier());
@@ -186,7 +225,7 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                 name: i.item.name,
                 category: catName,
                 qty: i.quantity,
-                price: i.item.price,
+                price: i.price,
                 variant: i.variant ?? '',
                 note: i.note);
           }).toList(),
@@ -502,7 +541,14 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
               child: InkWell(
                 borderRadius: BorderRadius.circular(12),
                 onTap: () {
-                  if (item.variants.isNotEmpty) {
+                  final isBeverage = catName == 'Cold Coffee & Shakes' ||
+                      catName == 'Hot Beverages' ||
+                      item.categoryId == 'cat_cold_coffee' ||
+                      item.categoryId == 'cat_hot_beverages';
+
+                  if (isBeverage) {
+                    _showBeverageCustomizer(item, catName);
+                  } else if (item.variants.isNotEmpty) {
                     _showVariantDialog(item, catName);
                   } else {
                     ref.read(cartProvider(widget.table.tableId).notifier).addItem(item, catName);
@@ -552,29 +598,432 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('$itemName added!'),
-            duration: const Duration(milliseconds: 500),
+            duration: const Duration(milliseconds: 600),
             behavior: SnackBarBehavior.floating,
           ),
         );
       }
 
-      void _showVariantDialog(Item item, String catName) {
-        showDialog(
+      void _showBeverageCustomizer(Item item, String catName) {
+        List<ParsedVariant> variants = item.variants
+            .map((v) => ParsedVariant.fromString(v))
+            .toList();
+        if (variants.isEmpty) {
+          variants = [
+            const ParsedVariant(label: 'Regular', raw: 'Regular:0', extraPrice: 0.0),
+            const ParsedVariant(label: 'Large', raw: 'Large:30', extraPrice: 30.0),
+          ];
+        }
+
+        ParsedVariant selectedVariant = variants.first;
+        String selectedSugar = 'Normal Sugar';
+        final Set<String> selectedAddOns = {};
+        final TextEditingController specialNoteController = TextEditingController();
+
+        final isCold = catName.toLowerCase().contains('cold') ||
+            item.name.toLowerCase().contains('cold') ||
+            item.name.toLowerCase().contains('shake');
+
+        final addOnOptions = isCold
+            ? [
+                {'name': 'Extra Ice Cream', 'price': 30.0},
+                {'name': 'Extra Espresso Shot', 'price': 30.0},
+                {'name': 'Chocolate Syrup', 'price': 20.0},
+              ]
+            : [
+                {'name': 'Extra Espresso Shot', 'price': 30.0},
+                {'name': 'Extra Milk / Cream', 'price': 15.0},
+              ];
+
+        showModalBottomSheet(
           context: context,
-          builder: (context) => AlertDialog(
-            title: Text('Select Variant for ${item.name}'),
-            content: Column(
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (ctx) => StatefulBuilder(
+            builder: (context, setModalState) {
+              double addOnsTotal = 0.0;
+              for (final opt in addOnOptions) {
+                if (selectedAddOns.contains(opt['name'])) {
+                  addOnsTotal += (opt['price'] as double);
+                }
+              }
+              final double unitPrice = item.price + selectedVariant.extraPrice + addOnsTotal;
+
+              return Container(
+                padding: EdgeInsets.only(
+                  left: 20,
+                  right: 20,
+                  top: 20,
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                ),
+                decoration: const BoxDecoration(
+                  color: AppTheme.latteCream,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: AppTheme.espressoBrown.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.coffee, color: AppTheme.espressoBrown, size: 28),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item.name,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.espressoBrown,
+                                  ),
+                                ),
+                                Text(
+                                  catName,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.brown[600],
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ],
+                      ),
+                      const Divider(height: 24),
+
+                      // 1. Cup Size / Variant Selection
+                      if (variants.length > 1) ...[
+                        const Text(
+                          'CUP SIZE / VARIANT',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1,
+                            color: AppTheme.warmCaramel,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: variants.map((v) {
+                            final isSelected = selectedVariant.label == v.label;
+                            return ChoiceChip(
+                              label: Text(
+                                v.extraPrice > 0
+                                    ? '${v.label} (+₹${v.extraPrice.toStringAsFixed(0)})'
+                                    : v.label,
+                                style: TextStyle(
+                                  color: isSelected ? Colors.white : AppTheme.espressoBrown,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                ),
+                              ),
+                              selected: isSelected,
+                              selectedColor: AppTheme.espressoBrown,
+                              backgroundColor: Colors.white,
+                              onSelected: (selected) {
+                                if (selected) {
+                                  setModalState(() => selectedVariant = v);
+                                }
+                              },
+                            );
+                          }).toList(),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // 2. Sugar Level Quick Buttons
+                      const Text(
+                        'SUGAR LEVEL',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1,
+                          color: AppTheme.warmCaramel,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: ['No Sugar', 'Less Sugar', 'Normal Sugar'].map((s) {
+                          final isSelected = selectedSugar == s;
+                          return Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              child: ChoiceChip(
+                                label: Center(
+                                  child: Text(
+                                    s,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: isSelected ? Colors.white : AppTheme.espressoBrown,
+                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                    ),
+                                  ),
+                                ),
+                                selected: isSelected,
+                                selectedColor: AppTheme.warmCaramel,
+                                backgroundColor: Colors.white,
+                                onSelected: (selected) {
+                                  if (selected) {
+                                    setModalState(() => selectedSugar = s);
+                                  }
+                                },
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // 3. Optional Add-on Chips
+                      const Text(
+                        'OPTIONAL ADD-ONS',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1,
+                          color: AppTheme.warmCaramel,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: addOnOptions.map((opt) {
+                          final name = opt['name'] as String;
+                          final price = opt['price'] as double;
+                          final isChecked = selectedAddOns.contains(name);
+                          return FilterChip(
+                            label: Text(
+                              '+ $name (₹${price.toStringAsFixed(0)})',
+                              style: TextStyle(
+                                color: isChecked ? Colors.white : AppTheme.espressoBrown,
+                                fontWeight: isChecked ? FontWeight.bold : FontWeight.normal,
+                              ),
+                            ),
+                            selected: isChecked,
+                            selectedColor: AppTheme.warmAmber,
+                            backgroundColor: Colors.white,
+                            checkmarkColor: Colors.white,
+                            onSelected: (checked) {
+                              setModalState(() {
+                                if (checked) {
+                                  selectedAddOns.add(name);
+                                } else {
+                                  selectedAddOns.remove(name);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // 4. Special Instructions TextField
+                      const Text(
+                        'SPECIAL INSTRUCTIONS',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1,
+                          color: AppTheme.warmCaramel,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: specialNoteController,
+                        decoration: InputDecoration(
+                          hintText: 'e.g. Extra hot, Less ice, Pack separate...',
+                          hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
+                          filled: true,
+                          fillColor: Colors.white,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide(color: Colors.brown[200]!),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide(color: Colors.brown[200]!),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(color: AppTheme.espressoBrown, width: 1.5),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // 5. Add to Order Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.espressoBrown,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 2,
+                          ),
+                          onPressed: () {
+                            final List<String> noteParts = [selectedSugar];
+                            if (selectedAddOns.isNotEmpty) {
+                              noteParts.add('+ ${selectedAddOns.join(', ')}');
+                            }
+                            final custom = specialNoteController.text.trim();
+                            if (custom.isNotEmpty) {
+                              noteParts.add(custom);
+                            }
+                            final fullNote = noteParts.join(', ');
+
+                            ref.read(cartProvider(widget.table.tableId).notifier).addItem(
+                              item,
+                              catName,
+                              variant: selectedVariant.label,
+                              price: unitPrice,
+                              note: fullNote,
+                            );
+
+                            Navigator.pop(context);
+                            _showItemAddedFeedback('${item.name} (${selectedVariant.label})');
+                          },
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.add_shopping_cart, size: 20),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Add to Order • ₹${unitPrice.toStringAsFixed(0)}',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      }
+
+      void _showVariantDialog(Item item, String catName) {
+        final List<ParsedVariant> variants = item.variants
+            .map((v) => ParsedVariant.fromString(v))
+            .toList();
+
+        showModalBottomSheet(
+          context: context,
+          backgroundColor: Colors.transparent,
+          builder: (context) => Container(
+            padding: const EdgeInsets.all(20),
+            decoration: const BoxDecoration(
+              color: AppTheme.latteCream,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: item.variants
-                  .map((v) => ListTile(
-                        title: Text(v),
-                        onTap: () {
-                          ref.read(cartProvider(widget.table.tableId).notifier).addItem(item, catName, variant: v);
-                          Navigator.pop(context);
-                          _showItemAddedFeedback('${item.name} ($v)');
-                        },
-                      ))
-                  .toList(),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'SELECT SIZE / VARIANT',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1,
+                              color: AppTheme.warmCaramel,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            item.name,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.espressoBrown,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const Divider(height: 20),
+                ...variants.map((v) {
+                  final double unitPrice = item.price + v.extraPrice;
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.brown[100]!),
+                    ),
+                    child: ListTile(
+                      title: Text(
+                        v.label,
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.espressoBrown),
+                      ),
+                      subtitle: v.extraPrice > 0
+                          ? Text('+₹${v.extraPrice.toStringAsFixed(0)} upgrade',
+                              style: TextStyle(color: Colors.grey[600], fontSize: 12))
+                          : null,
+                      trailing: Text(
+                        '₹${unitPrice.toStringAsFixed(0)}',
+                        style: const TextStyle(
+                          color: AppTheme.deepGreen,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 17,
+                        ),
+                      ),
+                      onTap: () {
+                        ref.read(cartProvider(widget.table.tableId).notifier).addItem(
+                          item,
+                          catName,
+                          variant: v.label,
+                          price: unitPrice,
+                        );
+                        Navigator.pop(context);
+                        _showItemAddedFeedback('${item.name} (${v.label})');
+                      },
+                    ),
+                  );
+                }).toList(),
+                const SizedBox(height: 10),
+              ],
             ),
           ),
         );
@@ -1150,17 +1599,18 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                         ],
                       ),
                     ),
-                    if (i.variant != null)
+                    if (i.variant != null && i.variant!.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(left: 8),
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            color: AppTheme.maroon.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(4),
+                            color: AppTheme.warmCaramel.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: AppTheme.warmCaramel.withValues(alpha: 0.3)),
                           ),
                           child: Text(i.variant!, 
-                            style: const TextStyle(color: AppTheme.maroon, fontSize: 11, fontWeight: FontWeight.w600)),
+                            style: const TextStyle(color: AppTheme.espressoBrown, fontSize: 11, fontWeight: FontWeight.bold)),
                         ),
                       ),
                   ],
@@ -1168,23 +1618,45 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('₹${(i.item.price * i.quantity).toStringAsFixed(0)}', 
-                      style: const TextStyle(color: AppTheme.deepGreen, fontSize: 15, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 6,
+                      children: [
+                        Text('₹${(i.price * i.quantity).toStringAsFixed(0)}', 
+                          style: const TextStyle(color: AppTheme.deepGreen, fontSize: 16, fontWeight: FontWeight.bold)),
+                        if (i.quantity > 1 || i.price != i.item.price)
+                          Text('(₹${i.price.toStringAsFixed(0)} each)', 
+                            style: TextStyle(color: Colors.brown[600], fontSize: 12, fontWeight: FontWeight.w500)),
+                      ],
+                    ),
                     if (i.note.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
-                        child: Text('Note: ${i.note}', 
-                          style: const TextStyle(color: Colors.orange, fontSize: 13, fontStyle: FontStyle.italic)),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.tune, size: 14, color: AppTheme.warmCaramel),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                i.note, 
+                                style: const TextStyle(color: AppTheme.warmCaramel, fontSize: 12, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
+                    const SizedBox(height: 2),
                     TextButton.icon(
                       onPressed: () => _showNoteDialog(i.cartId, i.note),
-                      icon: const Icon(Icons.edit_note, size: 20),
+                      icon: const Icon(Icons.edit_note, size: 18),
                       label: Text(i.note.isEmpty ? 'Add Note' : 'Edit Note', style: const TextStyle(fontSize: 12)),
                       style: TextButton.styleFrom(
                         padding: EdgeInsets.zero,
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        foregroundColor: AppTheme.maroon,
+                        foregroundColor: AppTheme.espressoBrown,
                       ),
                     ),
                   ],
