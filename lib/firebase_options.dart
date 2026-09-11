@@ -47,19 +47,19 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyDMmkZaysmTxMMCczETf9l1g0oTadS7v7M',
-    appId: '1:668168532890:web:740c67d3939887183dc023',
-    messagingSenderId: '668168532890',
-    projectId: 'shreerajmandir-820c7',
-    authDomain: 'shreerajmandir-820c7.firebaseapp.com',
-    storageBucket: 'shreerajmandir-820c7.firebasestorage.app',
+    apiKey: 'AIzaSyAm9h3_byJdTcjsgFtSearGez7w7rCAigI',
+    appId: '1:680517579412:web:dd2bed8690e25f050d3a81',
+    messagingSenderId: '680517579412',
+    projectId: 'coffee-katta-pos',
+    authDomain: 'coffee-katta-pos.firebaseapp.com',
+    storageBucket: 'coffee-katta-pos.firebasestorage.app',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyDMmkZaysmTxMMCczETf9l1g0oTadS7v7M',
-    appId: '1:668168532890:android:8232661a4a50188e3dc023',
-    messagingSenderId: '668168532890',
-    projectId: 'shreerajmandir-820c7',
-    storageBucket: 'shreerajmandir-820c7.firebasestorage.app',
+    apiKey: 'AIzaSyCarl_8a6URvmoZp-Q1aYnkALWI5M6RscQ',
+    appId: '1:680517579412:android:61a84a0d268e580a0d3a81',
+    messagingSenderId: '680517579412',
+    projectId: 'coffee-katta-pos',
+    storageBucket: 'coffee-katta-pos.firebasestorage.app',
   );
 }

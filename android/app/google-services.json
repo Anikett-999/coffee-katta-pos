@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "668168532890",
-    "project_id": "shreerajmandir-820c7",
-    "storage_bucket": "shreerajmandir-820c7.firebasestorage.app"
+    "project_number": "680517579412",
+    "project_id": "coffee-katta-pos",
+    "storage_bucket": "coffee-katta-pos.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:668168532890:android:8232661a4a50188e3dc023",
+        "mobilesdk_app_id": "1:680517579412:android:61a84a0d268e580a0d3a81",
         "android_client_info": {
-          "package_name": "com.shreerajmandir.pos"
+          "package_name": "com.coffeekatta.pos"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDMmkZaysmTxMMCczETf9l1g0oTadS7v7M"
+          "current_key": "AIzaSyCarl_8a6URvmoZp-Q1aYnkALWI5M6RscQ"
         }
       ],
       "services": {
