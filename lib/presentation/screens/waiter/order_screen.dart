@@ -515,12 +515,12 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
         if (displayItems.isEmpty) return Center(child: Text(query.isNotEmpty ? 'No items matched "$query"' : 'No items found.'));
 
         return GridView.builder(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(8),
           gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-            maxCrossAxisExtent: isMobile ? 180 : 200, // Optimize sizing for phone real-estate
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: isMobile ? 0.9 : 1.2,
+            maxCrossAxisExtent: isMobile ? 135 : 155, // Optimized compact sizing for high item visibility
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            childAspectRatio: isMobile ? 1.05 : 1.25,
           ),
           itemCount: displayItems.length,
           itemBuilder: (context, index) {
@@ -538,15 +538,18 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                 item.name.toLowerCase().contains('chicken');
 
             return Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: BorderSide(color: Colors.brown.withValues(alpha: 0.1)),
+              ),
               child: InkWell(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
                 onTap: () {
                   _showItemCustomizer(item, catName);
                 },
                 child: Padding(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -555,8 +558,8 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Container(
-                            width: 8,
-                            height: 8,
+                            width: 7,
+                            height: 7,
                             margin: const EdgeInsets.only(right: 5),
                             decoration: BoxDecoration(
                               color: isNonVeg ? Colors.red[700] : Colors.green[700],
@@ -569,23 +572,19 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                               textAlign: TextAlign.center,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                             ),
                           ),
                         ],
                       ),
-                      if (catName.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(catName.toUpperCase(),
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: Colors.grey, fontSize: 11, letterSpacing: 0.5)),
-                      ],
-                      const SizedBox(height: 8),
-                      Text('₹${item.price.toStringAsFixed(0)}',
-                          style: const TextStyle(color: AppTheme.deepGreen, fontWeight: FontWeight.bold, fontSize: 18)),
+                      const SizedBox(height: 5),
+                      Text(
+                        '₹${item.price.toStringAsFixed(0)}',
+                        style: const TextStyle(color: AppTheme.deepGreen, fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
                       if (item.variants.length > 1) ...[
-                        const SizedBox(height: 4),
-                        const Text('Has Sizes / Variants', style: TextStyle(color: AppTheme.warmCaramel, fontSize: 10, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 2),
+                        const Text('Has Sizes', style: TextStyle(color: AppTheme.warmCaramel, fontSize: 9.5, fontWeight: FontWeight.bold)),
                       ],
                     ],
                   ),
