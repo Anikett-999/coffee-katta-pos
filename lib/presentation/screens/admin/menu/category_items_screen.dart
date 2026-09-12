@@ -48,16 +48,29 @@ class _CategoryItemsScreenState extends ConsumerState<CategoryItemsScreen> {
               tooltip: 'Back to Categories',
             ),
             const SizedBox(width: 4),
-            // Steaming Cup Logo
+            // Official Bearded Man Mascot Avatar
             Container(
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.12),
+                color: Colors.white,
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white.withValues(alpha: 0.22), width: 1.2),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.35), width: 1.2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.25),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
               ),
-              child: const Icon(Icons.coffee_rounded, color: AppTheme.warmAmber, size: 20),
+              child: ClipOval(
+                child: Image.asset(
+                  'assets/branding/app_icon.png',
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const Icon(Icons.person_rounded, color: Color(0xFF5A3825), size: 20),
+                ),
+              ),
             ),
             const SizedBox(width: 12),
             // Title & Subtitle

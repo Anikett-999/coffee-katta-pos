@@ -6,6 +6,7 @@ import '../../../../services/branch_service.dart';
 import '../../../providers/branch_provider.dart';
 import '../../../widgets/global/base_widgets.dart';
 import '../../../widgets/global/editorial_background.dart';
+import '../../../widgets/global/coffee_katta_brand_badge.dart';
 
 class BranchManagementScreen extends ConsumerWidget {
   const BranchManagementScreen({super.key});
@@ -38,39 +39,8 @@ class BranchManagementScreen extends ConsumerWidget {
                   ),
                   const SizedBox(width: 4),
 
-                  // Coffee Katta Branding
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.local_cafe_rounded, color: Color(0xFFF7F4EF), size: 22),
-                      const SizedBox(width: 8),
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Coffee Katta',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.4,
-                            ),
-                          ),
-                          if (!isCompact)
-                            const Text(
-                              'GOOD FOOD • GREAT VIBES',
-                              style: TextStyle(
-                                color: Color(0xFFD4A373),
-                                fontSize: 8.5,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1.1,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
-                  ),
+                  // Coffee Katta Branding with Bearded Man Mascot
+                  CoffeeKattaBrandBadge(showTagline: !isCompact),
 
                   if (!isCompact) ...[
                     Container(

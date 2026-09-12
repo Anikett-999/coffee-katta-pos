@@ -6,6 +6,7 @@ import 'widgets/category_list_view.dart';
 import 'widgets/addon_management_view.dart';
 import 'widgets/customization_groups_view.dart';
 import '../../../widgets/global/editorial_background.dart';
+import '../../../widgets/global/coffee_katta_brand_badge.dart';
 
 class MenuManagementScreen extends ConsumerStatefulWidget {
   final bool useShell;
@@ -108,46 +109,9 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen>
               ),
               const SizedBox(width: 4),
             ],
-            // Steaming Cup Logo
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white.withValues(alpha: 0.22), width: 1.2),
-              ),
-              child: const Icon(Icons.coffee_rounded, color: AppTheme.warmAmber, size: 20),
-            ),
-            const SizedBox(width: 12),
-            // Title & Tagline
+            // Coffee Katta Brand Badge with Bearded Man Logo
             const Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Coffee Katta',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.5,
-                      height: 1.15,
-                    ),
-                  ),
-                  Text(
-                    'GOOD FOOD • GREAT VIBES',
-                    style: TextStyle(
-                      color: AppTheme.warmAmber,
-                      fontSize: 8.5,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.4,
-                      height: 1.2,
-                    ),
-                  ),
-                ],
-              ),
+              child: CoffeeKattaBrandBadge(),
             ),
             // Catalog Badge
             Container(

@@ -13,6 +13,7 @@ import '../../providers/branch_provider.dart';
 import '../../providers/printer_provider.dart';
 import '../../widgets/global/confirmation_dialog.dart';
 import '../../widgets/global/editorial_background.dart';
+import '../../widgets/global/coffee_katta_brand_badge.dart';
 import '../../widgets/shared/thermal_receipt_preview.dart';
 
 class PrinterSettingsScreen extends ConsumerStatefulWidget {
@@ -290,39 +291,8 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
           ),
           const SizedBox(width: 4),
 
-          // Coffee Katta Branding
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.local_cafe_rounded, color: Color(0xFFF7F4EF), size: 22),
-              const SizedBox(width: 8),
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Coffee Katta',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.4,
-                    ),
-                  ),
-                  if (!isCompact)
-                    const Text(
-                      'GOOD FOOD • GREAT VIBES',
-                      style: TextStyle(
-                        color: Color(0xFFD4A373),
-                        fontSize: 8.5,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.1,
-                      ),
-                    ),
-                ],
-              ),
-            ],
-          ),
+          // Coffee Katta Branding with Bearded Man Mascot
+          CoffeeKattaBrandBadge(showTagline: !isCompact),
 
           // Only on Desktop/Wide Tablet: show decorative vertical divider and "HARDWARE & THERMAL ENGINE" badge
           if (!isCompact) ...[
