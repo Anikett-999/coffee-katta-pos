@@ -53,6 +53,14 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
     super.dispose();
   }
 
+  String _formatTableName(String name) {
+    final trimmed = name.trim();
+    if (trimmed.toLowerCase().startsWith('table')) {
+      return trimmed;
+    }
+    return 'Table $trimmed';
+  }
+
   Future<void> _loadPreview() async {
     if (widget.table.activeOrderId == null) {
       if (mounted) {
@@ -312,30 +320,33 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
             // ════════════════════════════════════════════════════════
             Expanded(
               child: EditorialBackground(
-                useCreamBase: false, // already on cream background
+                useCreamBase: false,
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     if (constraints.maxWidth > 900) {
-                      // Desktop / Tablet POS 3-Column Layout
+                      // Desktop / Tablet POS 3-Column Layout with proportional widths
+                      final leftWidth = (constraints.maxWidth * 0.24).clamp(240.0, 300.0);
+                      final rightWidth = (constraints.maxWidth * 0.30).clamp(310.0, 360.0);
+
                       return Row(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          // Column 1: KOT History (21% width)
+                          // Column 1: KOT History
                           SizedBox(
-                            width: constraints.maxWidth * 0.21,
+                            width: leftWidth,
                             child: _buildKOTHistoryPanel(kots),
                           ),
                           const VerticalDivider(width: 1, color: Color(0xFFE8E1D8)),
 
-                          // Column 2: Bill Preview (48% width)
+                          // Column 2: Bill Preview (flex expansion)
                           Expanded(
                             child: _buildBillPreviewPanel(items, kots),
                           ),
                           const VerticalDivider(width: 1, color: Color(0xFFE8E1D8)),
 
-                          // Column 3: Settlement Workspace (31% width)
+                          // Column 3: Settlement Workspace (Compact, one view, no scrolling)
                           SizedBox(
-                            width: constraints.maxWidth * 0.31,
+                            width: rightWidth,
                             child: _buildSettlementPanel(subtotal, kots),
                           ),
                         ],
@@ -359,7 +370,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
   // ─────────────────────────────────────────────────────────────
   Widget _buildTopBrandedHeader(List<KOTModel> kots) {
     return Container(
-      height: 64,
+      height: 62,
       color: const Color(0xFF382012), // Deep Coffee Brown
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
@@ -406,22 +417,22 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
 
           // Vertical Divider
           Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
+            margin: const EdgeInsets.symmetric(horizontal: 14),
             width: 1,
-            height: 28,
+            height: 26,
             color: Colors.white24,
           ),
 
-          // Context Badge & Table Info
+          // Context Badge & Table Info (Clean table name without duplication)
           Container(
-            width: 34,
-            height: 34,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
               color: const Color(0xFF4A2D1B),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: const Color(0xFF5A3825)),
             ),
-            child: const Icon(Icons.receipt_long_rounded, color: Color(0xFFB77945), size: 20),
+            child: const Icon(Icons.receipt_long_rounded, color: Color(0xFFB77945), size: 18),
           ),
           const SizedBox(width: 10),
           Column(
@@ -430,10 +441,10 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
             children: [
               const Text(
                 'Billing / Checkout',
-                style: TextStyle(color: Colors.white, fontSize: 14.5, fontWeight: FontWeight.bold),
+                style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
               ),
               Text(
-                'Table ${widget.table.name}  •  Dine-in',
+                '${_formatTableName(widget.table.name)}  •  Dine-in',
                 style: const TextStyle(color: Colors.white70, fontSize: 11),
               ),
             ],
@@ -443,8 +454,8 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
 
           // Search Field ("Search menu, item or SKU..." with Ctrl + K)
           Container(
-            width: 250,
-            height: 38,
+            width: 220,
+            height: 36,
             padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
               color: const Color(0xFF2C170B),
@@ -453,15 +464,15 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.search, color: Colors.white60, size: 18),
-                const SizedBox(width: 8),
+                const Icon(Icons.search, color: Colors.white60, size: 17),
+                const SizedBox(width: 6),
                 Expanded(
                   child: TextField(
                     controller: _searchController,
-                    style: const TextStyle(color: Colors.white, fontSize: 12.5),
+                    style: const TextStyle(color: Colors.white, fontSize: 12),
                     decoration: const InputDecoration(
                       hintText: 'Search menu, item or SKU...',
-                      hintStyle: TextStyle(color: Colors.white38, fontSize: 12),
+                      hintStyle: TextStyle(color: Colors.white38, fontSize: 11.5),
                       border: InputBorder.none,
                       isDense: true,
                       contentPadding: EdgeInsets.zero,
@@ -469,38 +480,38 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                   decoration: BoxDecoration(
                     color: Colors.white12,
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: const Text(
                     'Ctrl + K',
-                    style: TextStyle(color: Colors.white60, fontSize: 9.5, fontWeight: FontWeight.w600),
+                    style: TextStyle(color: Colors.white60, fontSize: 9, fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
 
           // Refresh Action
           IconButton(
-            icon: const Icon(Icons.history_rounded, color: Colors.white70, size: 22),
+            icon: const Icon(Icons.history_rounded, color: Colors.white70, size: 20),
             onPressed: _loadPreview,
             tooltip: 'Refresh Items',
           ),
 
           // Profile / User Action
           Container(
-            width: 34,
-            height: 34,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
               color: const Color(0xFF2C170B),
               shape: BoxShape.circle,
               border: Border.all(color: const Color(0xFF5A3825)),
             ),
-            child: const Icon(Icons.person_outline_rounded, color: Colors.white70, size: 19),
+            child: const Icon(Icons.person_outline_rounded, color: Colors.white70, size: 18),
           ),
         ],
       ),
@@ -508,7 +519,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
   }
 
   // ─────────────────────────────────────────────────────────────
-  // COLUMN 1: KOT HISTORY PANEL (Left Workspace)
+  // COLUMN 1: KOT HISTORY PANEL (Left Workspace, Zero Overflow)
   // ─────────────────────────────────────────────────────────────
   Widget _buildKOTHistoryPanel(List<KOTModel> kots, {bool isMobile = false}) {
     return Stack(
@@ -518,16 +529,16 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
           children: [
             // Header: KOT History (count) | View All ->
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 18, 16, 12),
+              padding: const EdgeInsets.fromLTRB(14, 16, 14, 10),
               child: Row(
                 children: [
-                  const Icon(Icons.history_toggle_off, color: AppTheme.textDark, size: 20),
-                  const SizedBox(width: 8),
+                  const Icon(Icons.history_toggle_off, color: AppTheme.textDark, size: 18),
+                  const SizedBox(width: 6),
                   Text(
                     'KOT History (${kots.length})',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: 14.5,
+                      fontSize: 14,
                       color: AppTheme.textDark,
                     ),
                   ),
@@ -540,13 +551,13 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                         Text(
                           'View All',
                           style: TextStyle(
-                            fontSize: 11.5,
+                            fontSize: 11,
                             fontWeight: FontWeight.bold,
                             color: AppTheme.primaryCoffee,
                           ),
                         ),
                         SizedBox(width: 2),
-                        Icon(Icons.arrow_forward_rounded, size: 13, color: AppTheme.primaryCoffee),
+                        Icon(Icons.arrow_forward_rounded, size: 12, color: AppTheme.primaryCoffee),
                       ],
                     ),
                   ),
@@ -554,43 +565,43 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
               ),
             ),
 
-            // KOT Cards List
+            // KOT Cards List (Overflow-proof)
             Expanded(
               child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
                 itemCount: kots.length,
                 itemBuilder: (context, index) {
                   final kot = kots[index];
                   final isLatest = index == 0;
 
                   return Container(
-                    margin: const EdgeInsets.only(bottom: 10),
+                    margin: const EdgeInsets.only(bottom: 8),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(10),
                       border: Border.all(
                         color: isLatest ? const Color(0xFFD4A373) : const Color(0xFFE8E1D8),
-                        width: isLatest ? 1.4 : 1.1,
+                        width: isLatest ? 1.3 : 1.0,
                       ),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.02),
                           blurRadius: 4,
-                          offset: const Offset(0, 2),
+                          offset: const Offset(0, 1),
                         ),
                       ],
                     ),
                     child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(10),
                       onTap: () => _showKOTDetailModal(kot, index + 1),
                       child: Padding(
-                        padding: const EdgeInsets.all(12.0),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                         child: Row(
                           children: [
                             // Sequential Number Circle
                             Container(
-                              width: 32,
-                              height: 32,
+                              width: 28,
+                              height: 28,
                               decoration: BoxDecoration(
                                 color: const Color(0xFFF7F4EF),
                                 shape: BoxShape.circle,
@@ -601,44 +612,48 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                                   '${index + 1}',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
-                                    fontSize: 13,
+                                    fontSize: 12,
                                     color: AppTheme.primaryCoffee,
                                   ),
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 10),
+                            const SizedBox(width: 8),
 
-                            // KOT Info
+                            // KOT Info (Constrained with Expanded so it never overflows)
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Text(
-                                        'KOT #${kot.kotNumber}',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
-                                          color: AppTheme.textDark,
+                                      Expanded(
+                                        child: Text(
+                                          'KOT #${kot.kotNumber}',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12.5,
+                                            color: AppTheme.textDark,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
-                                      const SizedBox(width: 6),
-                                      // Status Dot & Text
+                                      const SizedBox(width: 4),
                                       Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
                                           Icon(
                                             Icons.circle,
-                                            size: 7,
+                                            size: 6,
                                             color: kot.isPrinted ? const Color(0xFF287A55) : const Color(0xFFD97706),
                                           ),
-                                          const SizedBox(width: 4),
+                                          const SizedBox(width: 3),
                                           Text(
                                             kot.isPrinted ? 'Printed' : 'Pending',
                                             style: TextStyle(
-                                              fontSize: 11,
+                                              fontSize: 10,
                                               fontWeight: FontWeight.bold,
                                               color: kot.isPrinted ? const Color(0xFF287A55) : const Color(0xFFD97706),
                                             ),
@@ -647,22 +662,26 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 3),
+                                  const SizedBox(height: 2),
                                   Row(
                                     children: [
-                                      Icon(Icons.access_time_rounded, size: 11.5, color: Colors.grey.shade600),
+                                      Icon(Icons.access_time_rounded, size: 10.5, color: Colors.grey.shade600),
                                       const SizedBox(width: 3),
-                                      Text(
-                                        '${DateFormat('hh:mm a').format(kot.createdAt)}  •  Table ${widget.table.name}',
-                                        style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                                      Expanded(
+                                        child: Text(
+                                          '${DateFormat('hh:mm a').format(kot.createdAt)}  •  ${_formatTableName(widget.table.name)}',
+                                          style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
                                       ),
                                     ],
                                   ),
                                 ],
                               ),
                             ),
-
-                            const Icon(Icons.chevron_right_rounded, size: 18, color: Colors.grey),
+                            const SizedBox(width: 4),
+                            const Icon(Icons.chevron_right_rounded, size: 16, color: Colors.grey),
                           ],
                         ),
                       ),
@@ -678,15 +697,15 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
         if (!isMobile)
           Positioned(
             left: 12,
-            bottom: 12,
+            bottom: 10,
             child: IgnorePointer(
               child: Opacity(
-                opacity: 0.40,
+                opacity: 0.35,
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     CustomPaint(
-                      size: const Size(50, 70),
+                      size: const Size(40, 56),
                       painter: _BotanicalLeafPainter(color: const Color(0xFFB77945)),
                     ),
                     const SizedBox(width: 6),
@@ -696,7 +715,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                         Text(
                           'Good Food',
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 12.5,
                             fontStyle: FontStyle.italic,
                             fontFamily: 'serif',
                             color: Color(0xFFB77945),
@@ -705,7 +724,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                         Text(
                           'Great Vibes',
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 12.5,
                             fontStyle: FontStyle.italic,
                             fontFamily: 'serif',
                             color: Color(0xFFB77945),
@@ -728,7 +747,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
   Widget _buildBillPreviewPanel(List<BillItem> items, List<KOTModel> kots) {
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -736,47 +755,47 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
           Row(
             children: [
               Container(
-                width: 36,
-                height: 36,
+                width: 32,
+                height: 32,
                 decoration: BoxDecoration(
                   color: const Color(0xFFF7F4EF),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: const Color(0xFFE8E1D8)),
                 ),
-                child: const Icon(Icons.assignment_outlined, color: AppTheme.primaryCoffee, size: 20),
+                child: const Icon(Icons.assignment_outlined, color: AppTheme.primaryCoffee, size: 18),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
                     'Bill Preview',
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.textDark),
                   ),
                   Text(
-                    'Table ${widget.table.name}  •  ${kots.length} KOTs',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    '${_formatTableName(widget.table.name)}  •  ${kots.length} KOTs',
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                   ),
                 ],
               ),
               const Spacer(),
               // Dine-In Badge
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF7F4EF),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                   border: Border.all(color: const Color(0xFFE8E1D8)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: const [
-                    Icon(Icons.restaurant_outlined, size: 14, color: AppTheme.primaryCoffee),
-                    SizedBox(width: 5),
+                    Icon(Icons.restaurant_outlined, size: 13, color: AppTheme.primaryCoffee),
+                    SizedBox(width: 4),
                     Text(
                       'Dine-in',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 11.5,
                         fontWeight: FontWeight.bold,
                         color: AppTheme.primaryCoffee,
                       ),
@@ -786,7 +805,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
 
           // Scrollable Cards List
           Expanded(
@@ -803,34 +822,34 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
   }
 
   // ─────────────────────────────────────────────────────────────
-  // COLUMN 3: SETTLEMENT PANEL (Right Dedicated Workspace)
+  // COLUMN 3: SETTLEMENT PANEL (One View, No Scrolling Needed)
   // ─────────────────────────────────────────────────────────────
   Widget _buildSettlementPanel(double subtotal, List<KOTModel> kots) {
     return Container(
       color: const Color(0xFFF7F4EF),
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      padding: const EdgeInsets.all(10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // ── Header Banner (Deep Brown #382012 with OPEN badge) ──
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: const BoxDecoration(
               color: Color(0xFF382012),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
             ),
             child: Row(
               children: [
                 Container(
-                  width: 32,
-                  height: 32,
+                  width: 26,
+                  height: 26,
                   decoration: const BoxDecoration(
                     color: Color(0xFFB77945),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.receipt_rounded, color: Colors.white, size: 18),
+                  child: const Icon(Icons.receipt_rounded, color: Colors.white, size: 15),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -839,13 +858,13 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                         'Settlement',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 15,
+                          fontSize: 14,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
-                        'Table ${widget.table.name}  •  Dine-in  •  ${kots.length} KOTs',
-                        style: const TextStyle(color: Colors.white70, fontSize: 11),
+                        '${_formatTableName(widget.table.name)}  •  Dine-in  •  ${kots.length} KOTs',
+                        style: const TextStyle(color: Colors.white70, fontSize: 10),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -853,15 +872,15 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                   decoration: BoxDecoration(
                     color: const Color(0xFF287A55),
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(4),
                   ),
                   child: const Text(
                     'OPEN',
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: 9.5,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                       letterSpacing: 0.5,
@@ -872,39 +891,51 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
             ),
           ),
 
-          // ── Settlement Body Cards ──
+          // ── Settlement Body (Responsive: fits without scroll, scrolls only if height < 440px) ──
           Expanded(
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(14)),
-                border: Border.all(color: const Color(0xFFE8E1D8), width: 1.2),
+                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+                border: Border.all(color: const Color(0xFFE8E1D8), width: 1.1),
               ),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(14.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // 1. Order Summary Card
-                    _buildOrderSummaryCard(subtotal),
-                    const SizedBox(height: 12),
+              padding: const EdgeInsets.all(10.0),
+              child: LayoutBuilder(
+                builder: (context, box) {
+                  final bool needScroll = box.maxHeight < 430;
 
-                    // 2. Discount Segmented & Input
-                    _buildDiscountCard(),
-                    const SizedBox(height: 12),
+                  Widget content = Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: needScroll ? MainAxisSize.min : MainAxisSize.max,
+                    children: [
+                      // 1. Order Summary Card
+                      _buildOrderSummaryCard(subtotal),
+                      const SizedBox(height: 7),
 
-                    // 3. Extra Charges
-                    _buildExtraChargesCard(),
-                    const SizedBox(height: 12),
+                      // 2. Discount Segmented & Input
+                      _buildDiscountCard(),
+                      const SizedBox(height: 7),
 
-                    // 4. Payment Mode
-                    _buildPaymentModeCard(),
-                    const SizedBox(height: 16),
+                      // 3. Extra Charges
+                      _buildExtraChargesCard(),
+                      const SizedBox(height: 7),
 
-                    // 5. Final Action Button (PRINT & SETTLE)
-                    _buildPrintAndSettleButton(),
-                  ],
-                ),
+                      // 4. Payment Mode
+                      _buildPaymentModeCard(),
+
+                      if (!needScroll) const Spacer(),
+                      if (needScroll) const SizedBox(height: 10),
+
+                      // 5. Final Action Button (PRINT & SETTLE)
+                      _buildPrintAndSettleButton(),
+                    ],
+                  );
+
+                  if (needScroll) {
+                    return SingleChildScrollView(child: content);
+                  }
+                  return content;
+                },
               ),
             ),
           ),
@@ -914,7 +945,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
   }
 
   // ─────────────────────────────────────────────────────────────
-  // SETTLEMENT SUB-CARDS
+  // SETTLEMENT SUB-CARDS (Compact & Ergonomic)
   // ─────────────────────────────────────────────────────────────
 
   // Card 1: Order Summary
@@ -922,69 +953,69 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFFE8E1D8)),
       ),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: const [
-              Icon(Icons.receipt_outlined, size: 16, color: AppTheme.primaryCoffee),
-              SizedBox(width: 6),
+              Icon(Icons.receipt_outlined, size: 14, color: AppTheme.primaryCoffee),
+              SizedBox(width: 5),
               Text(
                 'Order Summary',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: AppTheme.textDark),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: AppTheme.textDark),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
 
           // Subtotal
           Row(
             children: [
-              Icon(Icons.access_time_rounded, size: 13, color: Colors.grey.shade600),
+              Icon(Icons.access_time_rounded, size: 12, color: Colors.grey.shade600),
               const SizedBox(width: 4),
-              Text('Subtotal', style: TextStyle(fontSize: 12.5, color: Colors.grey.shade700)),
+              Text('Subtotal', style: TextStyle(fontSize: 11.5, color: Colors.grey.shade700)),
               const Spacer(),
-              Text('₹${subtotal.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+              Text('₹${subtotal.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 3),
 
           // Discount
           Row(
             children: [
-              const Icon(Icons.percent_rounded, size: 13, color: Color(0xFF287A55)),
+              const Icon(Icons.percent_rounded, size: 12, color: Color(0xFF287A55)),
               const SizedBox(width: 4),
-              Text('Discount', style: TextStyle(fontSize: 12.5, color: Colors.grey.shade700)),
+              Text('Discount', style: TextStyle(fontSize: 11.5, color: Colors.grey.shade700)),
               const Spacer(),
               Text('- ₹${_discountAmount.toStringAsFixed(2)}',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Color(0xFF287A55))),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: Color(0xFF287A55))),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 3),
 
           // Extra Charges
           Row(
             children: [
-              Icon(Icons.add_circle_outline_rounded, size: 13, color: Colors.grey.shade600),
+              Icon(Icons.add_circle_outline_rounded, size: 12, color: Colors.grey.shade600),
               const SizedBox(width: 4),
-              Text('Extra Charges', style: TextStyle(fontSize: 12.5, color: Colors.grey.shade700)),
+              Text('Extra Charges', style: TextStyle(fontSize: 11.5, color: Colors.grey.shade700)),
               const Spacer(),
               Text('₹${_extraChargesAmount.toStringAsFixed(2)}',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
 
           // Total Amount Highlight Box
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: BoxDecoration(
               color: const Color(0xFFF7F4EF),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(6),
               border: Border.all(color: const Color(0xFFE8E1D8)),
             ),
             child: Row(
@@ -992,12 +1023,12 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
               children: [
                 const Text(
                   'Total Amount',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.primaryCoffee),
+                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppTheme.primaryCoffee),
                 ),
                 Text(
                   '₹${_total.toStringAsFixed(2)}',
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: 17,
                     fontWeight: FontWeight.bold,
                     color: _hasBlockingError ? Colors.red : AppTheme.primaryCoffee,
                   ),
@@ -1015,24 +1046,24 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFFE8E1D8)),
       ),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: const [
-              Icon(Icons.percent_rounded, size: 15, color: AppTheme.primaryCoffee),
-              SizedBox(width: 6),
+              Icon(Icons.percent_rounded, size: 13, color: AppTheme.primaryCoffee),
+              SizedBox(width: 5),
               Text(
                 'Discount',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textDark),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.textDark),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
 
           // Segmented Toggle (% Percentage | ₹ Flat)
           Row(
@@ -1040,12 +1071,12 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
               Expanded(
                 child: InkWell(
                   onTap: () => setState(() => _discountType = 'percent'),
-                  borderRadius: const BorderRadius.horizontal(left: Radius.circular(8)),
+                  borderRadius: const BorderRadius.horizontal(left: Radius.circular(6)),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    padding: const EdgeInsets.symmetric(vertical: 5),
                     decoration: BoxDecoration(
                       color: _discountType == 'percent' ? const Color(0xFF382012) : const Color(0xFFF7F4EF),
-                      borderRadius: const BorderRadius.horizontal(left: Radius.circular(8)),
+                      borderRadius: const BorderRadius.horizontal(left: Radius.circular(6)),
                       border: Border.all(
                         color: _discountType == 'percent' ? const Color(0xFF382012) : const Color(0xFFE8E1D8),
                       ),
@@ -1054,7 +1085,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                       '% Percentage',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 11,
                         fontWeight: FontWeight.bold,
                         color: _discountType == 'percent' ? Colors.white : AppTheme.textDark,
                       ),
@@ -1065,12 +1096,12 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
               Expanded(
                 child: InkWell(
                   onTap: () => setState(() => _discountType = 'flat'),
-                  borderRadius: const BorderRadius.horizontal(right: Radius.circular(8)),
+                  borderRadius: const BorderRadius.horizontal(right: Radius.circular(6)),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    padding: const EdgeInsets.symmetric(vertical: 5),
                     decoration: BoxDecoration(
                       color: _discountType == 'flat' ? const Color(0xFF382012) : const Color(0xFFF7F4EF),
-                      borderRadius: const BorderRadius.horizontal(right: Radius.circular(8)),
+                      borderRadius: const BorderRadius.horizontal(right: Radius.circular(6)),
                       border: Border.all(
                         color: _discountType == 'flat' ? const Color(0xFF382012) : const Color(0xFFE8E1D8),
                       ),
@@ -1079,7 +1110,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                       '₹ Flat',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 11,
                         fontWeight: FontWeight.bold,
                         color: _discountType == 'flat' ? Colors.white : AppTheme.textDark,
                       ),
@@ -1089,37 +1120,41 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
 
           // Discount Input Field
-          TextField(
-            controller: _discountController,
-            keyboardType: TextInputType.number,
-            style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: AppTheme.textDark),
-            decoration: InputDecoration(
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-              labelText: _discountType == 'percent' ? 'Discount (%)' : 'Discount (₹)',
-              labelStyle: const TextStyle(fontSize: 12, color: Colors.grey),
-              suffixText: _discountType == 'percent' ? '%' : '₹',
-              suffixStyle: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryCoffee),
-              filled: true,
-              fillColor: const Color(0xFFFDFBF9),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0xFFE8E1D8)),
+          SizedBox(
+            height: _discountValidationError != null ? 48 : 34,
+            child: TextField(
+              controller: _discountController,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+                labelText: _discountType == 'percent' ? 'Discount (%)' : 'Discount (₹)',
+                labelStyle: const TextStyle(fontSize: 10.5, color: Colors.grey),
+                suffixText: _discountType == 'percent' ? '%' : '₹',
+                suffixStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5, color: AppTheme.primaryCoffee),
+                filled: true,
+                fillColor: const Color(0xFFFDFBF9),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: const BorderSide(color: Color(0xFFE8E1D8)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: const BorderSide(color: Color(0xFFE8E1D8)),
+                ),
+                errorText: _discountValidationError,
+                errorStyle: TextStyle(
+                  fontSize: 9,
+                  height: 1,
+                  color: _hasBlockingError ? Colors.red : Colors.orange.shade800,
+                ),
               ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0xFFE8E1D8)),
-              ),
-              errorText: _discountValidationError,
-              errorStyle: TextStyle(
-                fontSize: 10.5,
-                color: _hasBlockingError ? Colors.red : Colors.orange.shade800,
-              ),
+              onChanged: (_) => setState(() {}),
             ),
-            onChanged: (_) => setState(() {}),
           ),
         ],
       ),
@@ -1131,48 +1166,52 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFFE8E1D8)),
       ),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: const [
-              Icon(Icons.add_circle_outline_rounded, size: 15, color: AppTheme.primaryCoffee),
-              SizedBox(width: 6),
+              Icon(Icons.add_circle_outline_rounded, size: 13, color: AppTheme.primaryCoffee),
+              SizedBox(width: 5),
               Text(
                 'Extra Charges (₹)',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textDark),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.textDark),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _extraChargesController,
-            keyboardType: TextInputType.number,
-            style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: AppTheme.textDark),
-            decoration: InputDecoration(
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-              labelText: 'Amount (₹)',
-              labelStyle: const TextStyle(fontSize: 12, color: Colors.grey),
-              suffixText: '₹',
-              suffixStyle: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryCoffee),
-              filled: true,
-              fillColor: const Color(0xFFFDFBF9),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0xFFE8E1D8)),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: _extraChargesValidationError != null ? 48 : 34,
+            child: TextField(
+              controller: _extraChargesController,
+              keyboardType: TextInputType.number,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+                labelText: 'Amount (₹)',
+                labelStyle: const TextStyle(fontSize: 10.5, color: Colors.grey),
+                suffixText: '₹',
+                suffixStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5, color: AppTheme.primaryCoffee),
+                filled: true,
+                fillColor: const Color(0xFFFDFBF9),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: const BorderSide(color: Color(0xFFE8E1D8)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(6),
+                  borderSide: const BorderSide(color: Color(0xFFE8E1D8)),
+                ),
+                errorText: _extraChargesValidationError,
+                errorStyle: const TextStyle(fontSize: 9, height: 1, color: Colors.red),
               ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0xFFE8E1D8)),
-              ),
-              errorText: _extraChargesValidationError,
+              onChanged: (_) => setState(() {}),
             ),
-            onChanged: (_) => setState(() {}),
           ),
         ],
       ),
@@ -1184,30 +1223,30 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFFE8E1D8)),
       ),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: const [
-              Icon(Icons.payment_rounded, size: 15, color: AppTheme.primaryCoffee),
-              SizedBox(width: 6),
+              Icon(Icons.payment_rounded, size: 13, color: AppTheme.primaryCoffee),
+              SizedBox(width: 5),
               Text(
                 'Payment Mode',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textDark),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.textDark),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Row(
             children: [
               _buildPaymentModeOption('Cash', Icons.payments_outlined),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               _buildPaymentModeOption('UPI', Icons.qr_code_2_rounded),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               _buildPaymentModeOption('Card', Icons.credit_card_rounded),
             ],
           ),
@@ -1221,15 +1260,15 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
     return Expanded(
       child: InkWell(
         onTap: () => setState(() => _selectedPaymentMode = mode),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 9),
+          padding: const EdgeInsets.symmetric(vertical: 6),
           decoration: BoxDecoration(
             color: isSelected ? const Color(0xFF382012) : Colors.white,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(6),
             border: Border.all(
               color: isSelected ? const Color(0xFF382012) : const Color(0xFFE8E1D8),
-              width: 1.2,
+              width: 1.1,
             ),
           ),
           child: Row(
@@ -1237,14 +1276,14 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
             children: [
               Icon(
                 icon,
-                size: 15,
+                size: 13,
                 color: isSelected ? Colors.white : AppTheme.textDark,
               ),
-              const SizedBox(width: 5),
+              const SizedBox(width: 4),
               Text(
                 mode,
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 10.5,
                   fontWeight: FontWeight.bold,
                   color: isSelected ? Colors.white : AppTheme.textDark,
                 ),
@@ -1259,34 +1298,34 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
   // Card 5: Final Settlement Action Button
   Widget _buildPrintAndSettleButton() {
     return SizedBox(
-      height: 48,
+      height: 42,
       child: ElevatedButton(
         onPressed: (_isLoading || _hasBlockingError) ? null : _handleGenerateBill,
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF382012),
           foregroundColor: Colors.white,
           disabledBackgroundColor: Colors.grey.shade400,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           elevation: 1,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
         ),
         child: _isLoading
             ? const SizedBox(
-                height: 18,
-                width: 18,
+                height: 16,
+                width: 16,
                 child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
               )
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: const [
-                  Icon(Icons.print_rounded, size: 18, color: Colors.white),
-                  SizedBox(width: 8),
+                  Icon(Icons.print_rounded, size: 16, color: Colors.white),
+                  SizedBox(width: 6),
                   Text(
                     'PRINT & SETTLE',
-                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, letterSpacing: 0.6),
+                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, letterSpacing: 0.5),
                   ),
                   Spacer(),
-                  Icon(Icons.chevron_right_rounded, size: 20, color: Colors.white70),
+                  Icon(Icons.chevron_right_rounded, size: 18, color: Colors.white70),
                 ],
               ),
       ),
@@ -1301,20 +1340,20 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
       children: [
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(12),
             children: [
               // Collapsible KOT History
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: const Color(0xFFE8E1D8)),
                 ),
                 child: ExpansionTile(
                   leading: const Icon(Icons.history_toggle_off, color: AppTheme.primaryCoffee),
                   title: Text(
                     'KOT HISTORY (${kots.length})',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: AppTheme.textDark),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textDark),
                   ),
                   children: [
                     ListView.builder(
@@ -1343,37 +1382,37 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
 
               // Bill Preview Header
               Row(
                 children: [
-                  const Icon(Icons.receipt_long_rounded, color: AppTheme.primaryCoffee, size: 18),
+                  const Icon(Icons.receipt_long_rounded, color: AppTheme.primaryCoffee, size: 16),
                   const SizedBox(width: 6),
                   Text(
                     'BILL PREVIEW (${items.length} ITEMS)',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.textDark),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, color: AppTheme.textDark),
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
 
               BillAggregatedList(items: items, searchQuery: _searchQuery),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
             ],
           ),
         ),
 
         // Sticky Bottom Mobile Settlement Bar
         Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 10,
+                blurRadius: 8,
                 offset: const Offset(0, -2),
               ),
             ],
@@ -1387,11 +1426,11 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Total Amount', style: TextStyle(fontSize: 11.5, color: Colors.grey)),
+                      const Text('Total Amount', style: TextStyle(fontSize: 11, color: Colors.grey)),
                       Text(
                         '₹${_total.toStringAsFixed(2)}',
                         style: TextStyle(
-                          fontSize: 22,
+                          fontSize: 20,
                           fontWeight: FontWeight.bold,
                           color: _hasBlockingError ? Colors.red : AppTheme.primaryCoffee,
                         ),
@@ -1404,12 +1443,13 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                       foregroundColor: AppTheme.primaryCoffee,
                       side: const BorderSide(color: Color(0xFFE8E1D8)),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     ),
-                    child: const Text('DISCOUNT / MODE'),
+                    child: const Text('DISCOUNT / MODE', style: TextStyle(fontSize: 11)),
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               _buildPrintAndSettleButton(),
             ],
           ),
@@ -1489,7 +1529,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'All KOTs for Table ${widget.table.name}',
+                'All KOTs for ${_formatTableName(widget.table.name)}',
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textDark),
               ),
               const SizedBox(height: 14),
@@ -1547,27 +1587,27 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
               color: Colors.white,
               borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
             ),
-            padding: EdgeInsets.fromLTRB(20, 20, 20, bottomInset + 20),
+            padding: EdgeInsets.fromLTRB(16, 16, 16, bottomInset + 16),
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const Text('Discount & Payment Adjustments',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 14),
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 12),
                   _buildDiscountCard(),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   _buildExtraChargesCard(),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   _buildPaymentModeCard(),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   ElevatedButton(
                     onPressed: () => Navigator.pop(context),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF382012),
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                     child: const Text('APPLY & CLOSE'),
                   ),
@@ -1592,7 +1632,7 @@ class _BotanicalLeafPainter extends CustomPainter {
     final paint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2
+      ..strokeWidth = 1.1
       ..strokeCap = StrokeCap.round;
 
     final w = size.width;
