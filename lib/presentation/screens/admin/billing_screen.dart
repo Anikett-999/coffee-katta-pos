@@ -1053,69 +1053,71 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Header Row with Title on Left and Compact Composite Switch Bar on Right
           Row(
-            children: const [
-              Icon(Icons.percent_rounded, size: 13, color: AppTheme.primaryCoffee),
-              SizedBox(width: 5),
-              Text(
-                'Discount',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.textDark),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-
-          // Segmented Toggle (% Percentage | ₹ Flat)
-          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                child: InkWell(
-                  onTap: () => setState(() => _discountType = 'percent'),
-                  borderRadius: const BorderRadius.horizontal(left: Radius.circular(6)),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 5),
-                    decoration: BoxDecoration(
-                      color: _discountType == 'percent' ? const Color(0xFF382012) : const Color(0xFFF7F4EF),
-                      borderRadius: const BorderRadius.horizontal(left: Radius.circular(6)),
-                      border: Border.all(
-                        color: _discountType == 'percent' ? const Color(0xFF382012) : const Color(0xFFE8E1D8),
-                      ),
-                    ),
-                    child: Text(
-                      '% Percentage',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: _discountType == 'percent' ? Colors.white : AppTheme.textDark,
-                      ),
-                    ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  Icon(Icons.percent_rounded, size: 13, color: AppTheme.primaryCoffee),
+                  SizedBox(width: 5),
+                  Text(
+                    'Discount',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.textDark),
                   ),
-                ),
+                ],
               ),
-              Expanded(
-                child: InkWell(
-                  onTap: () => setState(() => _discountType = 'flat'),
-                  borderRadius: const BorderRadius.horizontal(right: Radius.circular(6)),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 5),
-                    decoration: BoxDecoration(
-                      color: _discountType == 'flat' ? const Color(0xFF382012) : const Color(0xFFF7F4EF),
-                      borderRadius: const BorderRadius.horizontal(right: Radius.circular(6)),
-                      border: Border.all(
-                        color: _discountType == 'flat' ? const Color(0xFF382012) : const Color(0xFFE8E1D8),
+
+              // Compact Composite Segmented Switch Bar
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF7F4EF),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFFE8E1D8)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    InkWell(
+                      onTap: () => setState(() => _discountType = 'percent'),
+                      borderRadius: const BorderRadius.horizontal(left: Radius.circular(5)),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: _discountType == 'percent' ? const Color(0xFF382012) : Colors.transparent,
+                          borderRadius: const BorderRadius.horizontal(left: Radius.circular(5)),
+                        ),
+                        child: Text(
+                          '% Percentage',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: _discountType == 'percent' ? Colors.white : AppTheme.textDark,
+                          ),
+                        ),
                       ),
                     ),
-                    child: Text(
-                      '₹ Flat',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: _discountType == 'flat' ? Colors.white : AppTheme.textDark,
+                    InkWell(
+                      onTap: () => setState(() => _discountType = 'flat'),
+                      borderRadius: const BorderRadius.horizontal(right: Radius.circular(5)),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: _discountType == 'flat' ? const Color(0xFF382012) : Colors.transparent,
+                          borderRadius: const BorderRadius.horizontal(right: Radius.circular(5)),
+                        ),
+                        child: Text(
+                          '₹ Flat',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: _discountType == 'flat' ? Colors.white : AppTheme.textDark,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
               ),
             ],
