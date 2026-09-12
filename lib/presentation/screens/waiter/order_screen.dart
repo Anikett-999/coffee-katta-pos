@@ -534,9 +534,6 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                   catName = matched.first.name;
                }
             }
-            final isNonVeg = catName.contains('Non Veg') ||
-                item.name.toLowerCase().contains('chicken');
-
             return Card(
               elevation: 2,
               shape: RoundedRectangleBorder(
@@ -553,29 +550,12 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 7,
-                            height: 7,
-                            margin: const EdgeInsets.only(right: 5),
-                            decoration: BoxDecoration(
-                              color: isNonVeg ? Colors.red[700] : Colors.green[700],
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          Flexible(
-                            child: Text(
-                              item.name,
-                              textAlign: TextAlign.center,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                            ),
-                          ),
-                        ],
+                      Text(
+                        item.name,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                       ),
                       const SizedBox(height: 5),
                       Text(
@@ -734,15 +714,16 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                           children: [
                             Row(
                               children: [
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  margin: const EdgeInsets.only(right: 6),
-                                  decoration: BoxDecoration(
-                                    color: isNonVeg ? Colors.red[700] : Colors.green[700],
-                                    shape: BoxShape.circle,
+                                if (isNonVeg)
+                                  Container(
+                                    width: 8,
+                                    height: 8,
+                                    margin: const EdgeInsets.only(right: 6),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red[700],
+                                      shape: BoxShape.circle,
+                                    ),
                                   ),
-                                ),
                                 Expanded(
                                   child: Text(
                                     item.name,
@@ -1376,20 +1357,31 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                    itemCount: categories.length,
                    itemBuilder: (context, index) {
-                     final cat = categories[index];
-                     final selected = _selectedCategoryId == cat.categoryId;
-                     return Padding(
-                       padding: const EdgeInsets.only(right: 8),
-                       child: ChoiceChip(
-                         label: Text(cat.name, style: TextStyle(fontWeight: selected ? FontWeight.bold : FontWeight.normal)),
-                         selected: selected,
-                         selectedColor: AppTheme.maroon.withOpacity(0.1),
-                         onSelected: (val) {
-                           if(val) setState(() => _selectedCategoryId = cat.categoryId);
-                         },
-                       ),
-                     );
-                   },
+                      final cat = categories[index];
+                      final selected = _selectedCategoryId == cat.categoryId;
+                      final isNonVegCat = cat.name.toLowerCase().contains('non veg');
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ChoiceChip(
+                          avatar: isNonVegCat
+                              ? Container(
+                                  width: 7,
+                                  height: 7,
+                                  decoration: BoxDecoration(
+                                    color: Colors.red[700],
+                                    shape: BoxShape.circle,
+                                  ),
+                                )
+                              : null,
+                          label: Text(cat.name, style: TextStyle(fontWeight: selected ? FontWeight.bold : FontWeight.normal)),
+                          selected: selected,
+                          selectedColor: AppTheme.maroon.withOpacity(0.1),
+                          onSelected: (val) {
+                            if(val) setState(() => _selectedCategoryId = cat.categoryId);
+                          },
+                        ),
+                      );
+                    },
                  );
                },
                orElse: () => const SizedBox(),
@@ -1549,27 +1541,45 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                return ListView.builder(
                  itemCount: categories.length,
                  itemBuilder: (context, index) {
-                   final cat = categories[index];
-                   final isSelected = _selectedCategoryId == cat.categoryId && !isSearching;
-                   return InkWell(
-                     onTap: () {
-                         ref.read(searchQueryProvider.notifier).state = ''; // Clear search when clicking category naturally
-                         setState(() => _selectedCategoryId = cat.categoryId);
-                     },
-                     child: Container(
-                       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
-                        color: isSelected ? AppTheme.maroon.withOpacity(0.1) : null,
-                       child: Text(
-                         cat.name,
-                         textAlign: TextAlign.center,
-                         style: TextStyle(
-                           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                            color: isSelected ? AppTheme.maroon : null,
-                         ),
-                       ),
-                     ),
-                   );
-                 },
+                    final cat = categories[index];
+                    final isSelected = _selectedCategoryId == cat.categoryId && !isSearching;
+                    final isNonVegCat = cat.name.toLowerCase().contains('non veg');
+                    return InkWell(
+                      onTap: () {
+                          ref.read(searchQueryProvider.notifier).state = ''; // Clear search when clicking category naturally
+                          setState(() => _selectedCategoryId = cat.categoryId);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
+                         color: isSelected ? AppTheme.maroon.withOpacity(0.1) : null,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (isNonVegCat)
+                              Container(
+                                width: 7,
+                                height: 7,
+                                margin: const EdgeInsets.only(right: 6),
+                                decoration: BoxDecoration(
+                                  color: Colors.red[700],
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            Flexible(
+                              child: Text(
+                                cat.name,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                  color: isSelected ? AppTheme.maroon : null,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                );
              },
              loading: () => const Center(child: CircularProgressIndicator()),
