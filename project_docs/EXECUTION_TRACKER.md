@@ -61,8 +61,9 @@
   - 8. `Katta Starter (Non Veg)` (4 items, Non-Veg)
   - 9. `On the Sides (Non Veg)` (2 items, Non-Veg)
 - [x] Automated Firestore seeder `scripts/seed_coffee_katta_data.py`:
-  - Cleaned up old placeholder categories & items
+  - Cleaned up old placeholder categories & items across all active branches (`branch_001` & `latur_main`)
   - Seeded 43 items with Indian Rupee (₹) prices, official category mappings, and `isVeg` tags
+  - Verified multi-branch database synchronization: 9 categories, 43 items, 20 tables in both branches
 - [x] Automated test suite verifying 43 items and 9 categories (PASSED)
 - [x] Gate 3 Review: Completed & Verified
 
@@ -77,7 +78,10 @@
 - [x] Added Veg / Non-Veg dietary badges (🟢 Veg, 🔴 Non-Veg) on item cards and customizer header
 - [x] All currency representations strictly locked to Indian Rupee (`₹`), strictly no `$`
 - [x] Upgraded `CartItem` and `CartNotifier` to store and calculate based on custom unit prices
-- [x] Cart UI compact cafe redesign with sleek stepper `[-] Qty [+]`, inline badges, and custom notes
+- [x] Cart UI compact cafe redesign:
+  - Compacted card sizes (`maxCrossAxisExtent: 155`, padding 6px, removed redundant category subtitle)
+  - Deducted Cart footer total text size (20pt, label 15pt)
+  - Renamed buttons to `SEND` and `SEND & PRINT` with unified cafe espresso brown styling (`AppTheme.maroon`)
 - [x] Automated test suite `test/phase4_beverage_customizer_test.dart` & `test/cart_notifier_test.dart` (27/27 tests passed)
 - [x] Gate 4 Review: Ready for User Verification
 
