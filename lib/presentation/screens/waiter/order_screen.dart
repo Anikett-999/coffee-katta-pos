@@ -477,6 +477,12 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: CupertinoSearchTextField(
                     placeholder: 'Search',
+                    style: const TextStyle(color: AppTheme.textDark, fontSize: 14),
+                    placeholderStyle: TextStyle(
+                      color: AppTheme.textDark.withValues(alpha: 0.45),
+                      fontSize: 14,
+                    ),
+                    itemColor: AppTheme.primaryCoffee,
                     onChanged: (val) =>
                         ref.read(searchQueryProvider.notifier).state = val,
                   ),
@@ -937,7 +943,7 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1,
-                      color: AppTheme.warmCaramel,
+                      color: AppTheme.primaryCoffee,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -946,7 +952,7 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                       final isSelected = selectedOption == opt;
                       return Expanded(
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                           padding: const EdgeInsets.symmetric(horizontal: 4),
                           child: ChoiceChip(
                             label: Center(
                               child: Text(
@@ -980,7 +986,7 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1,
-                      color: AppTheme.warmCaramel,
+                      color: AppTheme.primaryCoffee,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -1024,29 +1030,38 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1,
-                      color: AppTheme.warmCaramel,
+                      color: AppTheme.primaryCoffee,
                     ),
                   ),
                   const SizedBox(height: 8),
                   TextField(
                     controller: specialNoteController,
+                    style: const TextStyle(
+                      color: AppTheme.textDark, // High-contrast, crisp readable text #29231F
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    cursorColor: AppTheme.primaryCoffee,
                     decoration: InputDecoration(
                       hintText: hintText,
-                      hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
+                      hintStyle: TextStyle(
+                        color: AppTheme.textDark.withValues(alpha: 0.45),
+                        fontSize: 13,
+                      ),
                       filled: true,
                       fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(color: Colors.brown[200]!),
+                        borderSide: const BorderSide(color: AppTheme.borderWarm, width: 1.2),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(color: Colors.brown[200]!),
+                        borderSide: const BorderSide(color: AppTheme.borderWarm, width: 1.2),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: AppTheme.espressoBrown, width: 1.5),
+                        borderSide: const BorderSide(color: AppTheme.primaryCoffee, width: 1.5),
                       ),
                     ),
                   ),
@@ -2099,15 +2114,58 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Special Instructions'),
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Special Instructions',
+          style: TextStyle(
+            color: AppTheme.textDark,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(hintText: 'e.g. Less spicy, No onion'),
+          style: const TextStyle(
+            color: AppTheme.textDark,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+          cursorColor: AppTheme.primaryCoffee,
+          decoration: InputDecoration(
+            hintText: 'e.g. Less spicy, No onion',
+            hintStyle: TextStyle(
+              color: AppTheme.textDark.withValues(alpha: 0.45),
+              fontSize: 13,
+            ),
+            filled: true,
+            fillColor: AppTheme.backgroundWarm,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: AppTheme.borderWarm, width: 1.2),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: AppTheme.borderWarm, width: 1.2),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: AppTheme.primaryCoffee, width: 1.5),
+            ),
+          ),
           maxLines: 2,
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCEL')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CANCEL', style: TextStyle(color: Colors.grey)),
+          ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryCoffee,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
             onPressed: () {
               ref.read(cartProvider(widget.table.tableId).notifier).updateNote(cartId, controller.text);
               Navigator.pop(context);

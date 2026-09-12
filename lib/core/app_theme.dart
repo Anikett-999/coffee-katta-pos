@@ -80,6 +80,28 @@ class AppTheme {
           color: espressoBrown,
         ),
       ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Colors.white,
+        hintStyle: TextStyle(
+          color: textDark.withValues(alpha: 0.45),
+          fontSize: 13,
+        ),
+        labelStyle: const TextStyle(color: textDark),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: borderWarm, width: 1.2),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: borderWarm, width: 1.2),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: espressoBrown, width: 1.5),
+        ),
+      ),
     );
   }
 
