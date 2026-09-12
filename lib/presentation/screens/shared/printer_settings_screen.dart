@@ -38,95 +38,94 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
   @override
   void initState() {
     super.initState();
-    final config = ref.read(printerConfigProvider);
-    _ipController.text = config.address ?? '';
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final config = ref.read(printerConfigProvider);
+      if (config.address != null) {
+        _ipController.text = config.address!;
+      }
+    });
   }
 
   @override
   void dispose() {
-    _scanSubscription?.cancel();
+    _stopScan();
     _ipController.dispose();
     super.dispose();
   }
 
   void _startScan() {
+    final config = ref.read(printerConfigProvider);
+    _stopScan();
+
     setState(() {
+      _isScanning = true;
       _bluetoothDevices.clear();
       _usbDevices.clear();
       _networkDevices.clear();
-      _isScanning = true;
     });
 
-    final config = ref.read(printerConfigProvider);
-    PrinterType type;
+    final printerManager = PrinterManager.instance;
+
     switch (config.connectionType) {
       case PrinterConnectionType.bluetooth:
-        type = PrinterType.bluetooth;
+        _scanSubscription = printerManager.discovery(type: PrinterType.bluetooth, isBle: config.isBle).listen((device) {
+          if (!_bluetoothDevices.any((d) => d.address == device.address)) {
+            setState(() {
+              _bluetoothDevices.add(device);
+            });
+          }
+        });
         break;
       case PrinterConnectionType.usb:
-        type = PrinterType.usb;
+        _scanSubscription = printerManager.discovery(type: PrinterType.usb).listen((device) {
+          if (!_usbDevices.any((d) => d.vendorId == device.vendorId && d.productId == device.productId)) {
+            setState(() {
+              _usbDevices.add(device);
+            });
+          }
+        });
         break;
       case PrinterConnectionType.network:
-        type = PrinterType.network;
+        _scanSubscription = printerManager.discovery(type: PrinterType.network).listen((device) {
+          if (!_networkDevices.any((d) => d.address == device.address)) {
+            setState(() {
+              _networkDevices.add(device);
+            });
+          }
+        });
         break;
-      default:
+      case PrinterConnectionType.rawbt:
         setState(() => _isScanning = false);
         return;
     }
 
-    _scanSubscription = PrinterManager.instance.discovery(type: type).listen((device) {
-      if (!mounted) return;
-      setState(() {
-        if (type == PrinterType.bluetooth) {
-          if (!_bluetoothDevices.any((d) => d.address == device.address)) {
-            _bluetoothDevices.add(device);
-          }
-        } else if (type == PrinterType.usb) {
-          if (!_usbDevices.any((d) => d.vendorId == device.vendorId)) {
-            _usbDevices.add(device);
-          }
-        } else if (type == PrinterType.network) {
-          if (!_networkDevices.any((d) => d.address == device.address)) {
-            _networkDevices.add(device);
-          }
-        }
-      });
-    }, onDone: () {
-      if (mounted) setState(() => _isScanning = false);
-    }, onError: (e) {
-      if (mounted) {
-        setState(() => _isScanning = false);
-        _showErrorDialog('Scan Error: $e');
+    // Auto-timeout scan after 10 seconds
+    Future.delayed(const Duration(seconds: 10), () {
+      if (mounted && _isScanning) {
+        _stopScan();
       }
     });
   }
 
   void _stopScan() {
     _scanSubscription?.cancel();
-    setState(() => _isScanning = false);
+    _scanSubscription = null;
+    if (mounted) {
+      setState(() {
+        _isScanning = false;
+      });
+    }
   }
 
   bool _isValidIp(String ip) {
-    return RegExp(r'^(\d{1,3}\.){3}\d{1,3}$').hasMatch(ip.trim());
+    final regex = RegExp(r'^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$');
+    return regex.hasMatch(ip.trim());
   }
 
   Future<void> _handleTestPrint() async {
     final config = ref.read(printerConfigProvider);
     final user = ref.read(userModelProvider).value;
     final branch = ref.read(branchProvider).value;
-
-    if (config.connectionType == PrinterConnectionType.network) {
-      final ip = _ipController.text.trim();
-      if (!_isValidIp(ip)) {
-        _showErrorDialog('Please enter a valid IP address (e.g., 192.168.1.100)');
-        return;
-      }
-    }
-
-    if (config.address == null || config.address!.trim().isEmpty) {
-      _showErrorDialog('Please configure a printer address or select an active device first.');
-      return;
-    }
 
     setState(() {
       _isTesting = true;
@@ -135,20 +134,10 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-            ),
-            const SizedBox(width: 12),
-            Text('Testing connection to ${config.name} (${config.connectionType.name.toUpperCase()})...'),
-          ],
-        ),
-        backgroundColor: AppTheme.primaryCoffee,
-        duration: const Duration(seconds: 3),
+      const SnackBar(
+        content: Text('Generating hardware diagnostic slip...'),
+        backgroundColor: Color(0xFF382012),
+        duration: Duration(seconds: 3),
       ),
     );
 
@@ -178,24 +167,24 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             title: const Row(
               children: [
-                Icon(Icons.check_circle_rounded, color: AppTheme.successGreen, size: 24),
+                Icon(Icons.check_circle_rounded, color: Color(0xFF287A55), size: 24),
                 SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     'Printer Verified',
-                    style: TextStyle(color: AppTheme.textDark, fontWeight: FontWeight.bold, fontSize: 18),
+                    style: TextStyle(color: Color(0xFF29231F), fontWeight: FontWeight.bold, fontSize: 18),
                   ),
                 ),
               ],
             ),
             content: Text(
               'Diagnostic test slip was successfully transmitted to ${config.name}. Thermal hardware is online and operational.',
-              style: const TextStyle(fontSize: 13.5, height: 1.4),
+              style: const TextStyle(fontSize: 13.5, height: 1.4, color: Color(0xFF382012)),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('GREAT', style: TextStyle(color: AppTheme.primaryCoffee, fontWeight: FontWeight.bold)),
+                child: const Text('GREAT', style: TextStyle(color: Color(0xFF382012), fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -222,21 +211,21 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Row(
           children: [
-            Icon(Icons.error_outline_rounded, color: Colors.red, size: 24),
+            Icon(Icons.error_outline_rounded, color: Color(0xFFDC2626), size: 24),
             SizedBox(width: 10),
             Expanded(
               child: Text(
                 'Hardware Error',
-                style: TextStyle(color: AppTheme.primaryCoffee, fontWeight: FontWeight.bold, fontSize: 18),
+                style: TextStyle(color: Color(0xFF382012), fontWeight: FontWeight.bold, fontSize: 18),
               ),
             ),
           ],
         ),
-        content: Text(message, style: const TextStyle(fontSize: 13.5, height: 1.4)),
+        content: Text(message, style: const TextStyle(fontSize: 13.5, height: 1.4, color: Color(0xFF29231F))),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('DISMISS', style: TextStyle(color: AppTheme.primaryCoffee, fontWeight: FontWeight.bold)),
+            child: const Text('DISMISS', style: TextStyle(color: Color(0xFF382012), fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -254,7 +243,7 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Top Branded Header (Matches Finalized Billing Screen)
+            // Top Branded Header (Responsive, zero overflow on mobile)
             _buildTopBrandedHeader(userModel),
 
             // Responsive Layout Body
@@ -280,15 +269,17 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
   }
 
   // ─────────────────────────────────────────────────────────────
-  // BRANDED HEADER (Matches Finalized Billing Screen)
+  // BRANDED HEADER (Responsive & Overflow-Free on Mobile)
   // ─────────────────────────────────────────────────────────────
   Widget _buildTopBrandedHeader(UserModel? user) {
     final isWaiter = user?.isWaiter ?? false;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isCompact = screenWidth < 720;
 
     return Container(
       height: 62,
       color: const Color(0xFF382012), // Deep Coffee Brown
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
         children: [
           // Back Button
@@ -301,88 +292,95 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
 
           // Coffee Katta Branding
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.local_cafe_rounded, color: Color(0xFFF7F4EF), size: 24),
+              const Icon(Icons.local_cafe_rounded, color: Color(0xFFF7F4EF), size: 22),
               const SizedBox(width: 8),
               Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text(
+                children: [
+                  const Text(
                     'Coffee Katta',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 16,
+                      fontSize: 15,
                       fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
+                      letterSpacing: 0.4,
                     ),
                   ),
-                  Text(
-                    'GOOD FOOD • GREAT VIBES',
-                    style: TextStyle(
-                      color: Color(0xFFD4A373),
-                      fontSize: 8.5,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.1,
+                  if (!isCompact)
+                    const Text(
+                      'GOOD FOOD • GREAT VIBES',
+                      style: TextStyle(
+                        color: Color(0xFFD4A373),
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.1,
+                      ),
                     ),
-                  ),
                 ],
               ),
             ],
           ),
 
-          // Vertical Divider
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 14),
-            width: 1,
-            height: 26,
-            color: Colors.white24,
-          ),
-
-          // Context Pill Badge
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+          // Only on Desktop/Wide Tablet: show decorative vertical divider and "HARDWARE & THERMAL ENGINE" badge
+          if (!isCompact) ...[
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 14),
+              width: 1,
+              height: 26,
+              color: Colors.white24,
             ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.print_rounded, size: 13, color: Colors.white70),
-                SizedBox(width: 6),
-                Text(
-                  'HARDWARE & THERMAL ENGINE',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.8,
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.print_rounded, size: 13, color: Colors.white70),
+                  SizedBox(width: 6),
+                  Text(
+                    'HARDWARE & THERMAL ENGINE',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
+          ],
 
           const Spacer(),
 
-          // Role Context Badge
+          // Role Context Badge (Compact on mobile to guarantee zero overflow)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
+            padding: EdgeInsets.symmetric(
+              horizontal: isCompact ? 8 : 10,
+              vertical: 3.5,
+            ),
             decoration: BoxDecoration(
               color: isWaiter
-                  ? const Color(0xFF287A55).withValues(alpha: 0.8)
-                  : const Color(0xFFB77945).withValues(alpha: 0.8),
-              borderRadius: BorderRadius.circular(12),
+                  ? const Color(0xFF287A55)
+                  : const Color(0xFFB77945),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
-              isWaiter ? 'WAITER TERMINAL' : 'COUNTER CONSOLE',
+              isCompact
+                  ? (isWaiter ? 'WAITER' : 'ADMIN')
+                  : (isWaiter ? 'WAITER TERMINAL' : 'COUNTER CONSOLE'),
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 10,
+                fontSize: 9.5,
                 fontWeight: FontWeight.w900,
-                letterSpacing: 1,
+                letterSpacing: 0.8,
               ),
             ),
           ),
@@ -395,27 +393,25 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
   // DESKTOP & TABLET LAYOUT (Multi-Column Dashboard)
   // ─────────────────────────────────────────────────────────────
   Widget _buildDesktopLayout(PrinterConfig config, UserModel? user, dynamic branch) {
-    return Padding(
-      padding: const EdgeInsets.all(20.0),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Left Column (390px): Status, Protocol, & Preferences
+          // Left Column (400px): Status, Protocol, & Preferences
           SizedBox(
-            width: 390,
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildActiveStatusCard(config),
-                  const SizedBox(height: 16),
-                  _buildProtocolSection(config),
-                  const SizedBox(height: 16),
-                  _buildPreferencesCard(config),
-                  const SizedBox(height: 16),
-                  _buildResetDefaultsButton(),
-                ],
-              ),
+            width: 400,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildActiveStatusCard(config),
+                const SizedBox(height: 16),
+                _buildProtocolSection(config),
+                const SizedBox(height: 16),
+                _buildPreferencesCard(config),
+                const SizedBox(height: 16),
+                _buildResetDefaultsButton(),
+              ],
             ),
           ),
 
@@ -423,19 +419,17 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
 
           // Right Column (Expanded): Discovery / Configuration & Live Simulator
           Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildDiscoveryAndSetupCard(config),
-                  const SizedBox(height: 16),
-                  ThermalReceiptPreview(
-                    paperSize: config.paperSize,
-                    branchName: branch?.branchName ?? 'Coffee Katta',
-                    branchAddress: branch?.address ?? 'Near Rajiv Gandhi Chowk, Latur',
-                  ),
-                ],
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildDiscoveryAndSetupCard(config),
+                const SizedBox(height: 16),
+                ThermalReceiptPreview(
+                  paperSize: config.paperSize,
+                  branchName: branch?.branchName ?? 'Coffee Katta',
+                  branchAddress: branch?.address ?? 'Near Rajiv Gandhi Chowk, Latur',
+                ),
+              ],
             ),
           ),
         ],
@@ -495,7 +489,7 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE8E1D8), width: 1),
+        border: Border.all(color: const Color(0xFFE8E1D8), width: 1.2),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -513,13 +507,13 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryCoffee.withValues(alpha: 0.08),
+                  color: const Color(0xFF382012).withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Center(
                   child: Icon(
                     _getProtocolIcon(config.connectionType),
-                    color: AppTheme.primaryCoffee,
+                    color: const Color(0xFF382012),
                     size: 24,
                   ),
                 ),
@@ -534,17 +528,21 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: AppTheme.textDark,
+                        color: Color(0xFF29231F),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 3),
                     Text(
                       config.address?.isNotEmpty == true
                           ? '${config.connectionType.name.toUpperCase()} • ${config.address}'
                           : '${config.connectionType.name.toUpperCase()} • Address Not Set',
-                      style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF6B5E55),
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -569,11 +567,11 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
                       shape: BoxShape.circle,
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 7),
                   Text(
                     statusText,
                     style: TextStyle(
-                      fontSize: 10.5,
+                      fontSize: 11,
                       fontWeight: FontWeight.w800,
                       color: statusColor,
                       letterSpacing: 0.5,
@@ -581,12 +579,21 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
                   ),
                 ],
               ),
-              Text(
-                '${config.paperSize.name.toUpperCase()} ROLL',
-                style: TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey.shade700,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF7F4EF),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFFE8E1D8)),
+                ),
+                child: Text(
+                  '${config.paperSize.name.toUpperCase()} ROLL',
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF382012),
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
             ],
@@ -595,7 +602,7 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
           // Instant Test Print Button
           SizedBox(
             width: double.infinity,
-            height: 44,
+            height: 46,
             child: ElevatedButton.icon(
               onPressed: _isTesting ? null : _handleTestPrint,
               icon: _isTesting
@@ -604,13 +611,18 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
-                  : const Icon(Icons.print_rounded, size: 18),
+                  : const Icon(Icons.print_rounded, size: 18, color: Colors.white),
               label: Text(
                 _isTesting ? 'TRANSMITTING TEST...' : 'RUN HARDWARE TEST TICKET',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, letterSpacing: 0.8),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12.5,
+                  letterSpacing: 0.8,
+                  color: Colors.white,
+                ),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryCoffee,
+                backgroundColor: const Color(0xFF382012), // Deep Espresso
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -631,7 +643,7 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE8E1D8), width: 1),
+        border: Border.all(color: const Color(0xFFE8E1D8), width: 1.2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -639,10 +651,10 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
           const Text(
             'CONNECTION PROTOCOL',
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: FontWeight.w900,
               letterSpacing: 1.1,
-              color: AppTheme.primaryCoffee,
+              color: Color(0xFF5A3825),
             ),
           ),
           const SizedBox(height: 12),
@@ -709,13 +721,13 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
       },
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? AppTheme.primaryCoffee.withValues(alpha: 0.05) : const Color(0xFFF7F4EF),
+          color: isSelected ? const Color(0xFFFBF7F2) : const Color(0xFFFFFFFF),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? AppTheme.primaryCoffee : const Color(0xFFE8E1D8),
-            width: isSelected ? 1.8 : 1,
+            color: isSelected ? const Color(0xFF382012) : const Color(0xFFE8E1D8),
+            width: isSelected ? 2.0 : 1.0,
           ),
         ),
         child: Column(
@@ -727,27 +739,32 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
               children: [
                 Icon(
                   icon,
-                  size: 20,
-                  color: isSelected ? AppTheme.primaryCoffee : Colors.grey.shade600,
+                  size: 22,
+                  color: isSelected ? const Color(0xFF382012) : const Color(0xFF5A3825),
                 ),
                 if (isSelected)
-                  const Icon(Icons.check_circle_rounded, size: 16, color: AppTheme.primaryCoffee),
+                  const Icon(Icons.check_circle_rounded, size: 18, color: Color(0xFF287A55)),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(
               title,
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                fontSize: 12,
-                color: isSelected ? AppTheme.primaryCoffee : AppTheme.textDark,
+                fontSize: 12.5,
+                color: isSelected ? const Color(0xFF382012) : const Color(0xFF29231F),
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
+            const SizedBox(height: 2),
             Text(
               subtitle,
-              style: TextStyle(fontSize: 9.5, color: Colors.grey.shade600),
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w500,
+                color: isSelected ? const Color(0xFF5A3825) : const Color(0xFF6B5E55),
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -766,7 +783,7 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE8E1D8), width: 1),
+        border: Border.all(color: const Color(0xFFE8E1D8), width: 1.2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -777,10 +794,10 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
               Text(
                 '${config.connectionType.name.toUpperCase()} CONFIGURATION',
                 style: const TextStyle(
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 1.1,
-                  color: AppTheme.primaryCoffee,
+                  color: Color(0xFF5A3825),
                 ),
               ),
               if (config.connectionType != PrinterConnectionType.rawbt)
@@ -790,14 +807,13 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
                       ? const SizedBox(
                           width: 12,
                           height: 12,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primaryCoffee),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF5A3825)),
                         )
-                      : const Icon(Icons.radar_rounded, size: 16),
+                      : const Icon(Icons.radar_rounded, size: 16, color: Color(0xFF5A3825)),
                   label: Text(
-                    _isScanning ? 'SCANNING...' : 'SCAN NETWORK',
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                    _isScanning ? 'SCANNING...' : 'SCAN HARDWARE',
+                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF5A3825)),
                   ),
-                  style: TextButton.styleFrom(foregroundColor: AppTheme.primaryCoffee),
                 ),
             ],
           ),
@@ -829,13 +845,16 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
               child: TextFormField(
                 controller: _ipController,
                 keyboardType: TextInputType.number,
+                style: const TextStyle(color: Color(0xFF29231F), fontWeight: FontWeight.bold, fontSize: 13.5),
                 decoration: InputDecoration(
                   labelText: 'Thermal Printer IP Address *',
+                  labelStyle: const TextStyle(color: Color(0xFF5A3825), fontWeight: FontWeight.bold),
                   hintText: '192.168.1.100',
-                  prefixIcon: const Icon(Icons.lan_outlined, color: AppTheme.primaryCoffee, size: 20),
+                  hintStyle: const TextStyle(color: Color(0xFF8C7B70)),
+                  prefixIcon: const Icon(Icons.lan_outlined, color: Color(0xFF382012), size: 20),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                   helperText: 'Fixed LAN / WiFi IP configured on thermal printer',
-                  helperStyle: TextStyle(fontSize: 10.5, color: Colors.grey.shade600),
+                  helperStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF6B5E55)),
                 ),
                 onChanged: (val) {
                   if (_isValidIp(val)) {
@@ -851,11 +870,13 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
               child: TextFormField(
                 initialValue: '${config.port}',
                 keyboardType: TextInputType.number,
+                style: const TextStyle(color: Color(0xFF29231F), fontWeight: FontWeight.bold, fontSize: 13.5),
                 decoration: InputDecoration(
                   labelText: 'Port',
+                  labelStyle: const TextStyle(color: Color(0xFF5A3825), fontWeight: FontWeight.bold),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                   helperText: 'Standard: 9100',
-                  helperStyle: TextStyle(fontSize: 10.5, color: Colors.grey.shade600),
+                  helperStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF6B5E55)),
                 ),
                 enabled: false,
               ),
@@ -872,12 +893,12 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
           ),
           child: const Row(
             children: [
-              Icon(Icons.tips_and_updates_outlined, size: 18, color: AppTheme.primaryCoffee),
+              Icon(Icons.tips_and_updates_outlined, size: 18, color: Color(0xFF5A3825)),
               SizedBox(width: 10),
               Expanded(
                 child: Text(
                   'Quick Tip: Direct Raw TCP uses port 9100. Ensure this device is connected to the same cafe WiFi router as your network printer.',
-                  style: TextStyle(fontSize: 11, color: AppTheme.textDark, height: 1.3),
+                  style: TextStyle(fontSize: 11.5, color: Color(0xFF382012), height: 1.35),
                 ),
               ),
             ],
@@ -906,14 +927,14 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
         alignment: Alignment.center,
         child: Column(
           children: [
-            Icon(Icons.print_disabled_rounded, size: 36, color: Colors.grey.shade400),
-            const SizedBox(height: 10),
+            const Icon(Icons.print_disabled_rounded, size: 38, color: Color(0xFF8C7B70)),
+            const SizedBox(height: 12),
             Text(
               _isScanning
                   ? 'Searching for nearby thermal hardware...'
-                  : 'No devices detected yet. Tap "SCAN NETWORK" above to search.',
+                  : 'No devices detected yet. Tap "SCAN HARDWARE" above to search.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12.5, color: Colors.grey.shade600),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF5A4D43)),
             ),
           ],
         ),
@@ -945,7 +966,7 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: isSelected ? AppTheme.primaryCoffee : const Color(0xFFF7F4EF),
+              color: isSelected ? const Color(0xFF382012) : const Color(0xFFF7F4EF),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -953,13 +974,13 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
                   ? Icons.bluetooth_rounded
                   : Icons.usb_rounded,
               size: 18,
-              color: isSelected ? Colors.white : AppTheme.primaryCoffee,
+              color: isSelected ? Colors.white : const Color(0xFF382012),
             ),
           ),
-          title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
-          subtitle: Text(address, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+          title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF29231F))),
+          subtitle: Text(address, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500, color: Color(0xFF6B5E55))),
           trailing: isSelected
-              ? const Icon(Icons.check_circle_rounded, color: AppTheme.successGreen, size: 20)
+              ? const Icon(Icons.check_circle_rounded, color: Color(0xFF287A55), size: 22)
               : OutlinedButton(
                   onPressed: () {
                     ref.read(printerConfigProvider.notifier).updateAddress(address);
@@ -967,12 +988,12 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
                     setState(() => _lastTestStatus = null);
                   },
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: AppTheme.primaryCoffee,
-                    side: const BorderSide(color: AppTheme.primaryCoffee),
+                    foregroundColor: const Color(0xFF382012),
+                    side: const BorderSide(color: Color(0xFF382012), width: 1.2),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                   ),
-                  child: const Text('SELECT', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                  child: const Text('SELECT', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11)),
                 ),
         );
       },
@@ -995,7 +1016,7 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
             ),
             child: const Row(
               children: [
-                Icon(Icons.language_rounded, size: 28, color: AppTheme.primaryCoffee),
+                Icon(Icons.language_rounded, size: 28, color: Color(0xFF382012)),
                 SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -1003,12 +1024,12 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
                     children: [
                       Text(
                         'Web Browser Printing Mode',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Color(0xFF29231F)),
                       ),
-                      SizedBox(height: 3),
+                      SizedBox(height: 4),
                       Text(
                         'Running in Web browser. Printing triggers the standard browser print dialogue. For direct ESC/POS hardware thermal printing, run on Windows Desktop or Android/Tablet app.',
-                        style: TextStyle(fontSize: 11, color: AppTheme.textDark, height: 1.3),
+                        style: TextStyle(fontSize: 11.5, color: Color(0xFF6B5E55), height: 1.35),
                       ),
                     ],
                   ),
@@ -1019,13 +1040,19 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
         ] else if (defaultTargetPlatform == TargetPlatform.windows) ...[
           const Text(
             'INSTALLED WINDOWS PRINTERS',
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey),
+            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w900, color: Color(0xFF5A3825), letterSpacing: 0.8),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           systemPrintersAsync.when(
             data: (printers) {
               if (printers.isEmpty) {
-                return const Text('No Windows OS printers found installed in system settings.');
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    'No Windows OS printers found installed in system settings.',
+                    style: TextStyle(color: Color(0xFF6B5E55), fontSize: 12.5, fontWeight: FontWeight.w500),
+                  ),
+                );
               }
               return Column(
                 children: printers.map((p) {
@@ -1033,24 +1060,24 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
                   return ListTile(
                     dense: true,
                     contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.print_outlined, color: AppTheme.primaryCoffee),
-                    title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                    subtitle: Text(p.url, style: const TextStyle(fontSize: 10.5)),
+                    leading: const Icon(Icons.print_outlined, color: Color(0xFF382012)),
+                    title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Color(0xFF29231F))),
+                    subtitle: Text(p.url, style: const TextStyle(fontSize: 11, color: Color(0xFF6B5E55))),
                     trailing: isSelected
-                        ? const Icon(Icons.check_circle_rounded, color: AppTheme.successGreen)
+                        ? const Icon(Icons.check_circle_rounded, color: Color(0xFF287A55))
                         : TextButton(
                             onPressed: () {
                               ref.read(printerConfigProvider.notifier).updateAddress(p.name);
                               ref.read(printerConfigProvider.notifier).updateName(p.name);
                             },
-                            child: const Text('SELECT'),
+                            child: const Text('SELECT', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF382012))),
                           ),
                   );
                 }).toList(),
               );
             },
             loading: () => const LinearProgressIndicator(),
-            error: (e, _) => Text('Error reading system printers: $e'),
+            error: (e, _) => Text('Error reading system printers: $e', style: const TextStyle(color: Colors.red)),
           ),
         ] else ...[
           Container(
@@ -1062,7 +1089,7 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
             ),
             child: const Row(
               children: [
-                Icon(Icons.android_rounded, size: 28, color: AppTheme.primaryCoffee),
+                Icon(Icons.android_rounded, size: 28, color: Color(0xFF382012)),
                 SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -1070,12 +1097,12 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
                     children: [
                       Text(
                         'RawBT Thermal Print Service',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Color(0xFF29231F)),
                       ),
-                      SizedBox(height: 3),
+                      SizedBox(height: 4),
                       Text(
                         'Prints directly via Android RawBT driver intent. Ensure the RawBT app is installed and configured on your Android device.',
-                        style: TextStyle(fontSize: 11, color: AppTheme.textDark, height: 1.3),
+                        style: TextStyle(fontSize: 11.5, color: Color(0xFF6B5E55), height: 1.35),
                       ),
                     ],
                   ),
@@ -1097,7 +1124,7 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE8E1D8), width: 1),
+        border: Border.all(color: const Color(0xFFE8E1D8), width: 1.2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1105,10 +1132,10 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
           const Text(
             'PRINTING PREFERENCES',
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: FontWeight.w900,
               letterSpacing: 1.1,
-              color: AppTheme.primaryCoffee,
+              color: Color(0xFF5A3825),
             ),
           ),
           const SizedBox(height: 14),
@@ -1116,12 +1143,16 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
           // Paper Width Segmented Chips
           Row(
             children: [
-              const Icon(Icons.straighten_rounded, size: 20, color: AppTheme.primaryCoffee),
+              const Icon(Icons.straighten_rounded, size: 20, color: Color(0xFF382012)),
               const SizedBox(width: 10),
               const Expanded(
                 child: Text(
                   'Thermal Paper Roll',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13.5,
+                    color: Color(0xFF29231F),
+                  ),
                 ),
               ),
               _buildPaperChip(
@@ -1143,9 +1174,16 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
           // Auto-print KOT
           SwitchListTile.adaptive(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Auto-print KOT on Submit', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
-            subtitle: const Text('Instantly dispatches kitchen slip upon placing order', style: TextStyle(fontSize: 11)),
-            activeColor: AppTheme.primaryCoffee,
+            title: const Text(
+              'Auto-print KOT on Submit',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Color(0xFF29231F)),
+            ),
+            subtitle: const Text(
+              'Instantly dispatches kitchen slip upon placing order',
+              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500, color: Color(0xFF6B5E55)),
+            ),
+            activeColor: const Color(0xFF287A55),
+            activeTrackColor: const Color(0xFF287A55).withValues(alpha: 0.35),
             value: config.autoPrintKOT,
             onChanged: (val) => ref.read(printerConfigProvider.notifier).toggleAutoKOT(val),
           ),
@@ -1154,9 +1192,16 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
           // Auto-print Bill
           SwitchListTile.adaptive(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Auto-print Bill on Settle', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
-            subtitle: const Text('Generates final customer receipt upon payment completion', style: TextStyle(fontSize: 11)),
-            activeColor: AppTheme.primaryCoffee,
+            title: const Text(
+              'Auto-print Bill on Settle',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Color(0xFF29231F)),
+            ),
+            subtitle: const Text(
+              'Generates final customer receipt upon payment completion',
+              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500, color: Color(0xFF6B5E55)),
+            ),
+            activeColor: const Color(0xFF287A55),
+            activeTrackColor: const Color(0xFF287A55).withValues(alpha: 0.35),
             value: config.autoPrintBill,
             onChanged: (val) => ref.read(printerConfigProvider.notifier).toggleAutoBill(val),
           ),
@@ -1165,9 +1210,16 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
             const Divider(height: 1, color: Color(0xFFE8E1D8)),
             SwitchListTile.adaptive(
               contentPadding: EdgeInsets.zero,
-              title: const Text('Bluetooth Low Energy (BLE)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
-              subtitle: const Text('Enable for BLE-compatible handheld thermal printers', style: TextStyle(fontSize: 11)),
-              activeColor: AppTheme.primaryCoffee,
+              title: const Text(
+                'Bluetooth Low Energy (BLE)',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Color(0xFF29231F)),
+              ),
+              subtitle: const Text(
+                'Enable for BLE-compatible handheld thermal printers',
+                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500, color: Color(0xFF6B5E55)),
+              ),
+              activeColor: const Color(0xFF287A55),
+              activeTrackColor: const Color(0xFF287A55).withValues(alpha: 0.35),
               value: config.isBle,
               onChanged: (val) => ref.read(printerConfigProvider.notifier).toggleBle(val),
             ),
@@ -1182,20 +1234,21 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
-          color: isSelected ? AppTheme.primaryCoffee : const Color(0xFFF7F4EF),
+          color: isSelected ? const Color(0xFF382012) : const Color(0xFFF7F4EF),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? AppTheme.primaryCoffee : const Color(0xFFE8E1D8),
+            color: isSelected ? const Color(0xFF382012) : const Color(0xFFD5CDC2),
+            width: isSelected ? 1.5 : 1.0,
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            fontSize: 11,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-            color: isSelected ? Colors.white : AppTheme.textDark,
+            fontSize: 11.5,
+            fontWeight: isSelected ? FontWeight.w900 : FontWeight.bold,
+            color: isSelected ? Colors.white : const Color(0xFF382012),
           ),
         ),
       ),
@@ -1221,12 +1274,12 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
             },
           );
         },
-        icon: const Icon(Icons.restore_rounded, size: 16, color: Colors.grey),
+        icon: const Icon(Icons.restore_rounded, size: 16, color: Color(0xFF7A6B60)),
         label: const Text(
           'RESET HARDWARE CONFIGURATION',
           style: TextStyle(
-            color: Colors.grey,
-            fontSize: 11,
+            color: Color(0xFF7A6B60),
+            fontSize: 11.5,
             fontWeight: FontWeight.bold,
             letterSpacing: 0.8,
           ),
@@ -1243,30 +1296,50 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: const Border(top: BorderSide(color: Color(0xFFE8E1D8))),
+        border: const Border(top: BorderSide(color: Color(0xFFE8E1D8), width: 1.2)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
-            offset: const Offset(0, -4),
+            offset: const Offset(0, -2),
           ),
         ],
       ),
       child: SafeArea(
+        top: false,
         child: SizedBox(
           width: double.infinity,
           height: 48,
-          child: ElevatedButton(
-            onPressed: () => Navigator.pop(context),
+          child: ElevatedButton.icon(
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Printer configuration saved for ${config.name.isNotEmpty ? config.name : "Default Printer"} (${config.connectionType.name.toUpperCase()})',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  backgroundColor: const Color(0xFF287A55),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              );
+              Navigator.pop(context);
+            },
+            icon: const Icon(Icons.check_circle_outline_rounded, size: 20, color: Colors.white),
+            label: const Text(
+              'CONFIRM & SAVE HARDWARE SETUP',
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 13.5,
+                letterSpacing: 0.8,
+                color: Colors.white,
+              ),
+            ),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF287A55),
               foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: const Text(
-              'CONFIRM & SAVE HARDWARE SETUP',
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, letterSpacing: 0.8),
             ),
           ),
         ),
@@ -1276,10 +1349,10 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
 
   IconData _getProtocolIcon(PrinterConnectionType type) {
     switch (type) {
-      case PrinterConnectionType.bluetooth:
-        return Icons.bluetooth_rounded;
       case PrinterConnectionType.network:
         return Icons.wifi_rounded;
+      case PrinterConnectionType.bluetooth:
+        return Icons.bluetooth_rounded;
       case PrinterConnectionType.usb:
         return Icons.usb_rounded;
       case PrinterConnectionType.rawbt:

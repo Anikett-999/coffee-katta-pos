@@ -190,39 +190,40 @@ class _BranchListItem extends ConsumerWidget {
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE8E1D8), width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: ExpansionTile(
-        tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         leading: Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: AppTheme.maroon.withOpacity(0.1),
+            color: const Color(0xFF382012).withValues(alpha: 0.08),
             shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.storefront_rounded, color: AppTheme.maroon),
+          child: const Icon(Icons.storefront_rounded, color: Color(0xFF382012)),
         ),
         title: Text(
           branch.branchName,
-          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17, color: Color(0xFF29231F)),
         ),
         subtitle: Text(
           'ID: ${branch.branchId} • ${branch.location}',
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w600),
+          style: const TextStyle(fontSize: 12, color: Color(0xFF6B5E55), fontWeight: FontWeight.w600),
         ),
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
             child: Column(
               children: [
-                const Divider(),
+                const Divider(height: 1, color: Color(0xFFE8E1D8)),
                 const SizedBox(height: 16),
                 _infoRow(Icons.location_on_outlined, 'Address', branch.address),
                 const SizedBox(height: 12),
@@ -235,19 +236,19 @@ class _BranchListItem extends ConsumerWidget {
                   const SizedBox(height: 12),
                   _infoRow(Icons.qr_code_2_rounded, 'Review URL', branch.reviewQrUrl),
                 ],
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppTheme.maroon),
-                      foregroundColor: AppTheme.maroon,
+                      side: const BorderSide(color: Color(0xFF382012), width: 1.2),
+                      foregroundColor: const Color(0xFF382012),
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                     onPressed: () => _editBranch(context, ref),
                     icon: const Icon(Icons.edit_outlined, size: 18),
-                    label: const Text('EDIT DETAILS', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.1)),
+                    label: const Text('EDIT DETAILS', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 0.8)),
                   ),
                 ),
               ],
@@ -262,14 +263,30 @@ class _BranchListItem extends ConsumerWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 18, color: Colors.grey.shade400),
+        Icon(icon, size: 18, color: const Color(0xFF5A3825)),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontWeight: FontWeight.bold)),
-              Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              Text(
+                label.toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  color: Color(0xFF5A3825),
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF29231F),
+                ),
+              ),
             ],
           ),
         ),

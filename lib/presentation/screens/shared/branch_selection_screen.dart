@@ -88,15 +88,16 @@ class BranchSelectionScreen extends ConsumerWidget {
           Text(
             'Welcome, ${user.name}',
             style: const TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.maroon,
-              letterSpacing: -1,
+              fontSize: 28,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF382012),
+              letterSpacing: -0.5,
             ),
           ),
+          const SizedBox(height: 4),
           const Text(
-            'Please select a branch to continue',
-            style: TextStyle(fontSize: 16, color: Colors.grey),
+            'Select your assigned operating branch to continue',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF6B5E55)),
           ),
           const SizedBox(height: 40),
           Expanded(
@@ -177,64 +178,76 @@ class _BranchCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
-      child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        elevation: 2,
-        shadowColor: Colors.black12,
-        child: InkWell(
-        onTap: () async {
-            // Use the notifier to save the selection persistently
-            await ref.read(activeBranchProvider.notifier).setBranch(branch.branchId);
-          },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppTheme.maroon.withOpacity(0.1),
-                    shape: BoxShape.circle,
+          border: Border.all(color: const Color(0xFFE8E1D8), width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () async {
+              await ref.read(activeBranchProvider.notifier).setBranch(branch.branchId);
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF382012).withValues(alpha: 0.08),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.storefront_rounded, color: Color(0xFF382012), size: 28),
                   ),
-                  child: const Icon(Icons.storefront, color: AppTheme.maroon, size: 30),
-                ),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        branch.branchName,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                      ),
-                      Text(
-                        branch.branchId,
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                      ),
-                      const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: _getRoleColor(userRole).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(6),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          branch.branchName,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: Color(0xFF29231F)),
                         ),
-                        child: Text(
-                          userRole.toUpperCase(),
-                          style: TextStyle(
-                            color: _getRoleColor(userRole),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1.2,
+                        const SizedBox(height: 2),
+                        Text(
+                          'Branch ID: ${branch.branchId} • ${branch.location}',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6B5E55)),
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: _getRoleColor(userRole).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: _getRoleColor(userRole).withValues(alpha: 0.25)),
+                          ),
+                          child: Text(
+                            userRole.toUpperCase(),
+                            style: TextStyle(
+                              color: _getRoleColor(userRole),
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.0,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
-              ],
+                  const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Color(0xFF8C7B70)),
+                ],
+              ),
             ),
           ),
         ),
@@ -244,10 +257,14 @@ class _BranchCard extends ConsumerWidget {
 
   Color _getRoleColor(String role) {
     switch (role.toLowerCase()) {
-      case 'admin': return Colors.purple;
-      case 'cashier': return Colors.green;
-      case 'waiter': return Colors.blue;
-      default: return Colors.grey;
+      case 'admin':
+        return const Color(0xFF5A3825); // Deep Brown
+      case 'cashier':
+        return const Color(0xFFB77945); // Caramel
+      case 'waiter':
+        return const Color(0xFF287A55); // Forest Green
+      default:
+        return const Color(0xFF6B5E55);
     }
   }
 }
