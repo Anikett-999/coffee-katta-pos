@@ -13,52 +13,190 @@ class BranchManagementScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final branchesAsync = ref.watch(allBranchesProvider);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isCompact = screenWidth < 720;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: const Text('MY BRANCHES', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.2, color: AppTheme.maroon)),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        elevation: 0,
-        surfaceTintColor: Colors.white,
-        shadowColor: Colors.black.withOpacity(0.1),
-        scrolledUnderElevation: 4,
-        iconTheme: const IconThemeData(color: AppTheme.maroon),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add_business),
-            onPressed: () => _addBranch(context, ref),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: EditorialBackground(
-        child: branchesAsync.when(
-          data: (branches) {
-            if (branches.isEmpty) {
-              return EmptyStateWidget(
-                title: 'No Branches Configured',
-                message: 'Database initialization might be incomplete.',
-                icon: Icons.store_mall_directory_outlined,
-              );
-            }
+      backgroundColor: const Color(0xFFF7F4EF),
+      body: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            // ════════════════════════════════════════════════════════
+            // 1. BRANDED TOP HEADER (#382012 Deep Espresso)
+            // ════════════════════════════════════════════════════════
+            Container(
+              height: 62,
+              color: const Color(0xFF382012),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white, size: 22),
+                    onPressed: () => Navigator.pop(context),
+                    tooltip: 'Back',
+                  ),
+                  const SizedBox(width: 4),
 
-            return ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: branches.length,
-              itemBuilder: (context, index) {
-                final branch = branches[index];
-                return _BranchListItem(branch: branch);
-              },
-            );
-          },
-          loading: () => LoadingIndicator(message: 'Loading branches...'),
-          error: (err, _) => ErrorStateWidget(error: err.toString()),
+                  // Coffee Katta Branding
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.local_cafe_rounded, color: Color(0xFFF7F4EF), size: 22),
+                      const SizedBox(width: 8),
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Coffee Katta',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                          if (!isCompact)
+                            const Text(
+                              'GOOD FOOD • GREAT VIBES',
+                              style: TextStyle(
+                                color: Color(0xFFD4A373),
+                                fontSize: 8.5,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.1,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+
+                  if (!isCompact) ...[
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 14),
+                      width: 1,
+                      height: 26,
+                      color: Colors.white24,
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.storefront_rounded, size: 13, color: Colors.white70),
+                          SizedBox(width: 6),
+                          Text(
+                            'BRANCH MANAGEMENT',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  const Spacer(),
+
+                  // Add Branch Action Button
+                  ElevatedButton.icon(
+                    onPressed: () => _addBranch(context, ref),
+                    icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.white, size: 17),
+                    label: Text(
+                      isCompact ? 'ADD' : 'ADD BRANCH',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF287A55), // Forest Green CTA
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: EdgeInsets.symmetric(horizontal: isCompact ? 10 : 14, vertical: 6),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+
+                  // Screen Badge
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isCompact ? 8 : 10,
+                      vertical: 3.5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFB77945),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Text(
+                      'BRANCHES',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // ════════════════════════════════════════════════════════
+            // 2. BRANCH LIST CONTENT
+            // ════════════════════════════════════════════════════════
+            Expanded(
+              child: EditorialBackground(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 860),
+                    child: branchesAsync.when(
+                      data: (branches) {
+                        if (branches.isEmpty) {
+                          return const EmptyStateWidget(
+                            title: 'No Branches Configured',
+                            message: 'Database initialization might be incomplete.',
+                            icon: Icons.store_mall_directory_outlined,
+                          );
+                        }
+
+                        return ListView.builder(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isCompact ? 16 : 24,
+                            vertical: 18,
+                          ),
+                          itemCount: branches.length,
+                          itemBuilder: (context, index) {
+                            final branch = branches[index];
+                            return _BranchListItem(branch: branch);
+                          },
+                        );
+                      },
+                      loading: () => const LoadingIndicator(message: 'Loading branches...'),
+                      error: (err, _) => ErrorStateWidget(error: err.toString()),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
+
   void _addBranch(BuildContext context, WidgetRef ref) {
     final nameController = TextEditingController();
     final locationController = TextEditingController();
@@ -87,49 +225,77 @@ class BranchManagementScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text('ADD NEW BRANCH', style: TextStyle(fontWeight: FontWeight.w900, color: AppTheme.maroon)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'ADD NEW BRANCH',
+          style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF382012), fontSize: 18),
+        ),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: nameController,
-                decoration: InputDecoration(labelText: 'Branch Name', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+                style: const TextStyle(color: Color(0xFF29231F), fontWeight: FontWeight.bold, fontSize: 13.5),
+                decoration: InputDecoration(
+                  labelText: 'Branch Name',
+                  labelStyle: const TextStyle(color: Color(0xFF5A3825), fontWeight: FontWeight.bold),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: locationController,
-                decoration: InputDecoration(labelText: 'Short Location', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+                style: const TextStyle(color: Color(0xFF29231F), fontWeight: FontWeight.bold, fontSize: 13.5),
+                decoration: InputDecoration(
+                  labelText: 'Short Location (e.g. Latur)',
+                  labelStyle: const TextStyle(color: Color(0xFF5A3825), fontWeight: FontWeight.bold),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: addressController,
                 maxLines: 2,
-                decoration: InputDecoration(labelText: 'Full Address', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+                style: const TextStyle(color: Color(0xFF29231F), fontWeight: FontWeight.bold, fontSize: 13.5),
+                decoration: InputDecoration(
+                  labelText: 'Full Address',
+                  labelStyle: const TextStyle(color: Color(0xFF5A3825), fontWeight: FontWeight.bold),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: phoneController,
                 keyboardType: TextInputType.phone,
-                decoration: InputDecoration(labelText: 'Phone', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+                style: const TextStyle(color: Color(0xFF29231F), fontWeight: FontWeight.bold, fontSize: 13.5),
+                decoration: InputDecoration(
+                  labelText: 'Phone',
+                  labelStyle: const TextStyle(color: Color(0xFF5A3825), fontWeight: FontWeight.bold),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: instagramController,
+                style: const TextStyle(color: Color(0xFF29231F), fontWeight: FontWeight.bold, fontSize: 13.5),
                 decoration: InputDecoration(
-                  labelText: 'Instagram ID (@handle)', 
+                  labelText: 'Instagram ID (@handle)',
+                  labelStyle: const TextStyle(color: Color(0xFF5A3825), fontWeight: FontWeight.bold),
                   prefixText: '@',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: reviewQrController,
+                style: const TextStyle(color: Color(0xFF29231F), fontWeight: FontWeight.bold, fontSize: 13.5),
                 decoration: InputDecoration(
-                  labelText: 'Google Review Link', 
+                  labelText: 'Google Review Link',
+                  labelStyle: const TextStyle(color: Color(0xFF5A3825), fontWeight: FontWeight.bold),
                   helperText: 'Paste the direct Google Maps review URL',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))
+                  helperStyle: const TextStyle(color: Color(0xFF6B5E55)),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 ),
               ),
             ],
@@ -138,13 +304,22 @@ class BranchManagementScreen extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('CANCEL', style: TextStyle(color: Colors.grey)),
+            child: const Text('CANCEL', style: TextStyle(color: Color(0xFF7A6B60), fontWeight: FontWeight.bold)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.maroon, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF287A55),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
             onPressed: () async {
-              if (nameController.text.trim().isEmpty) return;
-              
+              if (nameController.text.trim().isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please enter a branch name')),
+                );
+                return;
+              }
+
               final newBranch = BranchModel(
                 branchId: newBranchId,
                 branchName: nameController.text.trim(),
@@ -161,7 +336,7 @@ class BranchManagementScreen extends ConsumerWidget {
                 if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Branch added successfully'), backgroundColor: AppTheme.successGreen),
+                    const SnackBar(content: Text('Branch added successfully'), backgroundColor: Color(0xFF287A55)),
                   );
                 }
               } catch (e) {
@@ -172,7 +347,7 @@ class BranchManagementScreen extends ConsumerWidget {
                 }
               }
             },
-            child: const Text('ADD BRANCH'),
+            child: const Text('ADD BRANCH', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -187,7 +362,7 @@ class _BranchListItem extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -202,17 +377,22 @@ class _BranchListItem extends ConsumerWidget {
       ),
       child: ExpansionTile(
         tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        iconColor: const Color(0xFF5A3825),
+        collapsedIconColor: const Color(0xFF8C7B70),
         leading: Container(
-          padding: const EdgeInsets.all(10),
+          width: 40,
+          height: 40,
           decoration: BoxDecoration(
             color: const Color(0xFF382012).withValues(alpha: 0.08),
             shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.storefront_rounded, color: Color(0xFF382012)),
+          child: const Center(
+            child: Icon(Icons.storefront_rounded, color: Color(0xFF382012), size: 22),
+          ),
         ),
         title: Text(
           branch.branchName,
-          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17, color: Color(0xFF29231F)),
+          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFF29231F)),
         ),
         subtitle: Text(
           'ID: ${branch.branchId} • ${branch.location}',
@@ -305,8 +485,11 @@ class _BranchListItem extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text('EDIT BRANCH INFO', style: TextStyle(fontWeight: FontWeight.w900)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'EDIT BRANCH INFO',
+          style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF382012), fontSize: 18),
+        ),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -314,47 +497,70 @@ class _BranchListItem extends ConsumerWidget {
               TextField(
                 controller: nameController,
                 readOnly: true,
+                style: const TextStyle(color: Color(0xFF29231F), fontWeight: FontWeight.bold, fontSize: 13.5),
                 decoration: InputDecoration(
-                  labelText: 'Branch Name', 
+                  labelText: 'Branch Name',
+                  labelStyle: const TextStyle(color: Color(0xFF5A3825), fontWeight: FontWeight.bold),
                   helperText: 'Branch name cannot be changed once created',
-                  border: const OutlineInputBorder(),
+                  helperStyle: const TextStyle(color: Color(0xFF6B5E55)),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                   filled: true,
-                  fillColor: Colors.grey.shade100,
+                  fillColor: const Color(0xFFF7F4EF),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               TextField(
                 controller: locationController,
-                decoration: const InputDecoration(labelText: 'Location', border: OutlineInputBorder()),
+                style: const TextStyle(color: Color(0xFF29231F), fontWeight: FontWeight.bold, fontSize: 13.5),
+                decoration: InputDecoration(
+                  labelText: 'Location',
+                  labelStyle: const TextStyle(color: Color(0xFF5A3825), fontWeight: FontWeight.bold),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               TextField(
                 controller: addressController,
                 maxLines: 2,
-                decoration: const InputDecoration(labelText: 'Address', border: OutlineInputBorder()),
+                style: const TextStyle(color: Color(0xFF29231F), fontWeight: FontWeight.bold, fontSize: 13.5),
+                decoration: InputDecoration(
+                  labelText: 'Address',
+                  labelStyle: const TextStyle(color: Color(0xFF5A3825), fontWeight: FontWeight.bold),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               TextField(
                 controller: phoneController,
                 keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(labelText: 'Phone', border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: instagramController,
-                decoration: const InputDecoration(
-                  labelText: 'Instagram ID (@handle)', 
-                  prefixText: '@',
-                  border: OutlineInputBorder()
+                style: const TextStyle(color: Color(0xFF29231F), fontWeight: FontWeight.bold, fontSize: 13.5),
+                decoration: InputDecoration(
+                  labelText: 'Phone',
+                  labelStyle: const TextStyle(color: Color(0xFF5A3825), fontWeight: FontWeight.bold),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+              TextField(
+                controller: instagramController,
+                style: const TextStyle(color: Color(0xFF29231F), fontWeight: FontWeight.bold, fontSize: 13.5),
+                decoration: InputDecoration(
+                  labelText: 'Instagram ID (@handle)',
+                  labelStyle: const TextStyle(color: Color(0xFF5A3825), fontWeight: FontWeight.bold),
+                  prefixText: '@',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+              const SizedBox(height: 12),
               TextField(
                 controller: reviewQrController,
-                decoration: const InputDecoration(
-                  labelText: 'Google Review Link', 
+                style: const TextStyle(color: Color(0xFF29231F), fontWeight: FontWeight.bold, fontSize: 13.5),
+                decoration: InputDecoration(
+                  labelText: 'Google Review Link',
+                  labelStyle: const TextStyle(color: Color(0xFF5A3825), fontWeight: FontWeight.bold),
                   helperText: 'Paste the direct Google Maps review URL',
-                  border: OutlineInputBorder()
+                  helperStyle: const TextStyle(color: Color(0xFF6B5E55)),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 ),
               ),
             ],
@@ -363,18 +569,22 @@ class _BranchListItem extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('CANCEL', style: TextStyle(color: Colors.grey)),
+            child: const Text('CANCEL', style: TextStyle(color: Color(0xFF7A6B60), fontWeight: FontWeight.bold)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.maroon, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF287A55),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
             onPressed: () async {
               final updatedBranch = branch.copyWith(
-                branchName: nameController.text,
-                location: locationController.text,
-                address: addressController.text,
-                phone: phoneController.text,
-                instagramId: instagramController.text.replaceAll('@', ''),
-                reviewQrUrl: reviewQrController.text,
+                branchName: nameController.text.trim(),
+                location: locationController.text.trim(),
+                address: addressController.text.trim(),
+                phone: phoneController.text.trim(),
+                instagramId: instagramController.text.trim().replaceAll('@', ''),
+                reviewQrUrl: reviewQrController.text.trim(),
               );
 
               try {
@@ -382,7 +592,10 @@ class _BranchListItem extends ConsumerWidget {
                 if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Branch updated successfully'), backgroundColor: AppTheme.successGreen),
+                    const SnackBar(
+                      content: Text('Branch updated successfully'),
+                      backgroundColor: Color(0xFF287A55),
+                    ),
                   );
                 }
               } catch (e) {
@@ -393,7 +606,7 @@ class _BranchListItem extends ConsumerWidget {
                 }
               }
             },
-            child: const Text('SAVE CHANGES'),
+            child: const Text('SAVE CHANGES', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
