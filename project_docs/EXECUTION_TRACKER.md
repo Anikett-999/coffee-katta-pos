@@ -75,7 +75,7 @@
   - **☕ Coffee Profile** (`Katta Coffee`, `Hot Beverages`): Sugar Level (`No Sugar`, `Less Sugar`, `Normal Sugar`), Coffee Add-ons (`+ Extra Espresso Shot ₹30`, `+ Extra Milk / Cream ₹15`, `+ Extra Ice Cream ₹30`, `+ Whipped Cream ₹25`)
   - **🥤 Shakes & Frappé Profile** (`Freak Shakes`, `Katta Frappé`, `Polare Ice Tea`): Ice / Chill Level (`Normal Ice`, `Less Ice`, `Extra Chilled`), Dessert Add-ons (`+ Extra Ice Cream Scoop ₹30`, `+ Whipped Cream ₹25`, `+ Chocolate Drizzle ₹20`)
   - **🍟 Food & Starters Profile** (`Katta Starter`, `On the Sides`, `Katta Starter (Non Veg)`, `On the Sides (Non Veg)`): Prep Style (`Normal`, `Extra Crispy`, `Less Spicy`), Food Add-ons (`+ Extra Cheese Dip ₹25`, `+ Peri Peri Seasoning ₹15`, `+ Mayo Dip ₹15`)
-- [x] Added Veg / Non-Veg dietary badges (🟢 Veg, 🔴 Non-Veg) on item cards and customizer header
+- [x] Dietary indicators refined: removed individual item card dots (menu already segmented by category); displayed a distinct red dot (🔴) next to non-veg category names only in the sidebar/chips
 - [x] All currency representations strictly locked to Indian Rupee (`₹`), strictly no `$`
 - [x] Upgraded `CartItem` and `CartNotifier` to store and calculate based on custom unit prices
 - [x] Cart UI compact cafe redesign:
