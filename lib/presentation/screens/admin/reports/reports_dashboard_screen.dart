@@ -97,78 +97,79 @@ class _ReportsDashboardScreenState extends ConsumerState<ReportsDashboardScreen>
 
   // --- STAGE 1: PREMIUM DATE SELECTOR PAGE ---
   Widget _buildDateSelectorPage(BuildContext context, Map<String, dynamic> selection) {
-    return Padding(
+    final isWide = MediaQuery.of(context).size.width > 600;
+
+    return SingleChildScrollView(
+      key: const ValueKey('DateSelectorPage'),
       padding: const EdgeInsets.all(24.0),
       child: Column(
-        key: const ValueKey('DateSelectorPage'),
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
           Text(
             'Analytics Window',
-            style: GoogleFonts.epilogue(fontSize: 32, fontWeight: FontWeight.w900, color: AppTheme.maroon, letterSpacing: -1),
+            style: GoogleFonts.epilogue(fontSize: 28, fontWeight: FontWeight.w900, color: AppTheme.maroon, letterSpacing: -1),
           ),
           Text(
             'Select the period you want to analyze',
-            style: GoogleFonts.epilogue(fontSize: 16, color: Colors.grey[600], fontWeight: FontWeight.w500),
+            style: GoogleFonts.epilogue(fontSize: 15, color: Colors.grey[600], fontWeight: FontWeight.w500),
           ),
-          const SizedBox(height: 40),
-          Expanded(
-            child: GridView.count(
-              crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              childAspectRatio: 1.1,
-              children: [
-                _buildQuickSelectTile('Today', Icons.today_rounded, () {
-                  ref.read(analyticsDateSelectionProvider.notifier).setSingleDate(DateTime.now());
-                }, selection['isRange'] == false && DateUtils.isSameDay(selection['start'], DateTime.now())),
-                _buildQuickSelectTile('Yesterday', Icons.history_rounded, () {
-                  ref.read(analyticsDateSelectionProvider.notifier).setSingleDate(DateTime.now().subtract(const Duration(days: 1)));
-                }, selection['isRange'] == false && DateUtils.isSameDay(selection['start'], DateTime.now().subtract(const Duration(days: 1)))),
-                _buildQuickSelectTile('Last 7 Days', Icons.date_range_rounded, () {
-                  final now = DateTime.now();
-                  ref.read(analyticsDateSelectionProvider.notifier).setRange(now.subtract(const Duration(days: 6)), now);
-                }, selection['isRange'] == true),
-                _buildQuickSelectTile('Custom Range', Icons.tune_rounded, () async {
-                  final range = await showDateRangePicker(
-                    context: context,
-                    firstDate: DateTime(2023),
-                    lastDate: DateTime.now(),
-                    builder: (context, child) => Theme(
-                      data: Theme.of(context).copyWith(
-                        colorScheme: const ColorScheme.light(primary: AppTheme.maroon, onPrimary: Colors.white, surface: Colors.white, onSurface: Colors.black),
-                      ),
-                      child: child!,
+          const SizedBox(height: 24),
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: isWide ? 4 : 2,
+            mainAxisSpacing: 16,
+            crossAxisSpacing: 16,
+            childAspectRatio: isWide ? 1.25 : 1.1,
+            children: [
+              _buildQuickSelectTile('Today', Icons.today_rounded, () {
+                ref.read(analyticsDateSelectionProvider.notifier).setSingleDate(DateTime.now());
+              }, selection['isRange'] == false && DateUtils.isSameDay(selection['start'], DateTime.now())),
+              _buildQuickSelectTile('Yesterday', Icons.history_rounded, () {
+                ref.read(analyticsDateSelectionProvider.notifier).setSingleDate(DateTime.now().subtract(const Duration(days: 1)));
+              }, selection['isRange'] == false && DateUtils.isSameDay(selection['start'], DateTime.now().subtract(const Duration(days: 1)))),
+              _buildQuickSelectTile('Last 7 Days', Icons.date_range_rounded, () {
+                final now = DateTime.now();
+                ref.read(analyticsDateSelectionProvider.notifier).setRange(now.subtract(const Duration(days: 6)), now);
+              }, selection['isRange'] == true),
+              _buildQuickSelectTile('Custom Range', Icons.tune_rounded, () async {
+                final range = await showDateRangePicker(
+                  context: context,
+                  firstDate: DateTime(2023),
+                  lastDate: DateTime.now(),
+                  builder: (context, child) => Theme(
+                    data: Theme.of(context).copyWith(
+                      colorScheme: const ColorScheme.light(primary: AppTheme.maroon, onPrimary: Colors.white, surface: Colors.white, onSurface: Colors.black),
                     ),
-                  );
-                  if (range != null) {
-                    ref.read(analyticsDateSelectionProvider.notifier).setRange(range.start, range.end);
-                  }
-                }, false, isSpecial: true),
-              ],
-            ),
+                    child: child!,
+                  ),
+                );
+                if (range != null) {
+                  ref.read(analyticsDateSelectionProvider.notifier).setRange(range.start, range.end);
+                }
+              }, false, isSpecial: true),
+            ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           _buildActiveSelectionPreview(selection),
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
-            height: 64,
+            height: 54,
             child: ElevatedButton(
               onPressed: () => setState(() => _isDateConfirmed = true),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.maroon,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 elevation: 0,
               ),
               child: Text(
                 'CONFIRM & VIEW REPORT',
-                style: GoogleFonts.epilogue(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 1),
+                style: GoogleFonts.epilogue(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 1),
               ),
             ),
           ),
-          const SizedBox(height: 20),
         ],
       ),
     );

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -566,7 +567,8 @@ class PdfService {
     );
   }
 
-  static Future<File> savePdfToFile(Uint8List bytes, String fileName) async {
+  static Future<File?> savePdfToFile(Uint8List bytes, String fileName) async {
+    if (kIsWeb) return null;
     final dir = await getTemporaryDirectory();
     final file = File('${dir.path}/$fileName');
     await file.writeAsBytes(bytes);

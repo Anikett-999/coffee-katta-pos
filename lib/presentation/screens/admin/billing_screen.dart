@@ -155,10 +155,9 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
 
       final pdfBytes = await PdfService.generateBillPdf(bill, branch);
       final fileName = 'Bill_${bill.tableName}_${DateFormat('ddMMyy_HHmm').format(bill.createdAt)}.pdf';
-      final file = await PdfService.savePdfToFile(pdfBytes, fileName);
 
       await Share.shareXFiles(
-        [XFile(file.path)],
+        [XFile.fromData(pdfBytes, name: fileName, mimeType: 'application/pdf')],
         text: 'E-Bill for Table ${bill.tableName} at Coffee Katta',
       );
     } catch (e) {
