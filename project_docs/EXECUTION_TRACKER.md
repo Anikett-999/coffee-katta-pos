@@ -126,65 +126,48 @@
   - Created `test/phase5_dynamic_modifiers_test.dart` (5 comprehensive unit tests).
   - All 34 automated tests across entire project passed (`34/34`).
   - `flutter analyze` verified with 0 issues!
-- [x] Gate 5 Review: Completed & Verified
+- [x] Gate 5 Review: Ready for User Verification
 
 ---
 
-### [X] Phase 6: Admin / Cashier Final Billing & Checkout UI Redesign
-- [x] **Strict UI-Only Scope**:
-  - Zero backend, service, model, or database changes.
-  - Zero changes to calculations (`_total`, discount clamp, percentage vs flat math, extra charges).
-  - Preserved reliable printing flow (`PrintService`), retry print / WhatsApp fallback dialog, and table clearing logic.
-  - **Waiter Module strictly untouched and protected**.
-- [x] **Branded Dark Top Bar** (`#2A1810`):
-  - Back navigation, Coffee Katta logo & "GOOD FOOD • GREAT VIBES" sub-tag.
-  - Receipt icon badge with "Billing / Checkout" and "Table {name} • Dine-in".
-  - Search input field ("Search menu, item or SKU..." with `Ctrl + K` badge) filtering items in real-time.
-  - Refresh KOTs history button & user avatar.
-- [x] **Left Zone: KOT History Panel**:
-  - Compact cards with index number circle (`1`, `2`), KOT number, and status pills (Green `Printed` / Orange `Pending`).
-  - Formatted timestamp, table identifier, and expandable view to inspect items in each KOT.
-  - Botanical watermark with "Good Food Great Vibes" matching visual reference.
-- [x] **Center Zone: Bill Preview Panel** (`BillAggregatedList`):
-  - "Bill Preview" header with "Table {name} • {count} KOTs" and "Dine-in" chair badge.
-  - Low-profile category micro-headers with category iconography and item count badges.
-  - Clean item cards with defined borders (`#E8E1D8`), thumbnail container with future-proof image slot, item name, variant chips, and subtle embedded category tag.
-  - **Read-Only Quantity Pill** (`Qty {qty}`, soft beige container, strictly zero +/- controls).
-  - Bold line item price.
-- [x] **Right Zone: Settlement Panel**:
-  - Settlement header card with receipt icon and green "OPEN" status badge.
-  - **Order Summary**: Subtotal, Discount (`-₹...`), and Extra Charges (`+₹...`).
-  - **Total Amount Highlight Bar**: Warm beige container (`#F8F3EC`) with prominent `₹{total}`.
-  - **Discount Control**: Segmented `[% Percentage]` vs `[₹ Flat]` with validation error handling.
-  - **Extra Charges Field**: Labeled with `₹` indicator and validation error handling.
-  - **Payment Mode Selector**: 3 interactive tiles (`[Cash]`, `[UPI]`, `[Card]`) with active espresso brown highlighting.
-  - **Primary Action Button**: Full-width `[ PRINT & SETTLE   > ]` in deep coffee brown (`#5A3825`).
-- [x] **Responsive Mobile Layout**:
-  - Stacked layout for viewports <= 950px with persistent bottom settlement bar and adjustment modal sheet.
-- [x] **Automated Tests**:
-  - Created `test/phase6_billing_checkout_test.dart` (4 new unit tests).
-  - All 38 automated tests across entire project passed (`38/38`).
-  - `flutter analyze` verified with 0 issues!
-- [x] Gate 6 Review: Ready for User Verification
+### [X] Admin / Cashier Billing & Checkout Screen UI Redesign
+- [x] **Strict UI-Only Mandate**: 0% business logic changes, 0% Waiter module changes, 100% live Firestore data.
+- [x] **Header Bar**: Deep Coffee Brown (`#382012`), steaming cup Coffee Katta branding, table context (`Table {name} • Dine-in`), search input with `Ctrl + K` badge, refresh action, and profile icon.
+- [x] **Left Column (KOT History)**: Numbered circular badges (1, 2...), `KOT #{kotNumber}`, status pills (`● Printed` in green `#287A55` / `● Pending` in amber `#D97706`), timestamp, table context, chevron, expandable KOT details modal, and bottom-left botanical watermark with *"Good Food Great Vibes"*.
+- [x] **Center Column (Bill Preview)**:
+  - Upgraded [bill_aggregated_list.dart](file:///e:/projects/New%20folder/ShreeRajmandir-change%20to%20coffe%20katta/lib/presentation/widgets/admin/bill_aggregated_list.dart) into standalone cards (`#FFFFFF`, border `#E8E1D8`, radius 14px).
+  - Embedded category chips (`#F7F4EF`, `#5A3825`, bold 9.5px) inside cards — 0 full-width banners.
+  - [product_image_placeholder.dart](file:///e:/projects/New%20folder/ShreeRajmandir-change%20to%20coffe%20katta/lib/presentation/widgets/admin/product_image_placeholder.dart) (neutral warm surface, custom subtle vector insignia, ready for real images; 0 emojis/fake clip art).
+  - Strict read-only quantity pills (`Qty 1`; strictly no +/- buttons).
+  - Item price and item details menu.
+- [x] **Right Column (Settlement Workspace)**:
+  - Dark coffee brown banner (`#382012`), receipt badge, `OPEN` status pill.
+  - Order Summary card: Subtotal, Discount, Extra Charges, highlighted Total Amount box (`₹{total}`).
+  - Discount card: `% Percentage` / `₹ Flat` segmented toggle with input validation.
+  - Extra Charges card: Input field in ₹.
+  - Payment Mode card: 3-segmented buttons (`Cash`, `UPI`, `Card`).
+  - Primary Action button: `PRINT & SETTLE` (`#382012`, printer icon, chevron, triggers existing print, retry/share fallback, and table clearance).
+- [x] **Verification**:
+  - `flutter analyze` passes with 0 issues on all billing files.
+  - All 40 unit tests passing (`40/40`).
 
 ---
 
-### [ ] Phase 7: Thermal Receipt & RawBT Print Engine (HOLD)
+### [ ] Phase 6: Thermal Receipt & RawBT Print Engine (HOLD)
 - [ ] Update 80mm ESC/POS header with Coffee Katta branding & Latur address
 - [ ] Include variant info on KOT kitchen slips
 - [ ] Implement Counter terminal auto-spooler for unprinted KOTs (`isPrinted: false`)
 
 ---
 
-### [ ] Phase 8: Billing Math, 5% GST & Split Payment (HOLD)
+### [ ] Phase 7: Billing Math, 5% GST & Split Payment (HOLD)
 - [ ] Implement 5% restaurant GST (SAC 996331) with 1-paisa balancing
 - [ ] Add Cashier toggle: `[ GST Bill (5%) ]` vs `[ Non-GST / Retail Bill ]`
 - [ ] Implement multi-tender Split-Payment (Cash + UPI) with reconciliation
 
 ---
 
-### [ ] Phase 9: Build, Run & Verification Protocol (HOLD)
+### [ ] Phase 8: Build, Run & Verification Protocol (HOLD)
 - [ ] Final compilation and smoke testing
 - [ ] Windows desktop & Android build verification
-
 
