@@ -86,6 +86,12 @@
   - Elevated color hierarchy: Primary coffee brown (`#5A3825`), Caramel accent (`#B77945`), Price green (`#287A55`), High-contrast text (`#29231F`)
   - Reduced background illustration opacity to an ultra-faint 2.5% watermark, eliminating wash out
   - Designed Right KOT Area as a distinct, dedicated workspace with header bar, item counter, and clear workspace boundaries
+- [x] **Restaurant POS Item Card Layout**:
+  - Transformed cards from website-style centered alignment to industry-standard Restaurant POS layout.
+  - Left-aligned item name at the top with crisp typography.
+  - Positioned green price (`₹120`) at bottom-left and visually prominent espresso brown `+` action button at bottom-right.
+  - Added 1-tap fast add for standard items, customizer trigger on card tap or multiple-size items, and dynamic in-cart item count badge.
+  - Verified with zero analyzer errors and 100% unit tests passing (`16/16`). Committed (`f8b6476`) and pushed to `feature/coffee-katta-pos`.
 - [x] Automated test suite `test/phase4_beverage_customizer_test.dart` & `test/cart_notifier_test.dart` (27/27 tests passed)
 - [x] Gate 4 Review: Ready for User Verification
 
