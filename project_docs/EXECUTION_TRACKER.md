@@ -92,7 +92,8 @@
   - Positioned green price (`₹120`) at bottom-left and visually prominent espresso brown `+` action button at bottom-right.
   - Added 1-tap fast add for standard items, customizer trigger on card tap or multiple-size items, and dynamic in-cart item count badge.
   - Upgraded **Special Instructions** & modal text inputs with high-contrast text color (`#29231F`), coffee cursor, warm borders, and rich section headers.
-  - Verified with zero analyzer errors and 100% unit tests passing (`16/16`). Committed (`7dcda0e`) and pushed to `feature/coffee-katta-pos`.
+  - Redesigned **Unsent Items Exit Confirmation Dialog** into a premium editorial modal with shopping icon badge, contextual ticket pill (table, item count, total), high-contrast text, primary espresso brown "Keep Draft & Exit" button, soft-red "Discard" action, and warm outlined "Stay on Table" action.
+  - Verified with zero analyzer errors and 100% unit tests passing (`16/16`). Committed (`a7ea3f2`) and pushed to `feature/coffee-katta-pos`.
 - [x] Automated test suite `test/phase4_beverage_customizer_test.dart` & `test/cart_notifier_test.dart` (27/27 tests passed)
 - [x] Gate 4 Review: Ready for User Verification
 
