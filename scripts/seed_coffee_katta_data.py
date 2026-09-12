@@ -123,19 +123,24 @@ def main():
         "isActive": True
     })
 
-    # 3. Categories
+    # 3. Categories (Official 9 Categories from Physical Menu)
     CATEGORIES = [
-        {"id": "cat_cold_coffee", "name": "Cold Coffee & Shakes", "order": 1},
+        {"id": "cat_katta_coffee", "name": "Katta Coffee", "order": 1},
         {"id": "cat_hot_beverages", "name": "Hot Beverages", "order": 2},
-        {"id": "cat_sandwiches", "name": "Sandwiches & Toasts", "order": 3},
-        {"id": "cat_burgers", "name": "Burgers & Wraps", "order": 4},
-        {"id": "cat_snacks", "name": "Snacks & Fries", "order": 5},
-        {"id": "cat_pizzas", "name": "Pizzas & Combos", "order": 6},
+        {"id": "cat_freak_shakes", "name": "Freak Shakes", "order": 3},
+        {"id": "cat_katta_frappe", "name": "Katta Frappé", "order": 4},
+        {"id": "cat_polare_ice_tea", "name": "Polare Ice Tea", "order": 5},
+        {"id": "cat_katta_starter", "name": "Katta Starter", "order": 6},
+        {"id": "cat_on_the_sides", "name": "On the Sides", "order": 7},
+        {"id": "cat_katta_starter_non_veg", "name": "Katta Starter (Non Veg)", "order": 8},
+        {"id": "cat_on_the_sides_non_veg", "name": "On the Sides (Non Veg)", "order": 9},
     ]
 
     cat_map = {}
+    valid_cat_ids = set()
     print(f"[*] Seeding {len(CATEGORIES)} menu categories...")
     for cat in CATEGORIES:
+        valid_cat_ids.add(cat["id"])
         cat_doc_path = f"{branch_path}/menu_categories/{cat['id']}"
         patch_document(token, cat_doc_path, {
             "categoryId": cat["id"],
@@ -144,6 +149,14 @@ def main():
         })
         cat_map[cat["name"]] = cat["id"]
         print(f"    - [{cat['id']}] {cat['name']} (order: {cat['order']})")
+
+    # Clean old categories
+    existing_cats = list_documents(token, f"{branch_path}/menu_categories")
+    for doc in existing_cats:
+        doc_name = doc["name"].split("/")[-1]
+        if doc_name not in valid_cat_ids:
+            print(f"    [Cleaning old category] Deleting {doc_name}")
+            delete_document(token, f"{branch_path}/menu_categories/{doc_name}")
 
     # 4. Menu Items from assets/data/menu_items.json
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -169,9 +182,11 @@ def main():
             "groupName": "",
             "price": float(item["price"]),
             "variants": item.get("variants", []),
+            "isVeg": item.get("isVeg", True),
             "isAvailable": True
         })
-        print(f"    [{idx:02d}/45] {item['name']} (₹{item['price']}) -> {cat_name}")
+        veg_symbol = "🟢" if item.get("isVeg", True) else "🔴"
+        print(f"    [{idx:02d}/{len(menu_items_data)}] {veg_symbol} {item['name']} (₹{item['price']}) -> {cat_name}")
 
     # Remove any stale menu items not in current list
     existing_items = list_documents(token, f"{branch_path}/menu_items")

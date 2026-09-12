@@ -534,6 +534,8 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                   catName = matched.first.name;
                }
             }
+            final isNonVeg = catName.contains('Non Veg') ||
+                item.name.toLowerCase().contains('chicken');
 
             return Card(
               elevation: 4,
@@ -541,32 +543,37 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
               child: InkWell(
                 borderRadius: BorderRadius.circular(12),
                 onTap: () {
-                  final isBeverage = catName == 'Cold Coffee & Shakes' ||
-                      catName == 'Hot Beverages' ||
-                      item.categoryId == 'cat_cold_coffee' ||
-                      item.categoryId == 'cat_hot_beverages';
-
-                  if (isBeverage) {
-                    _showBeverageCustomizer(item, catName);
-                  } else if (item.variants.length > 1) {
-                    _showVariantDialog(item, catName);
-                  } else {
-                    ref.read(cartProvider(widget.table.tableId).notifier).addItem(item, catName);
-                    if (isMobile) {
-                      _showItemAddedFeedback(item.name);
-                    }
-                  }
+                  _showItemCustomizer(item, catName);
                 },
                 child: Padding(
                   padding: const EdgeInsets.all(8),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(item.name,
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            margin: const EdgeInsets.only(right: 5),
+                            decoration: BoxDecoration(
+                              color: isNonVeg ? Colors.red[700] : Colors.green[700],
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          Flexible(
+                            child: Text(
+                              item.name,
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            ),
+                          ),
+                        ],
+                      ),
                       if (catName.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Text(catName.toUpperCase(),
@@ -585,113 +592,172 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                 ),
               ),
             );
-              },
-            );
           },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, s) => Center(child: Text('Error: $e')),
         );
-      }
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, s) => Center(child: Text('Error: $e')),
+    );
+  }
 
-      void _showItemAddedFeedback(String itemName) {
-        ScaffoldMessenger.of(context).clearSnackBars();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$itemName added!'),
-            duration: const Duration(milliseconds: 600),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+  void _showItemAddedFeedback(String itemName) {
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$itemName added!'),
+        duration: const Duration(milliseconds: 600),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
 
-      void _showBeverageCustomizer(Item item, String catName) {
-        List<ParsedVariant> variants = item.variants
-            .map((v) => ParsedVariant.fromString(v))
-            .toList();
-        if (variants.isEmpty) {
-          variants = [
-            const ParsedVariant(label: 'Regular', raw: 'Regular:0', extraPrice: 0.0),
-            const ParsedVariant(label: 'Large', raw: 'Large:30', extraPrice: 30.0),
-          ];
-        }
+  void _showItemCustomizer(Item item, String catName) {
+    final List<ParsedVariant> variants = item.variants
+        .map((v) => ParsedVariant.fromString(v))
+        .toList();
 
-        ParsedVariant selectedVariant = variants.first;
-        String selectedSugar = 'Normal Sugar';
-        final Set<String> selectedAddOns = {};
-        final TextEditingController specialNoteController = TextEditingController();
+    ParsedVariant selectedVariant = variants.isNotEmpty
+        ? variants.first
+        : const ParsedVariant(label: 'Standard', raw: 'Standard:0', extraPrice: 0.0);
 
-        final isCold = catName.toLowerCase().contains('cold') ||
-            item.name.toLowerCase().contains('cold') ||
-            item.name.toLowerCase().contains('shake');
+    final isCoffee = catName == 'Katta Coffee' ||
+        catName == 'Hot Beverages' ||
+        item.categoryId == 'cat_katta_coffee' ||
+        item.categoryId == 'cat_hot_beverages';
 
-        final addOnOptions = isCold
+    final isShakeOrTea = catName == 'Freak Shakes' ||
+        catName == 'Katta Frappé' ||
+        catName == 'Polare Ice Tea' ||
+        item.categoryId == 'cat_freak_shakes' ||
+        item.categoryId == 'cat_katta_frappe' ||
+        item.categoryId == 'cat_polare_ice_tea';
+
+    final isFoodOrSide = catName.contains('Starter') ||
+        catName.contains('Sides') ||
+        item.categoryId.contains('starter') ||
+        item.categoryId.contains('sides');
+
+    final isNonVeg = catName.contains('Non Veg') ||
+        item.name.toLowerCase().contains('chicken');
+
+    // Profile Settings
+    String selectedOption = isCoffee
+        ? 'Normal Sugar'
+        : (isShakeOrTea ? 'Normal Ice' : 'Normal');
+
+    final List<String> primaryOptions = isCoffee
+        ? ['No Sugar', 'Less Sugar', 'Normal Sugar']
+        : (isShakeOrTea
+            ? ['Normal Ice', 'Less Ice', 'Extra Chilled']
+            : ['Normal', 'Extra Crispy', 'Less Spicy']);
+
+    final String primaryLabel = isCoffee
+        ? 'SUGAR LEVEL'
+        : (isShakeOrTea ? 'ICE / CHILL LEVEL' : 'PREPARATION STYLE');
+
+    final List<Map<String, dynamic>> addOnOptions = isCoffee
+        ? [
+            {'name': 'Extra Espresso Shot', 'price': 30.0},
+            {'name': 'Extra Milk / Cream', 'price': 15.0},
+            {'name': 'Extra Ice Cream', 'price': 30.0},
+            {'name': 'Whipped Cream', 'price': 25.0},
+          ]
+        : (isShakeOrTea
             ? [
-                {'name': 'Extra Ice Cream', 'price': 30.0},
-                {'name': 'Extra Espresso Shot', 'price': 30.0},
-                {'name': 'Chocolate Syrup', 'price': 20.0},
+                {'name': 'Extra Ice Cream Scoop', 'price': 30.0},
                 {'name': 'Whipped Cream', 'price': 25.0},
+                {'name': 'Chocolate Drizzle', 'price': 20.0},
               ]
             : [
-                {'name': 'Extra Milk / Cream', 'price': 15.0},
-                {'name': 'Extra Espresso Shot', 'price': 30.0},
-                {'name': 'Extra Ice Cream', 'price': 30.0},
-                {'name': 'Whipped Cream', 'price': 25.0},
-              ];
+                {'name': 'Extra Cheese Dip', 'price': 25.0},
+                {'name': 'Peri Peri Seasoning', 'price': 15.0},
+                {'name': 'Mayo Dip', 'price': 15.0},
+              ]);
 
-        showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
-          builder: (ctx) => StatefulBuilder(
-            builder: (context, setModalState) {
-              double addOnsTotal = 0.0;
-              for (final opt in addOnOptions) {
-                if (selectedAddOns.contains(opt['name'])) {
-                  addOnsTotal += (opt['price'] as double);
-                }
-              }
-              final double unitPrice = item.price + selectedVariant.extraPrice + addOnsTotal;
+    final IconData categoryIcon = isCoffee
+        ? Icons.coffee
+        : (isShakeOrTea ? Icons.icecream : Icons.restaurant);
 
-              return Container(
-                padding: EdgeInsets.only(
-                  left: 20,
-                  right: 20,
-                  top: 20,
-                  bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-                ),
-                decoration: const BoxDecoration(
-                  color: AppTheme.latteCream,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                ),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
+    final String hintText = isCoffee
+        ? 'e.g. Extra hot, Less milk, Separate cup...'
+        : (isShakeOrTea
+            ? 'e.g. Extra thick, Less sweet, No straw...'
+            : 'e.g. Well toasted, Extra spicy, Pack separate...');
+
+    final Set<String> selectedAddOns = {};
+    final TextEditingController specialNoteController = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) {
+          double addOnsTotal = 0.0;
+          for (final opt in addOnOptions) {
+            if (selectedAddOns.contains(opt['name'])) {
+              addOnsTotal += (opt['price'] as double);
+            }
+          }
+          final double unitPrice = item.price + selectedVariant.extraPrice + addOnsTotal;
+
+          return Container(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 20,
+              bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+            ),
+            decoration: const BoxDecoration(
+              color: AppTheme.latteCream,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Row(
                     children: [
-                      // Header
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: AppTheme.espressoBrown.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(Icons.coffee, color: AppTheme.espressoBrown, size: 28),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppTheme.espressoBrown.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(categoryIcon, color: AppTheme.espressoBrown, size: 28),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
                               children: [
-                                Text(
-                                  item.name,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppTheme.espressoBrown,
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  margin: const EdgeInsets.only(right: 6),
+                                  decoration: BoxDecoration(
+                                    color: isNonVeg ? Colors.red[700] : Colors.green[700],
+                                    shape: BoxShape.circle,
                                   ),
                                 ),
+                                Expanded(
+                                  child: Text(
+                                    item.name,
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.espressoBrown,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Row(
+                              children: [
                                 Text(
                                   catName,
                                   style: TextStyle(
@@ -700,239 +766,253 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  isNonVeg ? '• Non-Veg' : '• Veg',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: isNonVeg ? Colors.red[700] : Colors.green[800],
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ],
                             ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.close),
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                        ],
-                      ),
-                      const Divider(height: 24),
-
-                      // 1. Cup Size / Variant Selection
-                      if (variants.length > 1) ...[
-                        const Text(
-                          'CUP SIZE / VARIANT',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1,
-                            color: AppTheme.warmCaramel,
-                          ),
+                          ],
                         ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: variants.map((v) {
-                            final isSelected = selectedVariant.label == v.label;
-                            return ChoiceChip(
-                              label: Text(
-                                v.extraPrice > 0
-                                    ? '${v.label} (+₹${v.extraPrice.toStringAsFixed(0)})'
-                                    : v.label,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 24),
+
+                  // 1. Size / Variant Selection (if multiple variants exist)
+                  if (variants.length > 1) ...[
+                    const Text(
+                      'SIZE / VARIANT',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1,
+                        color: AppTheme.warmCaramel,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: variants.map((v) {
+                        final isSelected = selectedVariant.label == v.label;
+                        return ChoiceChip(
+                          label: Text(
+                            v.extraPrice > 0
+                                ? '${v.label} (+₹${v.extraPrice.toStringAsFixed(0)})'
+                                : v.label,
+                            style: TextStyle(
+                              color: isSelected ? Colors.white : AppTheme.espressoBrown,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                          selected: isSelected,
+                          selectedColor: AppTheme.espressoBrown,
+                          backgroundColor: Colors.white,
+                          onSelected: (selected) {
+                            if (selected) {
+                              setModalState(() => selectedVariant = v);
+                            }
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // 2. Primary Option (Sugar / Chill / Prep)
+                  Text(
+                    primaryLabel,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1,
+                      color: AppTheme.warmCaramel,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: primaryOptions.map((opt) {
+                      final isSelected = selectedOption == opt;
+                      return Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: ChoiceChip(
+                            label: Center(
+                              child: Text(
+                                opt,
                                 style: TextStyle(
+                                  fontSize: 12,
                                   color: isSelected ? Colors.white : AppTheme.espressoBrown,
                                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                                 ),
                               ),
-                              selected: isSelected,
-                              selectedColor: AppTheme.espressoBrown,
-                              backgroundColor: Colors.white,
-                              onSelected: (selected) {
-                                if (selected) {
-                                  setModalState(() => selectedVariant = v);
-                                }
-                              },
-                            );
-                          }).toList(),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
-
-                      // 2. Sugar Level Quick Buttons
-                      const Text(
-                        'SUGAR LEVEL',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1,
-                          color: AppTheme.warmCaramel,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: ['No Sugar', 'Less Sugar', 'Normal Sugar'].map((s) {
-                          final isSelected = selectedSugar == s;
-                          return Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 4),
-                              child: ChoiceChip(
-                                label: Center(
-                                  child: Text(
-                                    s,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: isSelected ? Colors.white : AppTheme.espressoBrown,
-                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                    ),
-                                  ),
-                                ),
-                                selected: isSelected,
-                                selectedColor: AppTheme.warmCaramel,
-                                backgroundColor: Colors.white,
-                                onSelected: (selected) {
-                                  if (selected) {
-                                    setModalState(() => selectedSugar = s);
-                                  }
-                                },
-                              ),
                             ),
-                          );
-                        }).toList(),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // 3. Optional Add-on Chips
-                      const Text(
-                        'OPTIONAL ADD-ONS',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1,
-                          color: AppTheme.warmCaramel,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: addOnOptions.map((opt) {
-                          final name = opt['name'] as String;
-                          final price = opt['price'] as double;
-                          final isChecked = selectedAddOns.contains(name);
-                          return FilterChip(
-                            label: Text(
-                              '+ $name (₹${price.toStringAsFixed(0)})',
-                              style: TextStyle(
-                                color: isChecked ? Colors.white : AppTheme.espressoBrown,
-                                fontWeight: isChecked ? FontWeight.bold : FontWeight.normal,
-                              ),
-                            ),
-                            selected: isChecked,
-                            selectedColor: AppTheme.warmAmber,
+                            selected: isSelected,
+                            selectedColor: AppTheme.warmCaramel,
                             backgroundColor: Colors.white,
-                            checkmarkColor: Colors.white,
-                            onSelected: (checked) {
-                              setModalState(() {
-                                if (checked) {
-                                  selectedAddOns.add(name);
-                                } else {
-                                  selectedAddOns.remove(name);
-                                }
-                              });
+                            onSelected: (selected) {
+                              if (selected) {
+                                setModalState(() => selectedOption = opt);
+                              }
                             },
-                          );
-                        }).toList(),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // 4. Special Instructions TextField
-                      const Text(
-                        'SPECIAL INSTRUCTIONS',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1,
-                          color: AppTheme.warmCaramel,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: specialNoteController,
-                        decoration: InputDecoration(
-                          hintText: 'e.g. Extra hot, Less ice, Pack separate...',
-                          hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
-                          filled: true,
-                          fillColor: Colors.white,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide(color: Colors.brown[200]!),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide(color: Colors.brown[200]!),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(color: AppTheme.espressoBrown, width: 1.5),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 20),
-
-                      // 5. Add to Order Button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.espressoBrown,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: 2,
-                          ),
-                          onPressed: () {
-                            final List<String> noteParts = [selectedSugar];
-                            if (selectedAddOns.isNotEmpty) {
-                              noteParts.add('+ ${selectedAddOns.join(', ')}');
-                            }
-                            final custom = specialNoteController.text.trim();
-                            if (custom.isNotEmpty) {
-                              noteParts.add(custom);
-                            }
-                            final fullNote = noteParts.join(', ');
-
-                            ref.read(cartProvider(widget.table.tableId).notifier).addItem(
-                              item,
-                              catName,
-                              variant: selectedVariant.label,
-                              price: unitPrice,
-                              note: fullNote,
-                            );
-
-                            Navigator.pop(context);
-                            _showItemAddedFeedback('${item.name} (${selectedVariant.label})');
-                          },
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.add_shopping_cart, size: 20),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Add to Order • ₹${unitPrice.toStringAsFixed(0)}',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
+                      );
+                    }).toList(),
                   ),
-                ),
-              );
-            },
-          ),
-        );
-      }
+                  const SizedBox(height: 16),
+
+                  // 3. Optional Add-ons
+                  const Text(
+                    'OPTIONAL ADD-ONS',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1,
+                      color: AppTheme.warmCaramel,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: addOnOptions.map((opt) {
+                      final name = opt['name'] as String;
+                      final price = opt['price'] as double;
+                      final isChecked = selectedAddOns.contains(name);
+                      return FilterChip(
+                        label: Text(
+                          '+ $name (₹${price.toStringAsFixed(0)})',
+                          style: TextStyle(
+                            color: isChecked ? Colors.white : AppTheme.espressoBrown,
+                            fontWeight: isChecked ? FontWeight.bold : FontWeight.normal,
+                          ),
+                        ),
+                        selected: isChecked,
+                        selectedColor: AppTheme.warmAmber,
+                        backgroundColor: Colors.white,
+                        checkmarkColor: Colors.white,
+                        onSelected: (checked) {
+                          setModalState(() {
+                            if (checked) {
+                              selectedAddOns.add(name);
+                            } else {
+                              selectedAddOns.remove(name);
+                            }
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // 4. Special Instructions TextField
+                  const Text(
+                    'SPECIAL INSTRUCTIONS',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1,
+                      color: AppTheme.warmCaramel,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: specialNoteController,
+                    decoration: InputDecoration(
+                      hintText: hintText,
+                      hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: Colors.brown[200]!),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: Colors.brown[200]!),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: AppTheme.espressoBrown, width: 1.5),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // 5. Add to Order Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.espressoBrown,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 2,
+                      ),
+                      onPressed: () {
+                        final List<String> noteParts = [];
+                        if (selectedOption != 'Normal') {
+                          noteParts.add(selectedOption);
+                        }
+                        if (selectedAddOns.isNotEmpty) {
+                          noteParts.add('+ ${selectedAddOns.join(', ')}');
+                        }
+                        final custom = specialNoteController.text.trim();
+                        if (custom.isNotEmpty) {
+                          noteParts.add(custom);
+                        }
+                        final fullNote = noteParts.join(', ');
+
+                        ref.read(cartProvider(widget.table.tableId).notifier).addItem(
+                          item,
+                          catName,
+                          variant: variants.length > 1 ? selectedVariant.label : null,
+                          price: unitPrice,
+                          note: fullNote,
+                        );
+
+                        Navigator.pop(context);
+                        _showItemAddedFeedback('${item.name} added!');
+                      },
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.add_shopping_cart, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Add to Order • ₹${unitPrice.toStringAsFixed(0)}',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
 
       void _showVariantDialog(Item item, String catName) {
         final List<ParsedVariant> variants = item.variants

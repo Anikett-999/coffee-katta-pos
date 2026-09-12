@@ -56,20 +56,23 @@ void main() {
           reason: 'Found legacy Rajmandir database paths in: $violations');
     });
 
-    test('assets/data/menu_items.json contains valid 45 Coffee Katta items', () {
+    test('assets/data/menu_items.json contains valid 43 Coffee Katta items', () {
       final menuFile = File('assets/data/menu_items.json');
       expect(menuFile.existsSync(), isTrue);
 
       final List<dynamic> items = jsonDecode(menuFile.readAsStringSync());
-      expect(items.length, equals(45));
+      expect(items.length, equals(43));
 
       final expectedCategories = {
-        'Cold Coffee & Shakes',
+        'Katta Coffee',
         'Hot Beverages',
-        'Sandwiches & Toasts',
-        'Burgers & Wraps',
-        'Snacks & Fries',
-        'Pizzas & Combos',
+        'Freak Shakes',
+        'Katta Frappé',
+        'Polare Ice Tea',
+        'Katta Starter',
+        'On the Sides',
+        'Katta Starter (Non Veg)',
+        'On the Sides (Non Veg)',
       };
 
       final foundCategories = <String>{};

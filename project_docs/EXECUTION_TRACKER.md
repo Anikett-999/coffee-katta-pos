@@ -48,40 +48,36 @@
 
 ---
 
-### [X] Phase 3: Menu & Categories Seed Data
-- [x] Replace `assets/data/menu_items.json` with 45-item Coffee Katta cafe catalog
-- [x] 6 official Menu Categories:
-  - Cold Coffee & Shakes (10 items)
-  - Hot Beverages (10 items)
-  - Sandwiches & Toasts (8 items)
-  - Burgers & Wraps (6 items)
-  - Snacks & Fries (6 items)
-  - Pizzas & Combos (5 items)
-- [x] Update `SeedDataService` to persist beverage/food variants
-- [x] Write & execute automated Firestore seeder `scripts/seed_coffee_katta_data.py`:
-  - Cleaned up old placeholder items
-  - Seeded 45 items with Indian Rupee (₹) prices and size variant options
-- [x] Automated test suite verifying 45 items and 6 categories (PASSED)
+### [X] Phase 3: Menu & Categories Seed Data (OFFICIAL VERIFIED CATALOG)
+- [x] Replace `assets/data/menu_items.json` with **43 official Coffee Katta items** from verified physical booklet
+- [x] **9 Official Menu Categories** seeded into Firestore:
+  - 1. `Katta Coffee` (9 items)
+  - 2. `Hot Beverages` (8 items)
+  - 3. `Freak Shakes` (5 items)
+  - 4. `Katta Frappé` (4 items)
+  - 5. `Polare Ice Tea` (2 items)
+  - 6. `Katta Starter` (6 items, Veg)
+  - 7. `On the Sides` (3 items, Veg)
+  - 8. `Katta Starter (Non Veg)` (4 items, Non-Veg)
+  - 9. `On the Sides (Non Veg)` (2 items, Non-Veg)
+- [x] Automated Firestore seeder `scripts/seed_coffee_katta_data.py`:
+  - Cleaned up old placeholder categories & items
+  - Seeded 43 items with Indian Rupee (₹) prices, official category mappings, and `isVeg` tags
+- [x] Automated test suite verifying 43 items and 9 categories (PASSED)
 - [x] Gate 3 Review: Completed & Verified
 
 ---
 
-### [X] Phase 4: Waiter Screen Beverage Customizer
+### [X] Phase 4: Waiter Screen Customizer & Category Profiles
 - [x] Unlocked Rule #42 in `lib/presentation/screens/waiter/order_screen.dart`
-- [x] Implemented Beverage Customizer bottom sheet modal:
-  - Cup size selection with dynamic price parsing (`Regular (250ml):0`, `Large (350ml):30`, etc.)
-  - Sugar level quick buttons (`No Sugar`, `Less Sugar`, `Normal Sugar`)
-  - Optional Add-on chips for both Cold & Hot Beverages: `+ Extra Ice Cream (₹30)`, `+ Extra Espresso Shot (₹30)`, `+ Extra Milk / Cream (₹15)`, `+ Whipped Cream (₹25)`, etc.
-  - Special instructions text field
-  - Live unit price calculator and action button (`Add to Order • ₹...`)
-- [x] Streamlined 1-Tap Ordering: Non-variant items (combos, sandwiches, burgers) add immediately to cart without redundant "Standard" modal
-- [x] Pizza Catalog Cleanup: Cleaned item titles in Firestore/JSON (`Margherita Pizza`, `Farmhouse Veg Pizza`, `Paneer Special Pizza`) so size upgrades cleanly show `7 inch` and `9 inch`
-- [x] Cart UI Overhaul:
-  - Redesigned cart cards to a compact, non-squished cafe layout with inline variant badges
-  - Dedicated custom stepper `[-] Qty [+]` with clean touch targets
-  - Subtle customization note container with tune icon
-  - Clean bottom price & edit note row without repetitive `(₹X each)` when qty is 1
-  - Expanded desktop cart column width to 380px for breathing room
+- [x] Implemented **Category Customization Profiles** tailored to item type:
+  - **☕ Coffee Profile** (`Katta Coffee`, `Hot Beverages`): Sugar Level (`No Sugar`, `Less Sugar`, `Normal Sugar`), Coffee Add-ons (`+ Extra Espresso Shot ₹30`, `+ Extra Milk / Cream ₹15`, `+ Extra Ice Cream ₹30`, `+ Whipped Cream ₹25`)
+  - **🥤 Shakes & Frappé Profile** (`Freak Shakes`, `Katta Frappé`, `Polare Ice Tea`): Ice / Chill Level (`Normal Ice`, `Less Ice`, `Extra Chilled`), Dessert Add-ons (`+ Extra Ice Cream Scoop ₹30`, `+ Whipped Cream ₹25`, `+ Chocolate Drizzle ₹20`)
+  - **🍟 Food & Starters Profile** (`Katta Starter`, `On the Sides`, `Katta Starter (Non Veg)`, `On the Sides (Non Veg)`): Prep Style (`Normal`, `Extra Crispy`, `Less Spicy`), Food Add-ons (`+ Extra Cheese Dip ₹25`, `+ Peri Peri Seasoning ₹15`, `+ Mayo Dip ₹15`)
+- [x] Added Veg / Non-Veg dietary badges (🟢 Veg, 🔴 Non-Veg) on item cards and customizer header
+- [x] All currency representations strictly locked to Indian Rupee (`₹`), strictly no `$`
+- [x] Upgraded `CartItem` and `CartNotifier` to store and calculate based on custom unit prices
+- [x] Cart UI compact cafe redesign with sleek stepper `[-] Qty [+]`, inline badges, and custom notes
 - [x] Automated test suite `test/phase4_beverage_customizer_test.dart` & `test/cart_notifier_test.dart` (27/27 tests passed)
 - [x] Gate 4 Review: Ready for User Verification
 
