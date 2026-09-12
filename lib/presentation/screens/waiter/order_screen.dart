@@ -138,9 +138,19 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
 
   void updateQuantity(String cartId, int delta) {
     state = state
-        .map((i) => i.cartId == cartId ? i.copyWith(quantity: i.quantity + delta) : i)
+        .map((i) {
+          if (i.cartId == cartId) {
+            final newQty = (i.quantity + delta).clamp(0, 99);
+            return i.copyWith(quantity: newQty);
+          }
+          return i;
+        })
         .where((i) => i.quantity > 0)
         .toList();
+  }
+
+  void removeItem(String cartId) {
+    state = state.where((i) => i.cartId != cartId).toList();
   }
 
   void updateNote(String cartId, String note) {
@@ -410,26 +420,38 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
           canPop: cart.isEmpty && !_isProcessing,
           onPopInvokedWithResult: (didPop, result) async {
             if (didPop) return;
-            final shouldDiscard = await showDialog<bool>(
+            final action = await showDialog<String>(
               context: context,
               builder: (context) => AlertDialog(
-                title: const Text('Discard Cart?'),
+                title: const Text('Unsent Items in Cart'),
                 content: const Text(
-                    'You have items in your cart. Leaving this screen will keep them saved for this table. Do you want to go back?'),
+                    'You have unsent items for this table. Would you like to keep them as a draft or discard them?'),
                 actions: [
                   TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text('Stay')),
+                    onPressed: () => Navigator.pop(context, 'stay'),
+                    child: const Text('Stay'),
+                  ),
                   TextButton(
-                    onPressed: () => Navigator.pop(context, true),
-                    child: Text('Go Back',
+                    onPressed: () => Navigator.pop(context, 'discard'),
+                    child: Text('Discard',
                         style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context, 'keep'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.maroon,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Keep Draft'),
                   ),
                 ],
               ),
             );
-            if (shouldDiscard == true && context.mounted) {
+            if (!context.mounted) return;
+            if (action == 'discard') {
               ref.read(cartProvider(widget.table.tableId).notifier).clear();
+              Navigator.of(context).pop();
+            } else if (action == 'keep') {
               Navigator.of(context).pop();
             }
           },
@@ -1770,9 +1792,13 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                             InkWell(
                               onTap: () => ref.read(cartProvider(widget.table.tableId).notifier).updateQuantity(i.cartId, -1),
                               borderRadius: const BorderRadius.horizontal(left: Radius.circular(8)),
-                              child: const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-                                child: Icon(Icons.remove, size: 15, color: AppTheme.espressoBrown),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                                child: Icon(
+                                  i.quantity == 1 ? Icons.delete_outline : Icons.remove,
+                                  size: 15,
+                                  color: i.quantity == 1 ? Colors.red[600] : AppTheme.espressoBrown,
+                                ),
                               ),
                             ),
                             Container(
