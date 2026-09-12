@@ -42,6 +42,12 @@ final availableItemsStreamProvider = StreamProvider<List<Item>>((ref) {
   return service.watchAvailableItems();
 });
 
+// Stream of All Items across all categories (for admin management and live category metrics)
+final allItemsStreamProvider = StreamProvider<List<Item>>((ref) {
+  final service = ref.watch(menuServiceProvider);
+  return service.watchAllItems();
+});
+
 // Stream of All Addons
 final addonsStreamProvider = StreamProvider<List<AddOnItem>>((ref) {
   final service = ref.watch(menuServiceProvider);

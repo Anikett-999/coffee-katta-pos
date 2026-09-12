@@ -15,67 +15,202 @@ class CategoryItemsScreen extends ConsumerStatefulWidget {
 }
 
 class _CategoryItemsScreenState extends ConsumerState<CategoryItemsScreen> {
+  final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: Text(widget.category.name, style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.maroon)),
-        backgroundColor: Colors.white,
-        foregroundColor: AppTheme.maroon,
-        elevation: 0,
-        surfaceTintColor: Colors.white,
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Widget _buildTopHeader(BuildContext context) {
+    return Container(
+      height: 62,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: const BoxDecoration(
+        color: Color(0xFF382012),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black26,
+            blurRadius: 6,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
-      body: EditorialBackground(
-        child: Column(
+      child: SafeArea(
+        bottom: false,
+        child: Row(
           children: [
-            // Search Bar & Add Button Section
+            IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+              onPressed: () => Navigator.pop(context),
+              tooltip: 'Back to Categories',
+            ),
+            const SizedBox(width: 4),
+            // Steaming Cup Logo
             Container(
-              color: Colors.white,
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-              child: Row(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white.withValues(alpha: 0.22), width: 1.2),
+              ),
+              child: const Icon(Icons.coffee_rounded, color: AppTheme.warmAmber, size: 20),
+            ),
+            const SizedBox(width: 12),
+            // Title & Subtitle
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: TextField(
-                      onChanged: (value) => setState(() => _searchQuery = value),
-                      style: const TextStyle(color: Colors.black87),
-                      decoration: InputDecoration(
-                        hintText: 'Search items...',
-                        hintStyle: TextStyle(color: Colors.grey.withOpacity(0.6)),
-                        prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                        filled: true,
-                        fillColor: Colors.grey[100],
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
+                  Text(
+                    widget.category.name,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.4,
+                      height: 1.15,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(width: 12),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppTheme.maroon,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: IconButton(
-                      icon: const Icon(Icons.add, color: Colors.white),
-                      onPressed: () => ItemListViewLogic.showItemDialog(context, ref, widget.category.categoryId),
-                      tooltip: 'Add Item',
+                  const Text(
+                    'COFFEE KATTA • ITEMS CATALOG',
+                    style: TextStyle(
+                      color: AppTheme.warmAmber,
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.2,
+                      height: 1.2,
                     ),
                   ),
                 ],
               ),
             ),
-            
-            Expanded(
-              child: ItemListView(searchQuery: _searchQuery),
+            // Items Catalog Badge
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.26)),
+              ),
+              child: const Text(
+                'ITEMS',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.0,
+                ),
+              ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildControlBar(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0xFFE8E1D8), width: 1.2)),
+      ),
+      child: Row(
+        children: [
+          // Search Box
+          Expanded(
+            child: Container(
+              height: 44,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF7F4EF),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFE8E1D8), width: 1.2),
+              ),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (val) => setState(() => _searchQuery = val),
+                style: const TextStyle(
+                  color: Color(0xFF29231F),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Search items in ${widget.category.name}...',
+                  hintStyle: const TextStyle(
+                    color: Color(0xFF8C7B70),
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFF5A3825), size: 20),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear_rounded, size: 18, color: Color(0xFF8C7B70)),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() => _searchQuery = '');
+                          },
+                        )
+                      : null,
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Add Item Action Button
+          SizedBox(
+            height: 44,
+            child: ElevatedButton.icon(
+              onPressed: () => ItemListViewLogic.showItemDialog(context, ref, widget.category.categoryId),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF287A55), // Forest Green
+                foregroundColor: Colors.white,
+                elevation: 1,
+                padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 18),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              icon: const Icon(Icons.add_rounded, size: 20),
+              label: isMobile
+                  ? const SizedBox.shrink()
+                  : const Text(
+                      'ADD ITEM',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.6,
+                      ),
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Column(
+        children: [
+          _buildTopHeader(context),
+          _buildControlBar(context),
+          Expanded(
+            child: EditorialBackground(
+              child: ItemListView(searchQuery: _searchQuery),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -75,6 +75,17 @@ class MenuService {
     });
   }
 
+  // Watch all items (both available and unavailable for management/catalog)
+  Stream<List<Item>> watchAllItems() {
+    return _itemsCollection
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        return Item.fromJson(doc.data() as Map<String, dynamic>);
+      }).toList();
+    });
+  }
+
   // --- Addon Operations ---
   Stream<List<AddOnItem>> watchAddons() {
     return _addonsCollection.snapshots().map((snapshot) {
