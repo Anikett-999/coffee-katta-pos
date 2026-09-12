@@ -28,13 +28,14 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
   final _extraChargesController = TextEditingController(text: '0');
   final _searchController = TextEditingController();
   String _selectedPaymentMode = 'Cash';
-  Map<String, double> _splitAmounts = {'Cash': 0.0, 'UPI': 0.0, 'Card': 0.0};
+  Map<String, double>? _splitAmounts;
+  Map<String, double> get _safeSplitAmounts => _splitAmounts ??= {'Cash': 0.0, 'UPI': 0.0, 'Card': 0.0};
   String _discountType = 'percent';
   bool _isLoading = false;
   String _searchQuery = '';
 
   String get _splitSummaryText {
-    final active = _splitAmounts.entries.where((e) => e.value > 0).toList();
+    final active = _safeSplitAmounts.entries.where((e) => e.value > 0).toList();
     if (active.isEmpty) return 'Tap to configure split amounts';
     return active.map((e) => '${e.key}: ₹${e.value.toStringAsFixed(0)}').join(' • ');
   }
@@ -200,7 +201,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
 
       List<Payment> payments;
       if (_selectedPaymentMode == 'Split') {
-        final activePayments = _splitAmounts.entries
+        final activePayments = _safeSplitAmounts.entries
             .where((e) => e.value > 0)
             .map((e) => Payment(mode: e.key, amount: e.value))
             .toList();
@@ -322,6 +323,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    _splitAmounts ??= {'Cash': 0.0, 'UPI': 0.0, 'Card': 0.0};
     if (_billPreviewData == null) {
       return Scaffold(
         backgroundColor: const Color(0xFFF7F4EF),
@@ -1386,10 +1388,10 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
   Future<void> _showSplitPaymentDialog() async {
     final double targetTotal = _total;
 
-    final existingSum = _splitAmounts.values.fold(0.0, (sum, val) => sum + val);
-    double initialCash = _splitAmounts['Cash'] ?? 0.0;
-    double initialUpi = _splitAmounts['UPI'] ?? 0.0;
-    double initialCard = _splitAmounts['Card'] ?? 0.0;
+    final existingSum = _safeSplitAmounts.values.fold(0.0, (sum, val) => sum + val);
+    double initialCash = _safeSplitAmounts['Cash'] ?? 0.0;
+    double initialUpi = _safeSplitAmounts['UPI'] ?? 0.0;
+    double initialCard = _safeSplitAmounts['Card'] ?? 0.0;
 
     if (existingSum == 0) {
       initialCash = targetTotal;
@@ -1541,7 +1543,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                         IconButton(
                           icon: const Icon(Icons.close, size: 18),
                           onPressed: () {
-                            if (_splitAmounts.values.every((v) => v == 0)) {
+                            if (_safeSplitAmounts.values.every((v) => v == 0)) {
                               setState(() => _selectedPaymentMode = 'Cash');
                             }
                             Navigator.pop(ctx);
@@ -1670,7 +1672,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                         Expanded(
                           child: OutlinedButton(
                             onPressed: () {
-                              if (_splitAmounts.values.every((v) => v == 0)) {
+                              if (_safeSplitAmounts.values.every((v) => v == 0)) {
                                 setState(() => _selectedPaymentMode = 'Cash');
                               }
                               Navigator.pop(ctx);
