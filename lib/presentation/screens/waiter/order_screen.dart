@@ -1463,16 +1463,16 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                   const Text('GRAND TOTAL', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                   const Text('TOTAL', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                    Consumer(builder: (c, ref, _) {
-                      return Text('₹${ref.read(cartProvider(widget.table.tableId).notifier).total.toStringAsFixed(0)}', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppTheme.maroon));
+                      return Text('₹${ref.read(cartProvider(widget.table.tableId).notifier).total.toStringAsFixed(0)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.maroon));
                    }),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 14),
               SizedBox(
                 width: double.infinity,
-                height: 60,
+                height: 48,
                 child: Consumer(builder: (c, ref, _) {
                    final cart = ref.watch(cartProvider(widget.table.tableId));
                    final isDisabled = cart.isEmpty;
@@ -1481,37 +1481,38 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                        Expanded(
                          flex: 3,
                          child: SizedBox(
-                           height: 60,
-                           child: ElevatedButton(
+                           height: 48,
+                           child: ElevatedButton.icon(
                              onPressed: isDisabled ? null : () {
                                Navigator.pop(ctx);
                                _sendToKitchen();
                              },
+                             icon: const Icon(Icons.send_rounded, size: 16),
+                             label: const Text('SEND', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                              style: ElevatedButton.styleFrom(
-                               backgroundColor: AppTheme.deepGreen,
+                               backgroundColor: AppTheme.maroon,
                                foregroundColor: Colors.white,
-                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                              ),
-                             child: const Text('SEND TO KITCHEN', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                            ),
                          ),
                        ),
-                       const SizedBox(width: 10),
+                       const SizedBox(width: 8),
                        Expanded(
                          flex: 2,
                          child: SizedBox(
-                           height: 60,
+                           height: 48,
                            child: ElevatedButton.icon(
                              onPressed: isDisabled ? null : () {
                                Navigator.pop(ctx);
                                _sendToKitchen(shouldPrint: true);
                              },
-                             icon: const Icon(Icons.print, size: 20),
-                             label: const Text('SEND & PRINT', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                             icon: const Icon(Icons.print, size: 16),
+                             label: const Text('SEND & PRINT', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
                              style: ElevatedButton.styleFrom(
                                backgroundColor: AppTheme.maroon,
                                foregroundColor: Colors.white,
-                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                              ),
                            ),
                          ),
@@ -1589,31 +1590,42 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
               const Padding(padding: EdgeInsets.all(16.0), child: Text('CURRENT KOT', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18))),
               Expanded(child: _buildCartList()),
               Container(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.1),
-                  border: const Border(top: BorderSide(color: Colors.grey, width: 0.5)),
+                  color: Colors.brown.withValues(alpha: 0.04),
+                  border: const Border(top: BorderSide(color: Color(0xFFE5DDD5), width: 1)),
                 ),
                 child: Column(
                   children: [
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('TOTAL', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
-                        Text('₹${ref.read(cartProvider(widget.table.tableId).notifier).total.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 26, color: AppTheme.maroon)),
+                        const Text(
+                          'TOTAL',
+                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, letterSpacing: 0.5),
+                        ),
+                        Text(
+                          '₹${ref.read(cartProvider(widget.table.tableId).notifier).total.toStringAsFixed(0)}',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: AppTheme.maroon),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 12),
                     Row(
                       children: [
                         Expanded(
                           flex: 3,
                           child: SizedBox(
-                            height: 58,
-                            child: ElevatedButton(
+                            height: 46,
+                            child: ElevatedButton.icon(
                               onPressed: ref.watch(cartProvider(widget.table.tableId)).isEmpty ? null : () => _sendToKitchen(),
-                              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.deepGreen, foregroundColor: Colors.white),
-                              child: const Text('SEND TO KITCHEN', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                              icon: const Icon(Icons.send_rounded, size: 16),
+                              label: const Text('SEND', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.maroon,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
                             ),
                           ),
                         ),
@@ -1621,12 +1633,16 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                         Expanded(
                           flex: 2,
                           child: SizedBox(
-                            height: 58,
+                            height: 46,
                             child: ElevatedButton.icon(
                               onPressed: ref.watch(cartProvider(widget.table.tableId)).isEmpty ? null : () => _sendToKitchen(shouldPrint: true),
-                              icon: const Icon(Icons.print, size: 18),
-                              label: const Text('SEND & PRINT', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.maroon, foregroundColor: Colors.white),
+                              icon: const Icon(Icons.print, size: 16),
+                              label: const Text('SEND & PRINT', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.maroon,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
                             ),
                           ),
                         ),
