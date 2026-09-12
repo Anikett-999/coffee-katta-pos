@@ -16,7 +16,7 @@ class CategoryListView extends ConsumerWidget {
     final categoriesAsync = ref.watch(categoriesStreamProvider);
     final allItemsAsync = ref.watch(allItemsStreamProvider);
     final userAsync = ref.watch(userModelProvider);
-    final isAdmin = userAsync.value?.isAdmin ?? false;
+    final isAdmin = userAsync.asData?.value?.isAdmin ?? false;
 
     return categoriesAsync.when(
       data: (categories) {

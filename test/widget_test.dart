@@ -1,6 +1,12 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:coffee_katta_pos/main.dart';
 import 'package:coffee_katta_pos/core/app_theme.dart';
+import 'package:coffee_katta_pos/domain/models/category.dart';
+import 'package:coffee_katta_pos/presentation/screens/admin/menu/category_items_screen.dart';
+import 'package:coffee_katta_pos/presentation/providers/menu_provider.dart';
+import 'package:coffee_katta_pos/presentation/providers/auth_provider.dart';
 
 void main() {
   test('AppTheme brand colors smoke test', () {
@@ -15,5 +21,24 @@ void main() {
   test('App widget can be instantiated', () {
     const app = CoffeeKattaPOSApp();
     expect(app, isNotNull);
+  });
+
+  testWidgets('CategoryItemsScreen renders cleanly without container assertion error', (tester) async {
+    const category = Category(categoryId: 'katta_coffee', name: 'Katta Coffee', order: 1);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          selectedCategoryIdProvider.overrideWith((ref) => 'katta_coffee'),
+          itemsByCategoryProvider.overrideWith((ref) => Stream.value([])),
+          userModelProvider.overrideWith((ref) => Stream.value(null)),
+        ],
+        child: const MaterialApp(
+          home: CategoryItemsScreen(category: category),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Katta Coffee'), findsOneWidget);
+    expect(find.byType(CategoryItemsScreen), findsOneWidget);
   });
 }

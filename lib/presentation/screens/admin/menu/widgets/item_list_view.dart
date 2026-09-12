@@ -14,7 +14,7 @@ class ItemListView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final itemsAsync = ref.watch(itemsByCategoryProvider);
     final userAsync = ref.watch(userModelProvider);
-    final isAdmin = userAsync.value?.isAdmin ?? false;
+    final isAdmin = userAsync.asData?.value?.isAdmin ?? false;
     final selectedCategoryId = ref.watch(selectedCategoryIdProvider);
 
     return itemsAsync.when(
