@@ -81,7 +81,11 @@
 - [x] Cart UI compact cafe redesign:
   - Compacted card sizes (`maxCrossAxisExtent: 155`, padding 6px, removed redundant category subtitle)
   - Deducted Cart footer total text size (20pt, label 15pt)
-  - Renamed buttons to `SEND` and `SEND & PRINT` with unified cafe espresso brown styling (`AppTheme.maroon`)
+- [x] Visual Theme & Atmosphere Transformation:
+  - Applied subtle warm background (`#F7F4EF`), crisp white cards (`#FFFFFF`), and refined borders (`#E8E1D8`)
+  - Elevated color hierarchy: Primary coffee brown (`#5A3825`), Caramel accent (`#B77945`), Price green (`#287A55`), High-contrast text (`#29231F`)
+  - Reduced background illustration opacity to an ultra-faint 2.5% watermark, eliminating wash out
+  - Designed Right KOT Area as a distinct, dedicated workspace with header bar, item counter, and clear workspace boundaries
 - [x] Automated test suite `test/phase4_beverage_customizer_test.dart` & `test/cart_notifier_test.dart` (27/27 tests passed)
 - [x] Gate 4 Review: Ready for User Verification
 
