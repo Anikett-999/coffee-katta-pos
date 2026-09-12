@@ -257,6 +257,17 @@ class PrintService {
     bytes += generator.text('GRAND TOTAL'.padRight(maxChars - totalStr.length) + totalStr, 
         styles: const PosStyles(bold: true, height: PosTextSize.size2, width: PosTextSize.size1));
     
+    // Payment Mode Breakdown (Split or Single)
+    if (bill.payments.length > 1) {
+      bytes += generator.text(sep);
+      bytes += generator.text('PAID VIA (SPLIT):', styles: const PosStyles(bold: true));
+      for (final p in bill.payments) {
+        bytes += generator.text(formatDualLine('  ${p.mode.toUpperCase()}', 'Rs. ${p.amount.toStringAsFixed(2)}'));
+      }
+    } else if (bill.payments.isNotEmpty) {
+      bytes += generator.text(formatDualLine('PAID VIA', bill.payments.first.mode.toUpperCase()));
+    }
+
     bytes += generator.text(dsep);
     
     // 5. Footer (Side-by-Side QR & Branding)

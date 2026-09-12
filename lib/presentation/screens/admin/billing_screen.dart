@@ -28,9 +28,16 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
   final _extraChargesController = TextEditingController(text: '0');
   final _searchController = TextEditingController();
   String _selectedPaymentMode = 'Cash';
+  Map<String, double> _splitAmounts = {'Cash': 0.0, 'UPI': 0.0, 'Card': 0.0};
   String _discountType = 'percent';
   bool _isLoading = false;
   String _searchQuery = '';
+
+  String get _splitSummaryText {
+    final active = _splitAmounts.entries.where((e) => e.value > 0).toList();
+    if (active.isEmpty) return 'Tap to configure split amounts';
+    return active.map((e) => '${e.key}: ₹${e.value.toStringAsFixed(0)}').join(' • ');
+  }
 
   Map<String, dynamic>? _billPreviewData;
 
@@ -191,6 +198,30 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
         throw Exception('Cannot generate bill: Missing Order ID');
       }
 
+      List<Payment> payments;
+      if (_selectedPaymentMode == 'Split') {
+        final activePayments = _splitAmounts.entries
+            .where((e) => e.value > 0)
+            .map((e) => Payment(mode: e.key, amount: e.value))
+            .toList();
+
+        final totalAllocated = activePayments.fold(0.0, (sum, p) => sum + p.amount);
+        if ((totalAllocated - _total).abs() > 0.05 || activePayments.isEmpty) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Split payment amounts must equal total: ₹${_total.toStringAsFixed(2)}'),
+              backgroundColor: Colors.red.shade800,
+            ),
+          );
+          _showSplitPaymentDialog();
+          return;
+        }
+        payments = activePayments;
+      } else {
+        payments = [Payment(mode: _selectedPaymentMode, amount: _total)];
+      }
+
       final bill = await billingService.generateBill(
         orderId: widget.table.activeOrderId!,
         tableId: widget.table.tableId,
@@ -199,7 +230,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
         discountValue: double.tryParse(_discountController.text) ?? 0,
         discountType: _discountType,
         extraCharges: double.tryParse(_extraChargesController.text) ?? 0,
-        payments: [Payment(mode: _selectedPaymentMode, amount: _total)],
+        payments: payments,
         userId: currentUser?.uid ?? 'admin',
       );
 
@@ -1224,7 +1255,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
     );
   }
 
-  // Card 4: Payment Mode (Cash | UPI | Card)
+  // Card 4: Payment Mode (Cash | UPI | Card | Split)
   Widget _buildPaymentModeCard() {
     return Container(
       decoration: BoxDecoration(
@@ -1232,7 +1263,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFFE8E1D8)),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1250,12 +1281,56 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
           Row(
             children: [
               _buildPaymentModeOption('Cash', Icons.payments_outlined),
-              const SizedBox(width: 6),
+              const SizedBox(width: 4),
               _buildPaymentModeOption('UPI', Icons.qr_code_2_rounded),
-              const SizedBox(width: 6),
+              const SizedBox(width: 4),
               _buildPaymentModeOption('Card', Icons.credit_card_rounded),
+              const SizedBox(width: 4),
+              _buildPaymentModeOption('Split', Icons.call_split_rounded),
             ],
           ),
+          if (_selectedPaymentMode == 'Split') ...[
+            const SizedBox(height: 5),
+            InkWell(
+              onTap: _showSplitPaymentDialog,
+              borderRadius: BorderRadius.circular(6),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF7F4EF),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFFE8E1D8)),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _splitSummaryText,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryCoffee,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    const Text(
+                      'Edit',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFFB77945),
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    const Icon(Icons.edit_rounded, size: 11, color: Color(0xFFB77945)),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -1265,10 +1340,17 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
     final isSelected = _selectedPaymentMode == mode;
     return Expanded(
       child: InkWell(
-        onTap: () => setState(() => _selectedPaymentMode = mode),
+        onTap: () {
+          if (mode == 'Split') {
+            setState(() => _selectedPaymentMode = 'Split');
+            _showSplitPaymentDialog();
+          } else {
+            setState(() => _selectedPaymentMode = mode);
+          }
+        },
         borderRadius: BorderRadius.circular(6),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 6),
+          padding: const EdgeInsets.symmetric(vertical: 5.5),
           decoration: BoxDecoration(
             color: isSelected ? const Color(0xFF382012) : Colors.white,
             borderRadius: BorderRadius.circular(6),
@@ -1282,14 +1364,14 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
             children: [
               Icon(
                 icon,
-                size: 13,
+                size: 12,
                 color: isSelected ? Colors.white : AppTheme.textDark,
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: 3),
               Text(
                 mode,
                 style: TextStyle(
-                  fontSize: 10.5,
+                  fontSize: 10,
                   fontWeight: FontWeight.bold,
                   color: isSelected ? Colors.white : AppTheme.textDark,
                 ),
@@ -1298,6 +1380,344 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Future<void> _showSplitPaymentDialog() async {
+    final double targetTotal = _total;
+
+    final existingSum = _splitAmounts.values.fold(0.0, (sum, val) => sum + val);
+    double initialCash = _splitAmounts['Cash'] ?? 0.0;
+    double initialUpi = _splitAmounts['UPI'] ?? 0.0;
+    double initialCard = _splitAmounts['Card'] ?? 0.0;
+
+    if (existingSum == 0) {
+      initialCash = targetTotal;
+    }
+
+    final cashCtrl = TextEditingController(text: initialCash > 0 ? initialCash.toStringAsFixed(0) : '');
+    final upiCtrl = TextEditingController(text: initialUpi > 0 ? initialUpi.toStringAsFixed(0) : '');
+    final cardCtrl = TextEditingController(text: initialCard > 0 ? initialCard.toStringAsFixed(0) : '');
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final double c = double.tryParse(cashCtrl.text) ?? 0.0;
+            final double u = double.tryParse(upiCtrl.text) ?? 0.0;
+            final double d = double.tryParse(cardCtrl.text) ?? 0.0;
+            final double allocated = c + u + d;
+            final double diff = allocated - targetTotal;
+            final bool isBalanced = diff.abs() < 0.05 && allocated > 0;
+            final double remaining = targetTotal - allocated;
+
+            Widget buildModeInputRow({
+              required String label,
+              required IconData icon,
+              required TextEditingController controller,
+              required double currentVal,
+            }) {
+              final double canAddRemaining = (remaining > 0.05) ? remaining : 0.0;
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 78,
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF7F4EF),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFE8E1D8)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(icon, size: 14, color: AppTheme.primaryCoffee),
+                          const SizedBox(width: 5),
+                          Expanded(
+                            child: Text(
+                              label,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textDark,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: SizedBox(
+                        height: 36,
+                        child: TextField(
+                          controller: controller,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+                          onChanged: (_) => setDialogState(() {}),
+                          decoration: InputDecoration(
+                            isDense: true,
+                            prefixText: '₹ ',
+                            prefixStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryCoffee),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(color: Color(0xFFE8E1D8)),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(color: Color(0xFFE8E1D8)),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(color: AppTheme.primaryCoffee, width: 1.5),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    SizedBox(
+                      height: 36,
+                      child: OutlinedButton(
+                        onPressed: canAddRemaining > 0
+                            ? () {
+                                final newVal = currentVal + canAddRemaining;
+                                controller.text = newVal.toStringAsFixed(0);
+                                setDialogState(() {});
+                              }
+                            : null,
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          foregroundColor: AppTheme.primaryCoffee,
+                          side: BorderSide(
+                            color: canAddRemaining > 0 ? const Color(0xFFB77945) : Colors.grey.shade300,
+                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        child: const Text('Fill Remainder', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            return Dialog(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              child: Container(
+                width: 440,
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF7F4EF),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.call_split_rounded, color: AppTheme.primaryCoffee, size: 18),
+                        ),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            'Split Payment Allocation',
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 18),
+                          onPressed: () {
+                            if (_splitAmounts.values.every((v) => v == 0)) {
+                              setState(() => _selectedPaymentMode = 'Cash');
+                            }
+                            Navigator.pop(ctx);
+                          },
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF382012),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Total Due',
+                            style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                          Text(
+                            '₹${targetTotal.toStringAsFixed(2)}',
+                            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    buildModeInputRow(
+                      label: 'Cash',
+                      icon: Icons.payments_outlined,
+                      controller: cashCtrl,
+                      currentVal: c,
+                    ),
+                    buildModeInputRow(
+                      label: 'UPI',
+                      icon: Icons.qr_code_2_rounded,
+                      controller: upiCtrl,
+                      currentVal: u,
+                    ),
+                    buildModeInputRow(
+                      label: 'Card',
+                      icon: Icons.credit_card_rounded,
+                      controller: cardCtrl,
+                      currentVal: d,
+                    ),
+                    Row(
+                      children: [
+                        TextButton.icon(
+                          onPressed: () {
+                            final half = (targetTotal / 2).floorToDouble();
+                            cashCtrl.text = half.toStringAsFixed(0);
+                            upiCtrl.text = (targetTotal - half).toStringAsFixed(0);
+                            cardCtrl.clear();
+                            setDialogState(() {});
+                          },
+                          icon: const Icon(Icons.pie_chart_outline_rounded, size: 13, color: Color(0xFFB77945)),
+                          label: const Text('50/50 Cash + UPI', style: TextStyle(fontSize: 10.5, color: Color(0xFFB77945), fontWeight: FontWeight.bold)),
+                          style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4)),
+                        ),
+                        const Spacer(),
+                        TextButton(
+                          onPressed: () {
+                            cashCtrl.clear();
+                            upiCtrl.clear();
+                            cardCtrl.clear();
+                            setDialogState(() {});
+                          },
+                          style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4)),
+                          child: const Text('Clear All', style: TextStyle(fontSize: 10.5, color: Colors.grey)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isBalanced
+                            ? const Color(0xFFEAF7EE)
+                            : (diff > 0.05 ? const Color(0xFFFEF2F2) : const Color(0xFFFEF6EE)),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isBalanced
+                              ? const Color(0xFF287A55)
+                              : (diff > 0.05 ? const Color(0xFFDC2626) : const Color(0xFFD97706)),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            isBalanced
+                                ? Icons.check_circle_rounded
+                                : (diff > 0.05 ? Icons.error_outline_rounded : Icons.info_outline_rounded),
+                            size: 16,
+                            color: isBalanced
+                                ? const Color(0xFF287A55)
+                                : (diff > 0.05 ? const Color(0xFFDC2626) : const Color(0xFFD97706)),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              isBalanced
+                                  ? 'Exact Match: ₹${allocated.toStringAsFixed(2)} fully allocated'
+                                  : (diff > 0.05
+                                      ? 'Exceeds Total by ₹${diff.toStringAsFixed(2)}'
+                                      : 'Remaining to allocate: ₹${remaining.toStringAsFixed(2)}'),
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: isBalanced
+                                    ? const Color(0xFF287A55)
+                                    : (diff > 0.05 ? const Color(0xFFDC2626) : const Color(0xFFD97706)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () {
+                              if (_splitAmounts.values.every((v) => v == 0)) {
+                                setState(() => _selectedPaymentMode = 'Cash');
+                              }
+                              Navigator.pop(ctx);
+                            },
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppTheme.textDark,
+                              side: const BorderSide(color: Color(0xFFE8E1D8)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          flex: 2,
+                          child: ElevatedButton(
+                            onPressed: isBalanced
+                                ? () {
+                                    setState(() {
+                                      _splitAmounts = {
+                                        'Cash': c,
+                                        'UPI': u,
+                                        'Card': d,
+                                      };
+                                      _selectedPaymentMode = 'Split';
+                                    });
+                                    Navigator.pop(ctx);
+                                  }
+                                : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF382012),
+                              foregroundColor: Colors.white,
+                              disabledBackgroundColor: Colors.grey.shade300,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            ),
+                            child: const Text('Confirm Split', style: TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 

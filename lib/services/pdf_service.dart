@@ -169,7 +169,33 @@ class PdfService {
                 ],
               ),
               pw.Divider(thickness: 1),
-              pw.SizedBox(height: 10),
+              if (bill.payments.length > 1) ...[
+                pw.SizedBox(height: 2),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('PAID VIA (SPLIT):', style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold)),
+                  ],
+                ),
+                ...bill.payments.map((p) => pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('  ${p.mode.toUpperCase()}', style: const pw.TextStyle(fontSize: 7)),
+                    pw.Text('Rs. ${p.amount.toStringAsFixed(2)}', style: const pw.TextStyle(fontSize: 7)),
+                  ],
+                )),
+                pw.SizedBox(height: 4),
+              ] else if (bill.payments.isNotEmpty) ...[
+                pw.SizedBox(height: 2),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Paid via: ${bill.payments.first.mode.toUpperCase()}', style: const pw.TextStyle(fontSize: 7)),
+                  ],
+                ),
+                pw.SizedBox(height: 4),
+              ],
+              pw.SizedBox(height: 6),
 
               // NEW ENHANCED FOOTER (Side-by-Side)
               if (branch.reviewQrUrl.isNotEmpty || branch.instagramId.isNotEmpty)
