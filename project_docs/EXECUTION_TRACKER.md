@@ -91,7 +91,8 @@
   - Left-aligned item name at the top with crisp typography.
   - Positioned green price (`₹120`) at bottom-left and visually prominent espresso brown `+` action button at bottom-right.
   - Added 1-tap fast add for standard items, customizer trigger on card tap or multiple-size items, and dynamic in-cart item count badge.
-  - Verified with zero analyzer errors and 100% unit tests passing (`16/16`). Committed (`f8b6476`) and pushed to `feature/coffee-katta-pos`.
+  - Upgraded **Special Instructions** & modal text inputs with high-contrast text color (`#29231F`), coffee cursor, warm borders, and rich section headers.
+  - Verified with zero analyzer errors and 100% unit tests passing (`16/16`). Committed (`7dcda0e`) and pushed to `feature/coffee-katta-pos`.
 - [x] Automated test suite `test/phase4_beverage_customizer_test.dart` & `test/cart_notifier_test.dart` (27/27 tests passed)
 - [x] Gate 4 Review: Ready for User Verification
 
