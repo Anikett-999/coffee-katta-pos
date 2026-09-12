@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_pos_printer_platform_image_3/flutter_pos_printer_platform_image_3.dart';
@@ -985,7 +985,38 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (Platform.isWindows) ...[
+        if (kIsWeb) ...[
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF7F4EF),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFE8E1D8)),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.language_rounded, size: 28, color: AppTheme.primaryCoffee),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Web Browser Printing Mode',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                      SizedBox(height: 3),
+                      Text(
+                        'Running in Web browser. Printing triggers the standard browser print dialogue. For direct ESC/POS hardware thermal printing, run on Windows Desktop or Android/Tablet app.',
+                        style: TextStyle(fontSize: 11, color: AppTheme.textDark, height: 1.3),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ] else if (defaultTargetPlatform == TargetPlatform.windows) ...[
           const Text(
             'INSTALLED WINDOWS PRINTERS',
             style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey),

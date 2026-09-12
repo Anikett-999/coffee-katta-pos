@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 import 'dart:io';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import 'package:flutter_pos_printer_platform_image_3/flutter_pos_printer_platform_image_3.dart';
@@ -390,7 +391,7 @@ class PrintService {
 
   // Master Print Function
   Future<bool> printReceipt(List<int> bytes, PrinterConfig config) async {
-    if (config.connectionType == PrinterConnectionType.rawbt && Platform.isAndroid) {
+    if (config.connectionType == PrinterConnectionType.rawbt && !kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       try {
         await sendToRawBT(bytes);
         return true; // Sent to external app successfully
@@ -401,7 +402,8 @@ class PrintService {
 
     // Direct raw TCP socket optimization for Network printers
     // Pure Dart socket communicates directly with WiFi/Ethernet thermal printers across Windows & Android
-    if (config.connectionType == PrinterConnectionType.network &&
+    if (!kIsWeb &&
+        config.connectionType == PrinterConnectionType.network &&
         config.address != null &&
         config.address!.trim().isNotEmpty) {
       try {

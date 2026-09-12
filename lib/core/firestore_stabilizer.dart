@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
@@ -12,7 +11,7 @@ extension FirestoreStableSnapshot on Query {
     bool includeMetadataChanges = false,
     Duration pollingInterval = const Duration(seconds: 10),
   }) {
-    if (!Platform.isWindows) {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.windows) {
       return snapshots(includeMetadataChanges: includeMetadataChanges);
     }
 
@@ -59,7 +58,7 @@ extension FirestoreStableDocumentSnapshot on DocumentReference {
     bool includeMetadataChanges = false,
     Duration pollingInterval = const Duration(seconds: 10),
   }) {
-    if (!Platform.isWindows) {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.windows) {
       return snapshots(includeMetadataChanges: includeMetadataChanges);
     }
 
