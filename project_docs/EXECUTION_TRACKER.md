@@ -153,6 +153,29 @@
 
 ---
 
+### [X] User & Branch Management & Role-Based Access Control (RBAC)
+- [x] **Waiter Direct Routing & Branch Lock**:
+  - Waiters are strictly assigned to **1 physical branch** by Admin and never see `BranchSelectionScreen`.
+  - Direct routing implemented synchronously in `AuthWrapper` to immediately land on `HomeScreen()`.
+  - Created `UnassignedBranchScreen` branded fallback for accounts without an assigned branch.
+  - Added defense guard to `BranchSelectionScreen` auto-redirecting waiters.
+- [x] **Admin Multi-Branch Governance**:
+  - Persistent active branch selection: Admins choose active branch once, then remember it.
+  - Added "Switch Branch" action to App Drawer allowing administrators to switch branches anytime.
+- [x] **User Management UI Enhancements**:
+  - Added role filter chips: `[ All Users ]`, `[ Waiters ]`, `[ Cashiers ]`, `[ Admins ]`.
+  - Replaced multi-checkbox with mandatory Single Branch Dropdown (`Assigned Work Branch *`) for Waiters and Cashiers.
+  - Role pill badges (`ADMIN`, `CASHIER`, `WAITER`) with Coffee Katta palette styling.
+  - Display resolved branch name per user card with storefront icon.
+- [x] **App Drawer Role Lockdown**:
+  - Role pill in header.
+  - Hidden all management tools and branch switchers for Waiters and Cashiers.
+- [x] **Automated Tests**:
+  - Created `test/user_branch_rbac_test.dart` (6 comprehensive tests).
+  - All 54 tests passing across full project test suite (`54/54`).
+
+---
+
 ### [ ] Phase 6: Thermal Receipt & RawBT Print Engine (HOLD)
 - [ ] Update 80mm ESC/POS header with Coffee Katta branding & Latur address
 - [ ] Include variant info on KOT kitchen slips
