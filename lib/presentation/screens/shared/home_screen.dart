@@ -114,8 +114,10 @@ class _OperationalHomeScreenState extends ConsumerState<OperationalHomeScreen> {
                       ),
                       child: TextField(
                         onChanged: (value) => setState(() => _searchQuery = value),
+                        style: const TextStyle(color: AppTheme.textDark, fontSize: 14),
                         decoration: InputDecoration(
                           hintText: 'Search table...',
+                          hintStyle: TextStyle(color: AppTheme.textDark.withValues(alpha: 0.5), fontSize: 14),
                           prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AppTheme.maroon),
                           isDense: true,
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),

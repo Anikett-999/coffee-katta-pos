@@ -121,8 +121,10 @@ class _TableManagementScreenState extends ConsumerState<TableManagementScreen> {
       child: TextField(
         controller: _searchController,
         onChanged: (value) => setState(() => _searchQuery = value),
+        style: const TextStyle(color: AppTheme.textDark, fontSize: 14),
         decoration: InputDecoration(
           hintText: 'Search tables...',
+          hintStyle: TextStyle(color: AppTheme.textDark.withValues(alpha: 0.5), fontSize: 14),
           prefixIcon: const Icon(Icons.search, color: AppTheme.maroon),
           suffixIcon: _searchQuery.isNotEmpty 
             ? IconButton(
