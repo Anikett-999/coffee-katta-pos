@@ -1,5 +1,5 @@
-/// COFFEE KATTA POS: WAITER ORDERING & BEVERAGE CUSTOMIZER MODULE
-/// Authorized for Coffee Katta Cafe Workflow & Beverage Customization.
+// COFFEE KATTA POS: WAITER ORDERING & BEVERAGE CUSTOMIZER MODULE
+// Authorized for Coffee Katta Cafe Workflow & Beverage Customization.
 
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
@@ -9,6 +9,8 @@ import 'package:coffee_katta_pos/domain/models/category.dart';
 import 'package:coffee_katta_pos/domain/models/item.dart';
 import 'package:coffee_katta_pos/domain/models/table_model.dart';
 import 'package:coffee_katta_pos/domain/models/kot_model.dart';
+import 'package:coffee_katta_pos/domain/models/addon_item.dart';
+import 'package:coffee_katta_pos/domain/models/customization_group.dart';
 import 'package:coffee_katta_pos/services/menu_service.dart';
 import 'package:coffee_katta_pos/services/kot_service.dart';
 import 'package:coffee_katta_pos/presentation/providers/auth_provider.dart';
@@ -38,6 +40,16 @@ final categoriesProvider = StreamProvider<List<Category>>((ref) {
 // Load the entire menu into memory so global search is instant (Zero Latency)
 final allItemsProvider = StreamProvider<List<Item>>((ref) {
   return ref.watch(menuServiceProvider).watchAvailableItems();
+});
+
+// Dynamic Add-ons Provider (real-time from Firestore)
+final addonsProvider = StreamProvider<List<AddOnItem>>((ref) {
+  return ref.watch(menuServiceProvider).watchAvailableAddons();
+});
+
+// Dynamic Customization Groups Provider (real-time from Firestore)
+final customizationGroupsProvider = StreamProvider<List<CustomizationGroup>>((ref) {
+  return ref.watch(menuServiceProvider).watchAvailableCustomizationGroups();
 });
 
 // Holds the current Search Text state globally for the UI
@@ -690,7 +702,7 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
         if (_isProcessing)
           Positioned.fill(
             child: Container(
-              color: Colors.black.withOpacity(0.5),
+              color: Colors.black.withValues(alpha: 0.5),
               child: Center(
                 child: LoadingIndicator(message: _processingStatus),
               ),
@@ -917,47 +929,73 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
         item.categoryId == 'cat_katta_frappe' ||
         item.categoryId == 'cat_polare_ice_tea';
 
-    final isFoodOrSide = catName.contains('Starter') ||
-        catName.contains('Sides') ||
-        item.categoryId.contains('starter') ||
-        item.categoryId.contains('sides');
-
     final isNonVeg = catName.contains('Non Veg') ||
         item.name.toLowerCase().contains('chicken');
 
-    // Profile Settings
-    String selectedOption = isCoffee
-        ? 'Normal Sugar'
-        : (isShakeOrTea ? 'Normal Ice' : 'Normal');
+    // Dynamic Modifiers & Add-ons from Firestore (with zero-latency reactive fallback)
+    final dynamicAddons = ref.read(addonsProvider).value ?? [];
+    final dynamicGroups = ref.read(customizationGroupsProvider).value ?? [];
 
-    final List<String> primaryOptions = isCoffee
-        ? ['No Sugar', 'Less Sugar', 'Normal Sugar']
-        : (isShakeOrTea
-            ? ['Normal Ice', 'Less Ice', 'Extra Chilled']
-            : ['Normal', 'Extra Crispy', 'Less Spicy']);
+    // Filter matching dynamic option groups
+    final List<CustomizationGroup> matchingGroups = dynamicGroups.where((g) {
+      if (!g.isAvailable) return false;
+      if (g.categoryIds.isEmpty) return true;
+      return g.categoryIds.contains(item.categoryId);
+    }).toList();
 
-    final String primaryLabel = isCoffee
-        ? 'SUGAR LEVEL'
-        : (isShakeOrTea ? 'ICE / CHILL LEVEL' : 'PREPARATION STYLE');
+    final List<CustomizationGroup> effectiveGroups = matchingGroups.isNotEmpty
+        ? matchingGroups
+        : [
+            CustomizationGroup(
+              id: 'fb_style',
+              name: isCoffee
+                  ? 'SUGAR LEVEL'
+                  : (isShakeOrTea ? 'ICE / CHILL LEVEL' : 'PREPARATION STYLE'),
+              options: isCoffee
+                  ? ['No Sugar', 'Less Sugar', 'Normal Sugar']
+                  : (isShakeOrTea
+                      ? ['Normal Ice', 'Less Ice', 'Extra Chilled']
+                      : ['Normal', 'Extra Crispy', 'Less Spicy']),
+              defaultOption: isCoffee
+                  ? 'Normal Sugar'
+                  : (isShakeOrTea ? 'Normal Ice' : 'Normal'),
+            ),
+          ];
 
-    final List<Map<String, dynamic>> addOnOptions = isCoffee
-        ? [
-            {'name': 'Extra Espresso Shot', 'price': 30.0},
-            {'name': 'Extra Milk / Cream', 'price': 15.0},
-            {'name': 'Extra Ice Cream', 'price': 30.0},
-            {'name': 'Whipped Cream', 'price': 25.0},
-          ]
-        : (isShakeOrTea
+    // Filter matching dynamic add-ons
+    final List<AddOnItem> matchingAddons = dynamicAddons.where((a) {
+      if (!a.isAvailable) return false;
+      if (a.categoryIds.isEmpty) return true;
+      return a.categoryIds.contains(item.categoryId);
+    }).toList();
+
+    final List<AddOnItem> effectiveAddons = matchingAddons.isNotEmpty
+        ? matchingAddons
+        : (isCoffee
             ? [
-                {'name': 'Extra Ice Cream Scoop', 'price': 30.0},
-                {'name': 'Whipped Cream', 'price': 25.0},
-                {'name': 'Chocolate Drizzle', 'price': 20.0},
+                const AddOnItem(id: 'fb_shot', name: 'Extra Espresso Shot', price: 30.0),
+                const AddOnItem(id: 'fb_milk', name: 'Extra Milk / Cream', price: 15.0),
+                const AddOnItem(id: 'fb_icecream', name: 'Extra Ice Cream', price: 30.0),
+                const AddOnItem(id: 'fb_whip', name: 'Whipped Cream', price: 25.0),
               ]
-            : [
-                {'name': 'Extra Cheese Dip', 'price': 25.0},
-                {'name': 'Peri Peri Seasoning', 'price': 15.0},
-                {'name': 'Mayo Dip', 'price': 15.0},
-              ]);
+            : (isShakeOrTea
+                ? [
+                    const AddOnItem(id: 'fb_scoop', name: 'Extra Ice Cream Scoop', price: 30.0),
+                    const AddOnItem(id: 'fb_whip2', name: 'Whipped Cream', price: 25.0),
+                    const AddOnItem(id: 'fb_choco', name: 'Chocolate Drizzle', price: 20.0),
+                  ]
+                : [
+                    const AddOnItem(id: 'fb_cheese', name: 'Extra Cheese Dip', price: 25.0),
+                    const AddOnItem(id: 'fb_peri', name: 'Peri Peri Seasoning', price: 15.0),
+                    const AddOnItem(id: 'fb_mayo', name: 'Mayo Dip', price: 15.0),
+                  ]));
+
+    final Map<String, String> selectedOptions = {
+      for (final g in effectiveGroups)
+        g.name: g.defaultOption.isNotEmpty
+            ? g.defaultOption
+            : (g.options.isNotEmpty ? g.options.first : 'Normal'),
+    };
 
     final IconData categoryIcon = isCoffee
         ? Icons.coffee
@@ -979,9 +1017,9 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setModalState) {
           double addOnsTotal = 0.0;
-          for (final opt in addOnOptions) {
-            if (selectedAddOns.contains(opt['name'])) {
-              addOnsTotal += (opt['price'] as double);
+          for (final opt in effectiveAddons) {
+            if (selectedAddOns.contains(opt.name)) {
+              addOnsTotal += opt.price;
             }
           }
           final double unitPrice = item.price + selectedVariant.extraPrice + addOnsTotal;
@@ -1115,92 +1153,89 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                     const SizedBox(height: 16),
                   ],
 
-                  // 2. Primary Option (Sugar / Chill / Prep)
-                  Text(
-                    primaryLabel,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1,
-                      color: AppTheme.primaryCoffee,
+                  // 2. Dynamic Option Groups (Sugar, Ice, Prep Style, etc.)
+                  for (final group in effectiveGroups) ...[
+                    Text(
+                      group.name,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1,
+                        color: AppTheme.primaryCoffee,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: primaryOptions.map((opt) {
-                      final isSelected = selectedOption == opt;
-                      return Expanded(
-                        child: Padding(
-                           padding: const EdgeInsets.symmetric(horizontal: 4),
-                          child: ChoiceChip(
-                            label: Center(
-                              child: Text(
-                                opt,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: isSelected ? Colors.white : AppTheme.espressoBrown,
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                ),
-                              ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: group.options.map((opt) {
+                        final isSelected = selectedOptions[group.name] == opt;
+                        return ChoiceChip(
+                          label: Text(
+                            opt,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isSelected ? Colors.white : AppTheme.espressoBrown,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                             ),
-                            selected: isSelected,
-                            selectedColor: AppTheme.warmCaramel,
-                            backgroundColor: Colors.white,
-                            onSelected: (selected) {
-                              if (selected) {
-                                setModalState(() => selectedOption = opt);
-                              }
-                            },
                           ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // 3. Optional Add-ons
-                  const Text(
-                    'OPTIONAL ADD-ONS',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1,
-                      color: AppTheme.primaryCoffee,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: addOnOptions.map((opt) {
-                      final name = opt['name'] as String;
-                      final price = opt['price'] as double;
-                      final isChecked = selectedAddOns.contains(name);
-                      return FilterChip(
-                        label: Text(
-                          '+ $name (₹${price.toStringAsFixed(0)})',
-                          style: TextStyle(
-                            color: isChecked ? Colors.white : AppTheme.espressoBrown,
-                            fontWeight: isChecked ? FontWeight.bold : FontWeight.normal,
-                          ),
-                        ),
-                        selected: isChecked,
-                        selectedColor: AppTheme.warmAmber,
-                        backgroundColor: Colors.white,
-                        checkmarkColor: Colors.white,
-                        onSelected: (checked) {
-                          setModalState(() {
-                            if (checked) {
-                              selectedAddOns.add(name);
-                            } else {
-                              selectedAddOns.remove(name);
+                          selected: isSelected,
+                          selectedColor: AppTheme.warmCaramel,
+                          backgroundColor: Colors.white,
+                          onSelected: (selected) {
+                            if (selected) {
+                              setModalState(() => selectedOptions[group.name] = opt);
                             }
-                          });
-                        },
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 16),
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // 3. Dynamic Optional Add-ons & Pricing
+                  if (effectiveAddons.isNotEmpty) ...[
+                    const Text(
+                      'OPTIONAL ADD-ONS',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1,
+                        color: AppTheme.primaryCoffee,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: effectiveAddons.map((opt) {
+                        final isChecked = selectedAddOns.contains(opt.name);
+                        return FilterChip(
+                          label: Text(
+                            '+ ${opt.name} (₹${opt.price.toStringAsFixed(0)})',
+                            style: TextStyle(
+                              color: isChecked ? Colors.white : AppTheme.espressoBrown,
+                              fontWeight: isChecked ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                          selected: isChecked,
+                          selectedColor: AppTheme.warmAmber,
+                          backgroundColor: Colors.white,
+                          checkmarkColor: Colors.white,
+                          onSelected: (checked) {
+                            setModalState(() {
+                              if (checked) {
+                                selectedAddOns.add(opt.name);
+                              } else {
+                                selectedAddOns.remove(opt.name);
+                              }
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
 
                   // 4. Special Instructions TextField
                   const Text(
@@ -1261,8 +1296,10 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                       ),
                       onPressed: () {
                         final List<String> noteParts = [];
-                        if (selectedOption != 'Normal') {
-                          noteParts.add(selectedOption);
+                        for (final opt in selectedOptions.values) {
+                          if (opt != 'Normal' && opt != 'Normal Sugar' && opt != 'Normal Ice') {
+                            noteParts.add(opt);
+                          }
                         }
                         if (selectedAddOns.isNotEmpty) {
                           noteParts.add('+ ${selectedAddOns.join(', ')}');
@@ -1309,104 +1346,6 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
     );
   }
 
-      void _showVariantDialog(Item item, String catName) {
-        final List<ParsedVariant> variants = item.variants
-            .map((v) => ParsedVariant.fromString(v))
-            .toList();
-
-        showModalBottomSheet(
-          context: context,
-          backgroundColor: Colors.transparent,
-          builder: (context) => Container(
-            padding: const EdgeInsets.all(20),
-            decoration: const BoxDecoration(
-              color: AppTheme.latteCream,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'SELECT SIZE / VARIANT',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1,
-                              color: AppTheme.warmCaramel,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            item.name,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.espressoBrown,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-                const Divider(height: 20),
-                ...variants.map((v) {
-                  final double unitPrice = item.price + v.extraPrice;
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.brown[100]!),
-                    ),
-                    child: ListTile(
-                      title: Text(
-                        v.label,
-                        style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.espressoBrown),
-                      ),
-                      subtitle: v.extraPrice > 0
-                          ? Text('+₹${v.extraPrice.toStringAsFixed(0)} upgrade',
-                              style: TextStyle(color: Colors.grey[600], fontSize: 12))
-                          : null,
-                      trailing: Text(
-                        '₹${unitPrice.toStringAsFixed(0)}',
-                        style: const TextStyle(
-                          color: AppTheme.deepGreen,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 17,
-                        ),
-                      ),
-                      onTap: () {
-                        ref.read(cartProvider(widget.table.tableId).notifier).addItem(
-                          item,
-                          catName,
-                          variant: v.label,
-                          price: unitPrice,
-                        );
-                        Navigator.pop(context);
-                        _showItemAddedFeedback('${item.name} (${v.label})');
-                      },
-                    ),
-                  );
-                }).toList(),
-                const SizedBox(height: 10),
-              ],
-            ),
-          ),
-        );
-      }
-
   void _showOrderHistory(BuildContext context) {
     final role = ref.read(activeUserRoleProvider);
     final canManageKotItems = role == 'admin';
@@ -1430,7 +1369,7 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.3),
+                  color: Colors.grey.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -1586,7 +1525,7 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                                                   ],
                                                 ),
                                               );
-                                            }).toList(),
+                                            }),
                                             const Divider(height: 24),
                                             Row(
                                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1594,7 +1533,7 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                                                 Container(
                                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                                   decoration: BoxDecoration(
-                                                    color: kot.isPrinted ? Colors.green.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
+                                                    color: kot.isPrinted ? Colors.green.withValues(alpha: 0.1) : Colors.orange.withValues(alpha: 0.1),
                                                     borderRadius: BorderRadius.circular(6),
                                                   ),
                                                   child: Row(

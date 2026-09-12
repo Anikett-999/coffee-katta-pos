@@ -99,20 +99,52 @@
 
 ---
 
-### [ ] Phase 5: Thermal Receipt & RawBT Print Engine (HOLD)
+### [X] Phase 5: Dynamic Add-Ons, Pricing & Option Groups (Admin & Waiter Dynamic Control)
+- [x] **Domain Models**:
+  - `AddOnItem`: `id`, `name`, `price`, `categoryIds`, `isAvailable` (with Firestore JSON serialization, deserialization, `copyWith`).
+  - `CustomizationGroup`: `id`, `name`, `options`, `defaultOption`, `categoryIds`, `isAvailable` (with Firestore JSON serialization, deserialization, `copyWith`).
+- [x] **Firestore Scoping & Service Layer** (`lib/services/menu_service.dart`):
+  - Add-ons collection: `businesses/coffee_katta/branches/{branchId}/menu_addons`
+  - Customizations collection: `businesses/coffee_katta/branches/{branchId}/menu_customizations`
+  - CRUD operations: `watchAddons()`, `watchAvailableAddons()`, `upsertAddon()`, `deleteAddon()`, `updateAddonAvailability()`.
+  - CRUD operations: `watchCustomizationGroups()`, `watchAvailableCustomizationGroups()`, `upsertCustomizationGroup()`, `deleteCustomizationGroup()`, `updateCustomizationGroupAvailability()`.
+  - Automatic initial seeding (`seedDefaultKattaModifiersIfEmpty()`) on demand for zero-setup deployments.
+- [x] **State Management** (`lib/presentation/providers/menu_provider.dart`):
+  - Added `addonsStreamProvider`, `availableAddonsStreamProvider`, `customizationGroupsStreamProvider`, `availableCustomizationGroupsStreamProvider`.
+  - Added controller methods for add-ons and customization group CRUD.
+- [x] **Admin Menu Management 3-Tab Interface** (`lib/presentation/screens/admin/menu/`):
+  - Tab 1: `Categories & Items`
+  - Tab 2: `Add-Ons & Pricing` (Manage add-on names, ₹ prices, in-stock switches, and category tags)
+  - Tab 3: `Option Groups` (Manage group names, dynamic option pill chips, default selection, and category scoping)
+  - Dynamic portion/size variant builder added to `ItemListViewLogic` dialog (`Regular:0`, `Large:40`, etc.)
+- [x] **Waiter Screen Dynamic Ordering Integration** (`lib/presentation/screens/waiter/order_screen.dart`):
+  - Consumes dynamic `customizationGroupsProvider` and `addonsProvider`.
+  - Dynamic category-based modifier matching with seamless fallback to built-in Coffee Katta presets if offline/empty.
+  - Interactive multi-group selection with live price recalculation (`base + variant + add-ons`).
+  - Formats order notes into standard format cleanly integrated with `CartItem` and `KOTItem`.
+- [x] **Verification & Test Suite**:
+  - Created `test/phase5_dynamic_modifiers_test.dart` (5 comprehensive unit tests).
+  - All 34 automated tests across entire project passed (`34/34`).
+  - `flutter analyze` verified with 0 issues!
+- [x] Gate 5 Review: Ready for User Verification
+
+---
+
+### [ ] Phase 6: Thermal Receipt & RawBT Print Engine (HOLD)
 - [ ] Update 80mm ESC/POS header with Coffee Katta branding & Latur address
 - [ ] Include variant info on KOT kitchen slips
 - [ ] Implement Counter terminal auto-spooler for unprinted KOTs (`isPrinted: false`)
 
 ---
 
-### [ ] Phase 6: Billing Math, 5% GST & Split Payment (HOLD)
+### [ ] Phase 7: Billing Math, 5% GST & Split Payment (HOLD)
 - [ ] Implement 5% restaurant GST (SAC 996331) with 1-paisa balancing
 - [ ] Add Cashier toggle: `[ GST Bill (5%) ]` vs `[ Non-GST / Retail Bill ]`
 - [ ] Implement multi-tender Split-Payment (Cash + UPI) with reconciliation
 
 ---
 
-### [ ] Phase 7: Build, Run & Verification Protocol (HOLD)
+### [ ] Phase 8: Build, Run & Verification Protocol (HOLD)
 - [ ] Final compilation and smoke testing
 - [ ] Windows desktop & Android build verification
+

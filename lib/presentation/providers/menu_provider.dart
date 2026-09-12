@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/models/category.dart';
 import '../../domain/models/item.dart';
+import '../../domain/models/addon_item.dart';
+import '../../domain/models/customization_group.dart';
 import '../../services/menu_service.dart';
 import 'active_branch_provider.dart';
 
@@ -40,6 +42,30 @@ final availableItemsStreamProvider = StreamProvider<List<Item>>((ref) {
   return service.watchAvailableItems();
 });
 
+// Stream of All Addons
+final addonsStreamProvider = StreamProvider<List<AddOnItem>>((ref) {
+  final service = ref.watch(menuServiceProvider);
+  return service.watchAddons();
+});
+
+// Stream of Available Addons (for waiters/ordering)
+final availableAddonsStreamProvider = StreamProvider<List<AddOnItem>>((ref) {
+  final service = ref.watch(menuServiceProvider);
+  return service.watchAvailableAddons();
+});
+
+// Stream of All Customization Groups
+final customizationGroupsStreamProvider = StreamProvider<List<CustomizationGroup>>((ref) {
+  final service = ref.watch(menuServiceProvider);
+  return service.watchCustomizationGroups();
+});
+
+// Stream of Available Customization Groups (for waiters/ordering)
+final availableCustomizationGroupsStreamProvider = StreamProvider<List<CustomizationGroup>>((ref) {
+  final service = ref.watch(menuServiceProvider);
+  return service.watchAvailableCustomizationGroups();
+});
+
 // Controller for Menu Actions (CRUD)
 final menuControllerProvider = Provider((ref) => MenuController(ref));
 
@@ -73,5 +99,36 @@ class MenuController {
 
   Future<void> toggleItemAvailability(String itemId, bool isAvailable) async {
     await _service.updateItemAvailability(itemId, isAvailable);
+  }
+
+  // Addon Actions
+  Future<void> saveAddon(AddOnItem addon) async {
+    await _service.upsertAddon(addon);
+  }
+
+  Future<void> deleteAddon(String addonId) async {
+    await _service.deleteAddon(addonId);
+  }
+
+  Future<void> toggleAddonAvailability(String addonId, bool isAvailable) async {
+    await _service.updateAddonAvailability(addonId, isAvailable);
+  }
+
+  // Customization Group Actions
+  Future<void> saveCustomizationGroup(CustomizationGroup group) async {
+    await _service.upsertCustomizationGroup(group);
+  }
+
+  Future<void> deleteCustomizationGroup(String groupId) async {
+    await _service.deleteCustomizationGroup(groupId);
+  }
+
+  Future<void> toggleCustomizationGroupAvailability(String groupId, bool isAvailable) async {
+    await _service.updateCustomizationGroupAvailability(groupId, isAvailable);
+  }
+
+  // Seed Default Presets
+  Future<void> seedDefaultModifiers() async {
+    await _service.seedDefaultKattaModifiersIfEmpty();
   }
 }

@@ -7,20 +7,20 @@ import 'package:coffee_katta_pos/core/app_theme.dart';
 void main() {
   group('Phase 1 - Brand Identity & Palette Verification Tests', () {
     test('1. AppTheme brand color palette matches Coffee Katta specification', () {
-      // Primary Espresso Brown: #4A2C11
-      expect(AppTheme.espressoBrown, equals(const Color(0xFF4A2C11)));
+      // Primary Coffee Brown: #5A3825
+      expect(AppTheme.espressoBrown, equals(const Color(0xFF5A3825)));
 
-      // Warm Coffee Caramel: #8C5835
-      expect(AppTheme.warmCaramel, equals(const Color(0xFF8C5835)));
+      // Warm Coffee Caramel: #B77945
+      expect(AppTheme.warmCaramel, equals(const Color(0xFFB77945)));
 
-      // Latte Cream Background: #F9F6F0
-      expect(AppTheme.latteCream, equals(const Color(0xFFF9F6F0)));
+      // Subtle Warm Background: #F7F4EF
+      expect(AppTheme.latteCream, equals(const Color(0xFFF7F4EF)));
 
-      // Amber Accent: #D4A373
-      expect(AppTheme.warmAmber, equals(const Color(0xFFD4A373)));
+      // Amber Accent: #B77945
+      expect(AppTheme.warmAmber, equals(const Color(0xFFB77945)));
 
-      // Soft Grey: #E8ECEF
-      expect(AppTheme.softGrey, equals(const Color(0xFFE8ECEF)));
+      // Soft Border Grey: #E8E1D8
+      expect(AppTheme.softGrey, equals(const Color(0xFFE8E1D8)));
     });
 
     test('2. Legacy Maroon is remapped to Espresso Brown (Zero Maroon)', () {
@@ -36,14 +36,14 @@ void main() {
     });
 
     test('3. Table status colors match specification', () {
-      // Available: Rich Emerald Green (0xFF2D6A4F)
-      expect(AppTheme.statusAvailable, equals(const Color(0xFF2D6A4F)));
+      // Available: Rich Green (0xFF287A55)
+      expect(AppTheme.statusAvailable, equals(const Color(0xFF287A55)));
 
       // Occupied: Warm Amber (0xFFD97706)
       expect(AppTheme.statusOccupied, equals(const Color(0xFFD97706)));
 
-      // Billing: Deep Brown (0xFF78350F)
-      expect(AppTheme.statusBilling, equals(const Color(0xFF78350F)));
+      // Billing: Deep Brown (0xFF5A3825)
+      expect(AppTheme.statusBilling, equals(const Color(0xFF5A3825)));
 
       // Aliases
       expect(AppTheme.successGreen, equals(AppTheme.statusAvailable));

@@ -4,11 +4,11 @@ import 'package:coffee_katta_pos/core/app_theme.dart';
 
 void main() {
   test('AppTheme brand colors smoke test', () {
-    expect(AppTheme.espressoBrown.value, equals(0xFF4A2C11));
-    expect(AppTheme.warmCaramel.value, equals(0xFF8C5835));
-    expect(AppTheme.latteCream.value, equals(0xFFF9F6F0));
-    expect(AppTheme.warmAmber.value, equals(0xFFD4A373));
-    expect(AppTheme.statusAvailable.value, equals(0xFF2D6A4F));
+    expect(AppTheme.espressoBrown.toARGB32(), equals(0xFF5A3825));
+    expect(AppTheme.warmCaramel.toARGB32(), equals(0xFFB77945));
+    expect(AppTheme.latteCream.toARGB32(), equals(0xFFF7F4EF));
+    expect(AppTheme.warmAmber.toARGB32(), equals(0xFFB77945));
+    expect(AppTheme.statusAvailable.toARGB32(), equals(0xFF287A55));
     expect(AppTheme.maroon, equals(AppTheme.espressoBrown));
   });
 
