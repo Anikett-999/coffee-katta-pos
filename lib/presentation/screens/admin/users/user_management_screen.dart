@@ -7,27 +7,38 @@ import '../../../providers/branch_provider.dart';
 import '../../../widgets/global/base_widgets.dart';
 import '../../../widgets/global/editorial_background.dart';
 
-class UserManagementScreen extends ConsumerWidget {
+class UserManagementScreen extends ConsumerStatefulWidget {
   const UserManagementScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<UserManagementScreen> createState() => _UserManagementScreenState();
+}
+
+class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
+  String _selectedRoleFilter = 'all'; // 'all', 'waiter', 'cashier', 'admin'
+
+  @override
+  Widget build(BuildContext context) {
     final usersAsync = ref.watch(allUsersProvider);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
-        title: const Text('USER MANAGEMENT', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.2, color: AppTheme.maroon)),
+        title: const Text(
+          'USER MANAGEMENT',
+          style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.2, color: AppTheme.primaryCoffee),
+        ),
         centerTitle: true,
         backgroundColor: Colors.white,
         elevation: 0,
         surfaceTintColor: Colors.white,
-        shadowColor: Colors.black.withOpacity(0.1),
-        scrolledUnderElevation: 4,
-        iconTheme: const IconThemeData(color: AppTheme.maroon),
+        shadowColor: Colors.black.withValues(alpha: 0.08),
+        scrolledUnderElevation: 3,
+        iconTheme: const IconThemeData(color: AppTheme.primaryCoffee),
         actions: [
           IconButton(
             icon: const Icon(Icons.person_add_alt_1),
+            tooltip: 'Add Staff Member',
             onPressed: () {
               showModalBottomSheet(
                 context: context,
@@ -51,19 +62,87 @@ class UserManagementScreen extends ConsumerWidget {
               );
             }
 
-            return ListView.builder(
-              padding: const EdgeInsets.only(top: 16, left: 16, right: 16, bottom: 16),
-              itemCount: users.length,
-              itemBuilder: (context, index) {
-                final user = users[index];
-                return _UserListItem(user: user);
-              },
+            // Role filtering
+            final filteredUsers = _selectedRoleFilter == 'all'
+                ? users
+                : users.where((u) => u.role.toLowerCase() == _selectedRoleFilter).toList();
+
+            final waiterCount = users.where((u) => u.isWaiter).length;
+            final cashierCount = users.where((u) => u.isCashier).length;
+            final adminCount = users.where((u) => u.isAdmin).length;
+
+            return Column(
+              children: [
+                // Filter Tabs Bar
+                Container(
+                  width: double.infinity,
+                  color: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildFilterChip('all', 'All Users (${users.length})'),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('waiter', 'Waiters ($waiterCount)', color: const Color(0xFF287A55)),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('cashier', 'Cashiers ($cashierCount)', color: const Color(0xFFB77945)),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('admin', 'Admins ($adminCount)', color: AppTheme.primaryCoffee),
+                      ],
+                    ),
+                  ),
+                ),
+                const Divider(height: 1, color: Color(0xFFE8E1D8)),
+
+                // User list
+                Expanded(
+                  child: filteredUsers.isEmpty
+                      ? Center(
+                          child: Text(
+                            'No users found in $_selectedRoleFilter role.',
+                            style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          itemCount: filteredUsers.length,
+                          itemBuilder: (context, index) {
+                            final user = filteredUsers[index];
+                            return _UserListItem(user: user);
+                          },
+                        ),
+                ),
+              ],
             );
           },
           loading: () => const LoadingIndicator(message: 'Loading users...'),
           error: (err, _) => ErrorStateWidget(error: err.toString()),
         ),
       ),
+    );
+  }
+
+  Widget _buildFilterChip(String filterKey, String label, {Color color = AppTheme.primaryCoffee}) {
+    final isSelected = _selectedRoleFilter == filterKey;
+    return ChoiceChip(
+      label: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+          color: isSelected ? Colors.white : AppTheme.textDark,
+        ),
+      ),
+      selected: isSelected,
+      selectedColor: color,
+      backgroundColor: const Color(0xFFF7F4EF),
+      side: BorderSide(color: isSelected ? color : const Color(0xFFE8E1D8)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      showCheckmark: false,
+      onSelected: (_) {
+        setState(() => _selectedRoleFilter = filterKey);
+      },
     );
   }
 }
@@ -75,17 +154,40 @@ class _UserListItem extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authService = ref.watch(authServiceProvider);
+    final allBranchesAsync = ref.watch(allBranchesProvider);
+
+    // Resolve branch name
+    String branchLabel = 'No branch assigned';
+    if (user.isAdmin) {
+      branchLabel = 'Global Access (All Branches)';
+    } else if (user.branchIds.isNotEmpty) {
+      final branchId = user.branchIds.first;
+      final branches = allBranchesAsync.value;
+      if (branches != null) {
+        final match = branches.where((b) => b.branchId == branchId).toList();
+        if (match.isNotEmpty) {
+          branchLabel = match.first.branchName;
+        } else {
+          branchLabel = branchId;
+        }
+      } else {
+        branchLabel = branchId;
+      }
+    }
+
+    final roleColor = _getRoleColor(user.role);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE8E1D8), width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 10,
-            offset: const Offset(0, 4),
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -95,21 +197,21 @@ class _UserListItem extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             CircleAvatar(
-              radius: 24,
-              backgroundColor: _getRoleColor(user.role).withOpacity(0.12),
+              radius: 22,
+              backgroundColor: roleColor.withValues(alpha: 0.12),
               child: Text(
                 user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
-                style: TextStyle(color: _getRoleColor(user.role), fontWeight: FontWeight.bold, fontSize: 18),
+                style: TextStyle(color: roleColor, fontWeight: FontWeight.bold, fontSize: 17),
               ),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     user.name,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppTheme.textDark),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -120,33 +222,55 @@ class _UserListItem extends ConsumerWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
                   Wrap(
                     spacing: 6,
                     runSpacing: 4,
                     children: [
                       // Role badge
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
                         decoration: BoxDecoration(
-                          color: _getRoleColor(user.role).withOpacity(0.1),
+                          color: roleColor.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: roleColor.withValues(alpha: 0.25)),
                         ),
                         child: Text(
                           user.role.toUpperCase(),
-                          style: TextStyle(fontSize: 10, color: _getRoleColor(user.role), fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: roleColor,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                          ),
                         ),
                       ),
-                      // Branch count badge
+                      // Branch badge
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
+                          color: const Color(0xFFF7F4EF),
                           borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: const Color(0xFFE8E1D8)),
                         ),
-                        child: Text(
-                          '${user.branchIds.length} branch${user.branchIds.length == 1 ? '' : 'es'}',
-                          style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontWeight: FontWeight.w600),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              user.isAdmin ? Icons.admin_panel_settings_outlined : Icons.storefront_outlined,
+                              size: 11,
+                              color: AppTheme.primaryCoffee,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              branchLabel,
+                              style: const TextStyle(
+                                fontSize: 10.5,
+                                color: AppTheme.textDark,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -162,16 +286,17 @@ class _UserListItem extends ConsumerWidget {
                 Text(
                   user.isActive ? 'ACTIVE' : 'DISABLED',
                   style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                    color: user.isActive ? AppTheme.successGreen : Colors.red,
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                    color: user.isActive ? const Color(0xFF287A55) : Colors.red,
                   ),
                 ),
                 Transform.scale(
-                  scale: 0.8,
+                  scale: 0.75,
                   child: Switch(
                     value: user.isActive,
-                    activeColor: AppTheme.successGreen,
+                    activeColor: const Color(0xFF287A55),
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     onChanged: (value) async {
                       try {
@@ -180,7 +305,7 @@ class _UserListItem extends ConsumerWidget {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text('Account ${value ? 'enabled' : 'disabled'} for ${user.name}'),
-                              backgroundColor: value ? AppTheme.successGreen : Colors.orange,
+                              backgroundColor: value ? const Color(0xFF287A55) : Colors.orange,
                             ),
                           );
                         }
@@ -196,147 +321,37 @@ class _UserListItem extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(width: 4),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  icon: const Icon(Icons.info_outline, color: Colors.grey, size: 22),
-                  onPressed: () => _showUserDetails(context, user),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  icon: const Icon(Icons.edit_outlined, color: AppTheme.maroon, size: 22),
-                  onPressed: () {
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (context) => _EditUserBottomSheet(user: user),
-                    );
-                  },
-                ),
-              ],
+            const SizedBox(width: 2),
+            IconButton(
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              icon: const Icon(Icons.edit_outlined, color: AppTheme.primaryCoffee, size: 20),
+              tooltip: 'Edit User',
+              onPressed: () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (context) => _EditUserBottomSheet(user: user),
+                );
+              },
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  void _showUserDetails(BuildContext context, UserModel user) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 30,
-                  backgroundColor: _getRoleColor(user.role).withOpacity(0.12),
-                  child: Text(user.name[0].toUpperCase(), style: TextStyle(fontSize: 24, color: _getRoleColor(user.role), fontWeight: FontWeight.bold)),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(user.name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                      Text(user.userId, style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            _detailRow('Email', user.email),
-            _detailRow('Role', user.role.toUpperCase()),
-            _detailRow('Status', user.isActive ? 'Active' : 'Disabled'),
-            _detailRow('Last Login', user.lastLogin?.toString().split('.').first ?? 'Never'),
-            const SizedBox(height: 16),
-            const Text('ASSIGNED BRANCHES', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppTheme.maroon)),
-            const SizedBox(height: 8),
-            if (user.branchIds.isEmpty)
-              const Text('No branches assigned', style: TextStyle(color: Colors.grey))
-            else
-              ...user.branchIds.map((b) => Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Text('• $b', style: const TextStyle(fontSize: 14)),
-              )),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.maroon,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.all(16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                onPressed: () => Navigator.pop(context),
-                child: const Text('CLOSE'),
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppTheme.maroon,
-                  side: const BorderSide(color: AppTheme.maroon),
-                  padding: const EdgeInsets.all(16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                onPressed: () {
-                  Navigator.pop(context);
-                  showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (context) => _EditUserBottomSheet(user: user),
-                  );
-                },
-                child: const Text('EDIT USER'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _detailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
-        ],
       ),
     );
   }
 
   Color _getRoleColor(String role) {
     switch (role.toLowerCase()) {
-      case 'admin': return Colors.purple;
-      case 'cashier': return Colors.green;
-      case 'waiter': return Colors.blue;
-      default: return Colors.grey;
+      case 'admin':
+        return AppTheme.primaryCoffee;
+      case 'cashier':
+        return const Color(0xFFB77945);
+      case 'waiter':
+        return const Color(0xFF287A55);
+      default:
+        return Colors.grey;
     }
   }
 }
@@ -355,11 +370,11 @@ class _AddUserBottomSheetState extends ConsumerState<_AddUserBottomSheet> {
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
-  String _selectedRole = 'cashier';
+  String _selectedRole = 'waiter';
   List<String> _selectedBranchIds = [];
   bool _isLoading = false;
 
-  final List<String> _availableRoles = ['admin', 'cashier', 'waiter'];
+  final List<String> _availableRoles = ['waiter', 'cashier', 'admin'];
 
   @override
   void dispose() {
@@ -371,14 +386,22 @@ class _AddUserBottomSheetState extends ConsumerState<_AddUserBottomSheet> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedBranchIds.isEmpty) {
+
+    if (_selectedRole == 'admin') {
+      final allBranches = ref.read(allBranchesProvider).value ?? [];
+      _selectedBranchIds = allBranches.map((b) => b.branchId).toList();
+    } else if (_selectedBranchIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please assign at least one branch'), backgroundColor: Colors.orange),
+        const SnackBar(
+          content: Text('Please select an assigned branch for this staff member'),
+          backgroundColor: Colors.orange,
+        ),
       );
       return;
     }
+
     setState(() => _isLoading = true);
-    
+
     try {
       final authService = ref.read(authServiceProvider);
       await authService.registerUser(
@@ -388,19 +411,19 @@ class _AddUserBottomSheetState extends ConsumerState<_AddUserBottomSheet> {
         _selectedRole,
         _selectedBranchIds,
       );
-      
+
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('User added successfully!'), backgroundColor: AppTheme.successGreen),
+          const SnackBar(content: Text('Staff user added successfully!'), backgroundColor: AppTheme.successGreen),
         );
       }
     } catch (e) {
-       if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-          );
-       }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -410,7 +433,7 @@ class _AddUserBottomSheetState extends ConsumerState<_AddUserBottomSheet> {
   Widget build(BuildContext context) {
     return _UserFormSheet(
       formKey: _formKey,
-      title: 'Add New User',
+      title: 'Add Staff Member',
       nameCtrl: _nameCtrl,
       emailCtrl: _emailCtrl,
       passCtrl: _passCtrl,
@@ -419,15 +442,19 @@ class _AddUserBottomSheetState extends ConsumerState<_AddUserBottomSheet> {
       availableRoles: _availableRoles,
       isLoading: _isLoading,
       isNew: true,
-      onRoleChanged: (v) => setState(() => _selectedRole = v),
-      onBranchToggled: (branchId) {
+      onRoleChanged: (v) {
         setState(() {
-          if (_selectedBranchIds.contains(branchId)) {
-            _selectedBranchIds.remove(branchId);
-          } else {
-            _selectedBranchIds.add(branchId);
+          _selectedRole = v;
+          if (v == 'admin') {
+            final allBranches = ref.read(allBranchesProvider).value ?? [];
+            _selectedBranchIds = allBranches.map((b) => b.branchId).toList();
+          } else if (_selectedBranchIds.length > 1) {
+            _selectedBranchIds = [_selectedBranchIds.first];
           }
         });
+      },
+      onBranchesChanged: (branches) {
+        setState(() => _selectedBranchIds = branches);
       },
       onSubmit: _submit,
     );
@@ -452,7 +479,7 @@ class _EditUserBottomSheetState extends ConsumerState<_EditUserBottomSheet> {
   late List<String> _selectedBranchIds;
   bool _isLoading = false;
 
-  final List<String> _availableRoles = ['admin', 'cashier', 'waiter'];
+  final List<String> _availableRoles = ['waiter', 'cashier', 'admin'];
 
   @override
   void initState() {
@@ -472,12 +499,20 @@ class _EditUserBottomSheetState extends ConsumerState<_EditUserBottomSheet> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedBranchIds.isEmpty) {
+
+    if (_selectedRole == 'admin') {
+      final allBranches = ref.read(allBranchesProvider).value ?? [];
+      _selectedBranchIds = allBranches.map((b) => b.branchId).toList();
+    } else if (_selectedBranchIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please assign at least one branch'), backgroundColor: Colors.orange),
+        const SnackBar(
+          content: Text('Please select an assigned branch for this staff member'),
+          backgroundColor: Colors.orange,
+        ),
       );
       return;
     }
+
     setState(() => _isLoading = true);
 
     try {
@@ -487,19 +522,19 @@ class _EditUserBottomSheetState extends ConsumerState<_EditUserBottomSheet> {
         'role': _selectedRole,
         'branchIds': _selectedBranchIds,
       });
-      
+
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('User updated successfully!'), backgroundColor: AppTheme.successGreen),
+          const SnackBar(content: Text('Staff user updated successfully!'), backgroundColor: AppTheme.successGreen),
         );
       }
     } catch (e) {
-       if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-          );
-       }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -509,7 +544,7 @@ class _EditUserBottomSheetState extends ConsumerState<_EditUserBottomSheet> {
   Widget build(BuildContext context) {
     return _UserFormSheet(
       formKey: _formKey,
-      title: 'Edit User',
+      title: 'Edit Staff Member',
       nameCtrl: _nameCtrl,
       emailCtrl: _emailCtrl,
       selectedRole: _selectedRole,
@@ -517,15 +552,19 @@ class _EditUserBottomSheetState extends ConsumerState<_EditUserBottomSheet> {
       availableRoles: _availableRoles,
       isLoading: _isLoading,
       isNew: false,
-      onRoleChanged: (v) => setState(() => _selectedRole = v),
-      onBranchToggled: (branchId) {
+      onRoleChanged: (v) {
         setState(() {
-          if (_selectedBranchIds.contains(branchId)) {
-            _selectedBranchIds.remove(branchId);
-          } else {
-            _selectedBranchIds.add(branchId);
+          _selectedRole = v;
+          if (v == 'admin') {
+            final allBranches = ref.read(allBranchesProvider).value ?? [];
+            _selectedBranchIds = allBranches.map((b) => b.branchId).toList();
+          } else if (_selectedBranchIds.length > 1) {
+            _selectedBranchIds = [_selectedBranchIds.first];
           }
         });
+      },
+      onBranchesChanged: (branches) {
+        setState(() => _selectedBranchIds = branches);
       },
       onSubmit: _submit,
     );
@@ -546,7 +585,7 @@ class _UserFormSheet extends ConsumerWidget {
   final bool isLoading;
   final bool isNew;
   final ValueChanged<String> onRoleChanged;
-  final ValueChanged<String> onBranchToggled;
+  final ValueChanged<List<String>> onBranchesChanged;
   final VoidCallback onSubmit;
 
   const _UserFormSheet({
@@ -561,7 +600,7 @@ class _UserFormSheet extends ConsumerWidget {
     required this.isLoading,
     required this.isNew,
     required this.onRoleChanged,
-    required this.onBranchToggled,
+    required this.onBranchesChanged,
     required this.onSubmit,
   });
 
@@ -572,11 +611,13 @@ class _UserFormSheet extends ConsumerWidget {
     return Container(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
-        top: 24, left: 24, right: 24,
+        top: 24,
+        left: 24,
+        right: 24,
       ),
       decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: SafeArea(
         child: Form(
@@ -586,91 +627,191 @@ class _UserFormSheet extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.maroon)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryCoffee,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.grey),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: nameCtrl,
                   decoration: InputDecoration(
-                    labelText: 'Full Name', 
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))
+                    labelText: 'Full Name',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    prefixIcon: const Icon(Icons.person_outline, size: 20),
                   ),
-                  validator: (v) => v!.isEmpty ? 'Required' : null,
+                  validator: (v) => v!.isEmpty ? 'Name is required' : null,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: emailCtrl,
                   decoration: InputDecoration(
-                    labelText: 'Email Address', 
+                    labelText: 'Email Address',
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    prefixIcon: const Icon(Icons.email_outlined, size: 20),
                     filled: !isNew,
                     fillColor: isNew ? null : Colors.grey.shade100,
                   ),
                   keyboardType: TextInputType.emailAddress,
                   enabled: isNew,
-                  validator: isNew ? (v) => !v!.contains('@') ? 'Invalid email' : null : null,
+                  validator: isNew
+                      ? (v) => !v!.contains('@') ? 'Enter a valid email' : null
+                      : null,
                 ),
                 if (isNew && passCtrl != null) ...[
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: passCtrl,
                     decoration: InputDecoration(
-                      labelText: 'Temporary Password', 
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))
+                      labelText: 'Password',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      prefixIcon: const Icon(Icons.lock_outline, size: 20),
                     ),
                     obscureText: true,
-                    validator: (v) => v!.length < 6 ? 'Min 6 chars' : null,
+                    validator: (v) => v!.length < 6 ? 'Password must be at least 6 characters' : null,
                   ),
                 ],
                 const SizedBox(height: 12),
-                // Role dropdown — single role for all branches
+                // Role dropdown
                 DropdownButtonFormField<String>(
                   value: selectedRole,
                   decoration: InputDecoration(
-                    labelText: 'Role (same across all branches)',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))
+                    labelText: 'Staff Role',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    prefixIcon: const Icon(Icons.badge_outlined, size: 20),
                   ),
-                  items: availableRoles.map((r) => DropdownMenuItem(value: r, child: Text(r.toUpperCase()))).toList(),
+                  items: availableRoles
+                      .map((r) => DropdownMenuItem(
+                            value: r,
+                            child: Text(
+                              r.toUpperCase(),
+                              style: const TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                          ))
+                      .toList(),
                   onChanged: (v) => onRoleChanged(v!),
                 ),
                 const SizedBox(height: 16),
-                const Text('ASSIGN BRANCHES', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.maroon, letterSpacing: 1)),
-                const SizedBox(height: 8),
-                allBranchesAsync.when(
-                  data: (branches) {
-                    if (branches.isEmpty) {
-                      return const Text('No branches available', style: TextStyle(color: Colors.red));
-                    }
-                    return Column(
-                      children: branches.map((b) {
-                        final isSelected = selectedBranchIds.contains(b.branchId);
-                        return CheckboxListTile(
-                          value: isSelected,
-                          onChanged: (_) => onBranchToggled(b.branchId),
-                          title: Text(b.branchName, style: const TextStyle(fontWeight: FontWeight.w600)),
-                          subtitle: Text(b.branchId, style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
-                          activeColor: AppTheme.maroon,
-                          contentPadding: EdgeInsets.zero,
-                          controlAffinity: ListTileControlAffinity.leading,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        );
-                      }).toList(),
-                    );
-                  },
-                  loading: () => const LinearProgressIndicator(),
-                  error: (e, _) => Text('Error loading branches: $e'),
-                ),
+
+                // Branch Assignment Section
+                if (selectedRole == 'admin') ...[
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryCoffee.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppTheme.primaryCoffee.withValues(alpha: 0.2)),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.admin_panel_settings_outlined, color: AppTheme.primaryCoffee, size: 24),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Global Branch Access',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  color: AppTheme.primaryCoffee,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'Administrators have access to all branches and can switch between them from the menu.',
+                                style: TextStyle(fontSize: 11.5, color: AppTheme.textDark),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ] else ...[
+                  allBranchesAsync.when(
+                    data: (branches) {
+                      if (branches.isEmpty) {
+                        return const Text('No branches available', style: TextStyle(color: Colors.red));
+                      }
+
+                      final currentSelected = selectedBranchIds.isNotEmpty &&
+                              branches.any((b) => b.branchId == selectedBranchIds.first)
+                          ? selectedBranchIds.first
+                          : (branches.isNotEmpty ? branches.first.branchId : null);
+
+                      // Ensure selected branch ID is initialized if not set
+                      if (selectedBranchIds.isEmpty && currentSelected != null) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          onBranchesChanged([currentSelected]);
+                        });
+                      }
+
+                      return DropdownButtonFormField<String>(
+                        value: currentSelected,
+                        decoration: InputDecoration(
+                          labelText: selectedRole == 'waiter'
+                              ? 'Assigned Work Branch *'
+                              : 'Assigned Primary Branch *',
+                          helperText: selectedRole == 'waiter'
+                              ? 'Waiters serve strictly at a single physical branch.'
+                              : 'Cashiers operate primarily at their assigned branch.',
+                          helperStyle: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          prefixIcon: const Icon(Icons.storefront_outlined, color: AppTheme.primaryCoffee, size: 20),
+                        ),
+                        items: branches
+                            .map((b) => DropdownMenuItem(
+                                  value: b.branchId,
+                                  child: Text('${b.branchName} (${b.branchId})'),
+                                ))
+                            .toList(),
+                        onChanged: (v) {
+                          if (v != null) {
+                            onBranchesChanged([v]);
+                          }
+                        },
+                        validator: (v) => (v == null || v.isEmpty) ? 'Please select a branch' : null,
+                      );
+                    },
+                    loading: () => const LinearProgressIndicator(),
+                    error: (e, _) => Text('Error loading branches: $e'),
+                  ),
+                ],
+
                 const SizedBox(height: 24),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.maroon,
+                    backgroundColor: AppTheme.primaryCoffee,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
+                    elevation: 0,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   onPressed: isLoading ? null : onSubmit,
-                  child: isLoading 
-                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : Text(isNew ? 'CREATE USER' : 'SAVE CHANGES', style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1)),
+                  child: isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      : Text(
+                          isNew ? 'CREATE STAFF MEMBER' : 'SAVE CHANGES',
+                          style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1),
+                        ),
                 ),
                 const SizedBox(height: 16),
               ],
@@ -681,3 +822,4 @@ class _UserFormSheet extends ConsumerWidget {
     );
   }
 }
+

@@ -17,16 +17,27 @@ class ActiveBranchNotifier extends StateNotifier<String?> {
   }
 
   Future<void> _initializeFromProfile(dynamic user) async {
-    // If state is already set (e.g. manually selected), don't override unless it's a waiter lock
     if (user == null) return;
 
-    // Waiter logic: Locked to assigned branch if they only have one
-    if (user.role == 'waiter' && user.branchIds.length == 1) {
-      state = user.branchIds[0];
+    // Waiter logic: strictly locked to their assigned physical branch
+    if (user.role == 'waiter' && (user.branchIds as List).isNotEmpty) {
+      final assigned = (user.branchIds as List).first.toString();
+      state = assigned;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_branchKey, assigned);
       return;
     }
 
-    // Admin/Cashier logic: Check persistence
+    // Single-branch Cashier logic: automatically locked to assigned branch
+    if (user.role == 'cashier' && (user.branchIds as List).length == 1) {
+      final assigned = (user.branchIds as List).first.toString();
+      state = assigned;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_branchKey, assigned);
+      return;
+    }
+
+    // Admin / Multi-branch manager logic: Check persistence (choose once, then remember)
     final prefs = await SharedPreferences.getInstance();
     final savedId = prefs.getString(_branchKey);
 

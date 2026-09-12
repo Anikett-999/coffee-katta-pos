@@ -6,6 +6,7 @@ import '../screens/shared/login_screen.dart';
 import '../screens/shared/branch_selection_screen.dart';
 import '../screens/shared/home_screen.dart';
 import '../screens/shared/account_disabled_screen.dart';
+import '../screens/shared/unassigned_branch_screen.dart';
 
 class AuthWrapper extends ConsumerWidget {
   const AuthWrapper({super.key});
@@ -33,7 +34,28 @@ class AuthWrapper extends ConsumerWidget {
               return const AccountDisabledScreen();
             }
 
-            if (activeBranchId == null) {
+            // 1. Waiters & Single-Branch Staff: strictly locked to assigned branch.
+            // Never show branch picker. Directly route to assigned branch workspace.
+            if (userModel.isWaiter || (userModel.isCashier && userModel.branchIds.length <= 1)) {
+              final assignedBranch = userModel.branchIds.isNotEmpty ? userModel.branchIds.first : null;
+              if (assignedBranch == null || assignedBranch.isEmpty) {
+                return const UnassignedBranchScreen();
+              }
+
+              // Auto-sync active branch if not set or mismatched
+              if (activeBranchId != assignedBranch) {
+                Future.microtask(() {
+                  ref.read(activeBranchProvider.notifier).setBranch(assignedBranch);
+                });
+              }
+
+              return const HomeScreen();
+            }
+
+            // 2. Admins & Multi-Branch Managers:
+            // First time login (or no active branch chosen): show branch picker.
+            // Once chosen, activeBranchId is set and saved, so they land directly on HomeScreen.
+            if (activeBranchId == null || !userModel.hasAccessToBranch(activeBranchId)) {
               return const BranchSelectionScreen();
             }
 

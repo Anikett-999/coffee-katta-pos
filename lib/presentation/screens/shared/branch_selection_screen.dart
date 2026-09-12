@@ -25,6 +25,19 @@ class BranchSelectionScreen extends ConsumerWidget {
             data: (user) {
               if (user == null) return _buildNoAccess(ref);
 
+              // Defense Guard: Waiters and single-branch cashiers are strictly locked to assigned branch
+              if (user.isWaiter || (user.isCashier && user.branchIds.length <= 1)) {
+                if (user.branchIds.isNotEmpty) {
+                  final assigned = user.branchIds.first;
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    ref.read(activeBranchProvider.notifier).setBranch(assigned);
+                  });
+                  return const Center(child: CircularProgressIndicator());
+                } else {
+                  return _buildNoAccess(ref, message: 'No branch assigned to your account.\nPlease contact your administrator.');
+                }
+              }
+
               // Show first-time welcome dialog
               if (user.lastLogin == null) {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -132,15 +145,18 @@ class BranchSelectionScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildNoAccess(WidgetRef ref) {
+  Widget _buildNoAccess(WidgetRef ref, {String? message}) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Icon(Icons.error_outline, size: 80, color: Colors.red),
           const SizedBox(height: 20),
-          const Text('No access assigned.', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          const Text('Please contact your administrator.'),
+          Text(
+            message ?? 'No access assigned.\nPlease contact your administrator.',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, height: 1.4),
+            textAlign: TextAlign.center,
+          ),
           const SizedBox(height: 30),
           ElevatedButton(
             onPressed: () => ref.read(authServiceProvider).logout(),

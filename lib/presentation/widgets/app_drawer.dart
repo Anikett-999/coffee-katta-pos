@@ -13,6 +13,7 @@ import '../providers/active_branch_provider.dart';
 import '../screens/admin/users/user_management_screen.dart';
 import '../screens/admin/branches/branch_management_screen.dart';
 import '../screens/admin/menu/menu_management_screen.dart';
+import '../screens/shared/branch_selection_screen.dart';
 
 
 // We rely on the authServiceProvider from auth_provider.dart via the build method's ref
@@ -91,6 +92,25 @@ class AppDrawer extends ConsumerWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  const SizedBox(height: 6),
+                  // Role Badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2.5),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+                    ),
+                    child: Text(
+                      (userModel?.role ?? activeRole ?? 'STAFF').toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -101,7 +121,7 @@ class AppDrawer extends ConsumerWidget {
             child: ListView(
               padding: EdgeInsets.zero,
               children: [
-                // Home link - Context Sensitive
+                // Home / Floor link
                 ListTile(
                   leading: Icon(isAdmin ? Icons.home_rounded : Icons.table_bar, color: AppTheme.maroon),
                   title: Text(isAdmin ? 'Home' : 'Table Status', style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -114,49 +134,28 @@ class AppDrawer extends ConsumerWidget {
                   },
                 ),
 
-                // Operational Tools (Hidden for Admins)
-                if (!isAdmin) ...[
-                  ListTile(
-                    leading: const Icon(Icons.receipt_long, color: AppTheme.maroon),
-                    title: const Text('Live KOTs', style: TextStyle(fontWeight: FontWeight.bold)),
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const KOTScreen()),
-                      );
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.restaurant_menu, color: AppTheme.maroon),
-                    title: const Text('Menu Availability', style: TextStyle(fontWeight: FontWeight.bold)),
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const MenuManagementScreen()),
-                      );
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.print, color: AppTheme.maroon),
-                    title: const Text('Printer Settings', style: TextStyle(fontWeight: FontWeight.bold)),
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const PrinterSettingsScreen()),
-                      );
-                    },
-                  ),
-                ],
+                // Live KOTs (Staff & Cashier operational tool)
+                ListTile(
+                  leading: const Icon(Icons.receipt_long, color: AppTheme.maroon),
+                  title: const Text('Live KOTs', style: TextStyle(fontWeight: FontWeight.bold)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const KOTScreen()),
+                    );
+                  },
+                ),
 
-                // Admin Management Tools (Admins only)
+                // Admin Management Suite
                 if (isAdmin) ...[
                   const Divider(),
                   const Padding(
                     padding: EdgeInsets.only(left: 16, top: 8, bottom: 4),
-                    child: Text('MANAGEMENT', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
+                    child: Text(
+                      'MANAGEMENT',
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2),
+                    ),
                   ),
                   ListTile(
                     leading: const Icon(Icons.people_outline, color: AppTheme.maroon),
@@ -174,9 +173,51 @@ class AppDrawer extends ConsumerWidget {
                       Navigator.push(context, MaterialPageRoute(builder: (context) => const BranchManagementScreen()));
                     },
                   ),
+                  ListTile(
+                    leading: const Icon(Icons.restaurant_menu, color: AppTheme.maroon),
+                    title: const Text('Menu Management', style: TextStyle(fontWeight: FontWeight.bold)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const MenuManagementScreen()));
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.swap_horiz_rounded, color: AppTheme.maroon),
+                    title: const Text('Switch Branch', style: TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: const Text('Change operational branch', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const BranchSelectionScreen()),
+                      );
+                    },
+                  ),
                 ],
 
-                // Shared Links
+                const Divider(),
+                const Padding(
+                  padding: EdgeInsets.only(left: 16, top: 8, bottom: 4),
+                  child: Text(
+                    'PREFERENCES',
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2),
+                  ),
+                ),
+
+                // Printer Settings (accessible to all operational roles)
+                ListTile(
+                  leading: const Icon(Icons.print, color: AppTheme.maroon),
+                  title: const Text('Printer Settings', style: TextStyle(fontWeight: FontWeight.bold)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const PrinterSettingsScreen()),
+                    );
+                  },
+                ),
+
+                // My Profile
                 ListTile(
                   leading: const Icon(Icons.person, color: AppTheme.maroon),
                   title: const Text('My Profile', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -189,17 +230,19 @@ class AppDrawer extends ConsumerWidget {
                   },
                 ),
 
-                ListTile(
-                  leading: const Icon(Icons.settings, color: AppTheme.maroon),
-                  title: const Text('App Settings', style: TextStyle(fontWeight: FontWeight.bold)),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const SettingsScreen()),
-                    );
-                  },
-                ),
+                // App Settings (Admins only)
+                if (isAdmin)
+                  ListTile(
+                    leading: const Icon(Icons.settings, color: AppTheme.maroon),
+                    title: const Text('App Settings', style: TextStyle(fontWeight: FontWeight.bold)),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                      );
+                    },
+                  ),
               ],
             ),
           ),
