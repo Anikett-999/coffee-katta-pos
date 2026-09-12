@@ -11,9 +11,7 @@ import './global/confirmation_dialog.dart';
 import '../providers/branch_provider.dart';
 import '../providers/active_branch_provider.dart';
 import '../screens/admin/users/user_management_screen.dart';
-import '../screens/admin/branches/branch_management_screen.dart';
 import '../screens/admin/menu/menu_management_screen.dart';
-import '../screens/shared/branch_selection_screen.dart';
 
 
 // We rely on the authServiceProvider from auth_provider.dart via the build method's ref
@@ -37,7 +35,7 @@ class AppDrawer extends ConsumerWidget {
           // Drawer Header - Custom Centered Design
           Container(
             width: double.infinity,
-            color: AppTheme.maroon,
+            color: const Color(0xFF382012),
             padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
             child: SafeArea(
               bottom: false,
@@ -123,8 +121,8 @@ class AppDrawer extends ConsumerWidget {
               children: [
                 // Home / Floor link
                 ListTile(
-                  leading: Icon(isAdmin ? Icons.home_rounded : Icons.table_bar, color: AppTheme.maroon),
-                  title: Text(isAdmin ? 'Home' : 'Table Status', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  leading: const Icon(Icons.table_bar_rounded, color: Color(0xFF5A3825)),
+                  title: Text(isAdmin ? 'Floor Plan & Tables' : 'Table Status', style: const TextStyle(fontWeight: FontWeight.bold)),
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.pushReplacement(
@@ -136,7 +134,7 @@ class AppDrawer extends ConsumerWidget {
 
                 // Live KOTs (Staff & Cashier operational tool)
                 ListTile(
-                  leading: const Icon(Icons.receipt_long, color: AppTheme.maroon),
+                  leading: const Icon(Icons.receipt_long_rounded, color: Color(0xFF5A3825)),
                   title: const Text('Live KOTs', style: TextStyle(fontWeight: FontWeight.bold)),
                   onTap: () {
                     Navigator.pop(context);
@@ -149,16 +147,16 @@ class AppDrawer extends ConsumerWidget {
 
                 // Admin Management Suite
                 if (isAdmin) ...[
-                  const Divider(),
+                  const Divider(height: 1, color: Color(0xFFE8E1D8)),
                   const Padding(
-                    padding: EdgeInsets.only(left: 16, top: 8, bottom: 4),
+                    padding: EdgeInsets.only(left: 16, top: 12, bottom: 4),
                     child: Text(
                       'MANAGEMENT',
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2),
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900, color: Color(0xFF5A3825), letterSpacing: 1.2),
                     ),
                   ),
                   ListTile(
-                    leading: const Icon(Icons.people_outline, color: AppTheme.maroon),
+                    leading: const Icon(Icons.people_outline_rounded, color: Color(0xFF5A3825)),
                     title: const Text('User Management', style: TextStyle(fontWeight: FontWeight.bold)),
                     onTap: () {
                       Navigator.pop(context);
@@ -166,47 +164,27 @@ class AppDrawer extends ConsumerWidget {
                     },
                   ),
                   ListTile(
-                    leading: const Icon(Icons.store_mall_directory_outlined, color: AppTheme.maroon),
-                    title: const Text('My Branches', style: TextStyle(fontWeight: FontWeight.bold)),
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(context, MaterialPageRoute(builder: (context) => const BranchManagementScreen()));
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.restaurant_menu, color: AppTheme.maroon),
+                    leading: const Icon(Icons.restaurant_menu_rounded, color: Color(0xFF5A3825)),
                     title: const Text('Menu Management', style: TextStyle(fontWeight: FontWeight.bold)),
                     onTap: () {
                       Navigator.pop(context);
                       Navigator.push(context, MaterialPageRoute(builder: (context) => const MenuManagementScreen()));
                     },
                   ),
-                  ListTile(
-                    leading: const Icon(Icons.swap_horiz_rounded, color: AppTheme.maroon),
-                    title: const Text('Switch Branch', style: TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: const Text('Change operational branch', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const BranchSelectionScreen()),
-                      );
-                    },
-                  ),
                 ],
 
-                const Divider(),
+                const Divider(height: 1, color: Color(0xFFE8E1D8)),
                 const Padding(
-                  padding: EdgeInsets.only(left: 16, top: 8, bottom: 4),
+                  padding: EdgeInsets.only(left: 16, top: 12, bottom: 4),
                   child: Text(
                     'PREFERENCES',
-                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2),
+                    style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900, color: Color(0xFF5A3825), letterSpacing: 1.2),
                   ),
                 ),
 
                 // Printer Settings (accessible to all operational roles)
                 ListTile(
-                  leading: const Icon(Icons.print, color: AppTheme.maroon),
+                  leading: const Icon(Icons.print_rounded, color: Color(0xFF5A3825)),
                   title: const Text('Printer Settings', style: TextStyle(fontWeight: FontWeight.bold)),
                   onTap: () {
                     Navigator.pop(context);
@@ -219,7 +197,7 @@ class AppDrawer extends ConsumerWidget {
 
                 // My Profile
                 ListTile(
-                  leading: const Icon(Icons.person, color: AppTheme.maroon),
+                  leading: const Icon(Icons.person_outline_rounded, color: Color(0xFF5A3825)),
                   title: const Text('My Profile', style: TextStyle(fontWeight: FontWeight.bold)),
                   onTap: () {
                     Navigator.pop(context);
@@ -233,7 +211,7 @@ class AppDrawer extends ConsumerWidget {
                 // App Settings (Admins only)
                 if (isAdmin)
                   ListTile(
-                    leading: const Icon(Icons.settings, color: AppTheme.maroon),
+                    leading: const Icon(Icons.settings_outlined, color: Color(0xFF5A3825)),
                     title: const Text('App Settings', style: TextStyle(fontWeight: FontWeight.bold)),
                     onTap: () {
                       Navigator.pop(context);
@@ -247,12 +225,12 @@ class AppDrawer extends ConsumerWidget {
             ),
           ),
 
-          const Divider(height: 1),
+          const Divider(height: 1, color: Color(0xFFE8E1D8)),
 
           // Logout with Confirmation (Pinned to bottom)
           ListTile(
-            leading: const Icon(Icons.logout, color: AppTheme.maroon),
-            title: const Text('Logout', style: TextStyle(color: AppTheme.maroon, fontWeight: FontWeight.bold)),
+            leading: const Icon(Icons.logout_rounded, color: Color(0xFFC0392B)),
+            title: const Text('Logout', style: TextStyle(color: Color(0xFFC0392B), fontWeight: FontWeight.bold)),
             onTap: () {
               ConfirmationDialog.show(
                 context: context,

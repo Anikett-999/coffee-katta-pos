@@ -9,6 +9,7 @@ import '../../../core/app_theme.dart';
 import '../../../services/branch_service.dart';
 import '../../../domain/models/branch_model.dart';
 import 'printer_settings_screen.dart';
+import '../admin/branches/branch_management_screen.dart';
 import '../../widgets/global/editorial_background.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -248,15 +249,26 @@ class SettingsScreen extends ConsumerWidget {
                                         }
                                       },
                                     ),
-                                    if (user.isAdmin)
+                                    if (user.isAdmin) ...[
+                                      _buildActionTile(
+                                        context,
+                                        icon: Icons.store_mall_directory_rounded,
+                                        title: 'All Branches Management',
+                                        subtitle: 'Add, edit, or configure multi-store branches',
+                                        onTap: () => Navigator.push(
+                                          context,
+                                          MaterialPageRoute(builder: (context) => const BranchManagementScreen()),
+                                        ),
+                                      ),
                                       _buildActionTile(
                                         context,
                                         icon: Icons.edit_note_rounded,
-                                        title: 'Edit Branch Details',
+                                        title: 'Edit Current Branch Details',
                                         subtitle: 'Update address, IG, and review links',
                                         onTap: () => _showEditBranchDialog(context, ref, branch),
                                         isLast: true,
                                       ),
+                                    ],
                                   ],
                                 );
                               },
