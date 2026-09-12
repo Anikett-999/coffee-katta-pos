@@ -15,28 +15,21 @@ class EditorialBackground extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // Base Layer: Cream Background if requested
+        // Base Layer: Warm Background (#F7F4EF)
         if (useCreamBase)
           Positioned.fill(
-            child: Container(color: AppTheme.cream),
+            child: Container(color: AppTheme.backgroundWarm),
           ),
 
-        // Branding Layer: Asset Image with low opacity
+        // Branding Layer: Very Faint Decorative Illustration (around 2-4% opacity)
         Positioned.fill(
           child: Opacity(
-            opacity: 0.08,
+            opacity: 0.025,
             child: Image.asset(
               'assets/branding/log-bg.png',
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) => const SizedBox(),
             ),
-          ),
-        ),
-
-        // Tint Layer: Warm Espresso overlay with subtle opacity
-        Positioned.fill(
-          child: Container(
-            color: AppTheme.espressoBrown.withValues(alpha: 0.04),
           ),
         ),
 

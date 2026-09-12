@@ -2,28 +2,37 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  // Brand Identity Colors (Coffee Katta Warm Palette)
-  static const Color espressoBrown = Color(0xFF4A2C11); // Deep Espresso
-  static const Color warmCaramel   = Color(0xFF8C5835); // Warm Coffee/Caramel
-  static const Color latteCream    = Color(0xFFF9F6F0); // Warm Latte Cream Background
-  static const Color warmAmber     = Color(0xFFD4A373); // Amber Accent
-  static const Color softGrey      = Color(0xFFE8ECEF);
-  
-  // Backwards-Compatible Aliases (Keeps existing screens compile-clean)
-  static const Color maroon        = espressoBrown; // Remaps old maroon to espresso
-  static const Color cream         = latteCream;
-  static const Color deepGreen     = Color(0xFF2D6A4F); // Rich Emerald (Available)
-  static const Color darkBg        = Color(0xFF1E1E1E);
-  
+  // Brand Identity Colors (Coffee Katta Refined Warm Palette)
+  static const Color backgroundWarm   = Color(0xFFF7F4EF); // Main background #F7F4EF
+  static const Color cardWhite        = Color(0xFFFFFFFF); // Cards #FFFFFF
+  static const Color borderWarm       = Color(0xFFE8E1D8); // Borders #E8E1D8
+  static const Color primaryCoffee    = Color(0xFF5A3825); // Primary coffee brown #5A3825
+  static const Color accentCaramel    = Color(0xFFB77945); // Accent #B77945
+  static const Color successGreenPrice= Color(0xFF287A55); // Success/price green #287A55
+  static const Color textDark         = Color(0xFF29231F); // Text #29231F
+
+  // Semantic Aliases
+  static const Color espressoBrown    = primaryCoffee; // #5A3825
+  static const Color warmCaramel      = accentCaramel; // #B77945
+  static const Color latteCream       = backgroundWarm; // #F7F4EF
+  static const Color warmAmber        = accentCaramel; // #B77945
+  static const Color softGrey         = borderWarm;
+
+  // Backwards-Compatible Aliases
+  static const Color maroon           = primaryCoffee; // #5A3825
+  static const Color cream            = backgroundWarm; // #F7F4EF
+  static const Color deepGreen        = successGreenPrice; // #287A55
+  static const Color darkBg           = Color(0xFF1E1E1E);
+
   // Table Status Colors
-  static const Color statusAvailable = Color(0xFF2D6A4F); // Green (रिकामे टेबल)
-  static const Color statusOccupied  = Color(0xFFD97706); // Warm Amber (सुरू टेबल)
-  static const Color statusBilling   = Color(0xFF78350F); // Deep Brown (बिलिंग)
-  
-  static const Color successGreen   = statusAvailable;
-  static const Color occupiedOrange = statusOccupied;
-  static const Color billingBlue    = Color(0xFF1E3A8A);
-  static const Color primaryRed     = Color(0xFFDC2626);
+  static const Color statusAvailable  = Color(0xFF287A55); // Green #287A55 (रिकामे टेबल)
+  static const Color statusOccupied   = Color(0xFFD97706); // Warm Amber (सुरू टेबल)
+  static const Color statusBilling    = Color(0xFF5A3825); // Deep Brown #5A3825 (बिलिंग)
+
+  static const Color successGreen     = statusAvailable;
+  static const Color occupiedOrange   = statusOccupied;
+  static const Color billingBlue      = Color(0xFF1E3A8A);
+  static const Color primaryRed       = Color(0xFFDC2626);
 
   // Premium Button Style (Editorial look)
   static final _buttonStyle = ElevatedButton.styleFrom(

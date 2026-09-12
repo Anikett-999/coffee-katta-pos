@@ -461,12 +461,13 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
               appBar: AppBar(
                 title: Text('Table $tableName',
                     style: const TextStyle(
-                        fontWeight: FontWeight.bold, color: AppTheme.maroon)),
-                backgroundColor: Colors.white,
+                        fontWeight: FontWeight.bold, color: AppTheme.primaryCoffee)),
+                backgroundColor: AppTheme.cardWhite,
                 elevation: 0,
-                surfaceTintColor: Colors.white,
+                surfaceTintColor: AppTheme.cardWhite,
+                shape: const Border(bottom: BorderSide(color: AppTheme.borderWarm, width: 1)),
               leading: IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new, color: AppTheme.maroon),
+                icon: const Icon(Icons.arrow_back_ios_new, color: AppTheme.primaryCoffee),
                 onPressed: () => _handleBack(context, ref),
               ),
               actions: [
@@ -557,10 +558,11 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                }
             }
             return Card(
-              elevation: 2,
+              elevation: 0,
+              color: AppTheme.cardWhite,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
-                side: BorderSide(color: Colors.brown.withValues(alpha: 0.1)),
+                side: const BorderSide(color: AppTheme.borderWarm, width: 1),
               ),
               child: InkWell(
                 borderRadius: BorderRadius.circular(10),
@@ -577,16 +579,31 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                         textAlign: TextAlign.center,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: AppTheme.textDark,
+                        ),
                       ),
                       const SizedBox(height: 5),
                       Text(
                         '₹${item.price.toStringAsFixed(0)}',
-                        style: const TextStyle(color: AppTheme.deepGreen, fontWeight: FontWeight.bold, fontSize: 16),
+                        style: const TextStyle(
+                          color: AppTheme.successGreenPrice,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
                       ),
                       if (item.variants.length > 1) ...[
                         const SizedBox(height: 2),
-                        const Text('Has Sizes', style: TextStyle(color: AppTheme.warmCaramel, fontSize: 9.5, fontWeight: FontWeight.bold)),
+                        const Text(
+                          'Has Sizes',
+                          style: TextStyle(
+                            color: AppTheme.accentCaramel,
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ],
                     ],
                   ),
@@ -1395,9 +1412,20 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                                   ),
                                 )
                               : null,
-                          label: Text(cat.name, style: TextStyle(fontWeight: selected ? FontWeight.bold : FontWeight.normal)),
+                          label: Text(
+                            cat.name,
+                            style: TextStyle(
+                              fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+                              color: selected ? AppTheme.primaryCoffee : AppTheme.textDark,
+                            ),
+                          ),
                           selected: selected,
-                          selectedColor: AppTheme.maroon.withOpacity(0.1),
+                          selectedColor: AppTheme.primaryCoffee.withValues(alpha: 0.1),
+                          backgroundColor: AppTheme.cardWhite,
+                          side: BorderSide(
+                            color: selected ? AppTheme.primaryCoffee : AppTheme.borderWarm,
+                            width: 1,
+                          ),
                           onSelected: (val) {
                             if(val) setState(() => _selectedCategoryId = cat.categoryId);
                           },
@@ -1427,8 +1455,9 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
         height: 75,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10, offset: const Offset(0, -4))],
+          color: AppTheme.cardWhite,
+          border: const Border(top: BorderSide(color: AppTheme.borderWarm, width: 1.5)),
+          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, -4))],
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1437,19 +1466,19 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text('$totalItems Items', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-                Text('₹${total.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: AppTheme.maroon)),
+                Text('$totalItems Items', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textDark.withValues(alpha: 0.6))),
+                Text('₹${total.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: AppTheme.primaryCoffee)),
               ],
             ),
             ElevatedButton.icon(
               onPressed: _showMobileCartSheet,
-              icon: const Icon(Icons.shopping_cart),
-              label: const Text('SEE CART'),
+              icon: const Icon(Icons.shopping_cart, size: 18),
+              label: const Text('SEE CART', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.maroon, 
+                backgroundColor: AppTheme.primaryCoffee, 
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
             ),
           ],
@@ -1462,24 +1491,24 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      backgroundColor: AppTheme.cardWhite,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) {
         return Container(
-          height: MediaQuery.of(context).size.height * 0.8, // Take up 80% of screen giving breathing room
+          height: MediaQuery.of(context).size.height * 0.8,
           padding: const EdgeInsets.all(20),
           child: Column(
             children: [
-              const Text('REVIEW KOT', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-              const Divider(thickness: 2, height: 30),
+              const Text('REVIEW KOT', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
+              const Divider(thickness: 1, color: AppTheme.borderWarm, height: 24),
               Expanded(child: _buildCartList()), 
-              const Divider(thickness: 2, height: 30),
+              const Divider(thickness: 1, color: AppTheme.borderWarm, height: 24),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                   const Text('TOTAL', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                   const Text('TOTAL', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.textDark)),
                    Consumer(builder: (c, ref, _) {
-                      return Text('₹${ref.read(cartProvider(widget.table.tableId).notifier).total.toStringAsFixed(0)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.maroon));
+                      return Text('₹${ref.read(cartProvider(widget.table.tableId).notifier).total.toStringAsFixed(0)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.primaryCoffee));
                    }),
                 ],
               ),
@@ -1504,7 +1533,7 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                              icon: const Icon(Icons.send_rounded, size: 16),
                              label: const Text('SEND', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                              style: ElevatedButton.styleFrom(
-                               backgroundColor: AppTheme.maroon,
+                               backgroundColor: AppTheme.primaryCoffee,
                                foregroundColor: Colors.white,
                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                              ),
@@ -1522,9 +1551,9 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                                _sendToKitchen(shouldPrint: true);
                              },
                              icon: const Icon(Icons.print, size: 16),
-                             label: const Text('SEND & PRINT', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+                             label: const Text('SEND & PRINT', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                              style: ElevatedButton.styleFrom(
-                               backgroundColor: AppTheme.maroon,
+                               backgroundColor: AppTheme.primaryCoffee,
                                foregroundColor: Colors.white,
                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                              ),
@@ -1539,7 +1568,7 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
             ],
           ),
         );
-      }
+      },
     );
   }
 
@@ -1551,8 +1580,12 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
     return Row(
       children: [
         // 1. Categories Left Panel
-        SizedBox(
+        Container(
           width: 140,
+          decoration: const BoxDecoration(
+            color: AppTheme.cardWhite,
+            border: Border(right: BorderSide(color: AppTheme.borderWarm, width: 1)),
+          ),
           child: categoriesAsync.when(
              data: (categories) {
                if (_selectedCategoryId == null && categories.isNotEmpty) {
@@ -1572,8 +1605,16 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                           setState(() => _selectedCategoryId = cat.categoryId);
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
-                         color: isSelected ? AppTheme.maroon.withOpacity(0.1) : null,
+                        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 8),
+                        decoration: BoxDecoration(
+                          color: isSelected ? AppTheme.primaryCoffee.withValues(alpha: 0.08) : Colors.transparent,
+                          border: Border(
+                            left: BorderSide(
+                              color: isSelected ? AppTheme.primaryCoffee : Colors.transparent,
+                              width: 3.5,
+                            ),
+                          ),
+                        ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -1592,8 +1633,9 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                                 cat.name,
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
-                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                  color: isSelected ? AppTheme.maroon : null,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                  color: isSelected ? AppTheme.primaryCoffee : AppTheme.textDark,
+                                  fontSize: 13,
                                 ),
                               ),
                             ),
@@ -1608,24 +1650,79 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
              error: (e,s) => const Center(child: Icon(Icons.error)),
           ),
         ),
-        const VerticalDivider(width: 1),
         
         // 2. Items Center Panel
         Expanded(flex: 3, child: _buildItemGrid(false)),
-        const VerticalDivider(width: 1),
 
-        // 3. Cart Right Panel (Persistent)
-        SizedBox(
+        // 3. Cart Right Panel (Distinct Dedicated Workspace)
+        Container(
           width: 380,
+          decoration: const BoxDecoration(
+            color: AppTheme.cardWhite,
+            border: Border(left: BorderSide(color: AppTheme.borderWarm, width: 1.5)),
+            boxShadow: [
+              BoxShadow(
+                color: Color(0x0A000000),
+                blurRadius: 12,
+                offset: Offset(-3, 0),
+              ),
+            ],
+          ),
           child: Column(
             children: [
-              const Padding(padding: EdgeInsets.all(16.0), child: Text('CURRENT KOT', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18))),
+              // Distinct KOT Header Bar
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                decoration: const BoxDecoration(
+                  color: AppTheme.backgroundWarm,
+                  border: Border(bottom: BorderSide(color: AppTheme.borderWarm, width: 1)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.receipt_long, size: 20, color: AppTheme.primaryCoffee),
+                        SizedBox(width: 8),
+                        Text(
+                          'CURRENT KOT',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            letterSpacing: 0.8,
+                            color: AppTheme.textDark,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Consumer(builder: (context, ref, _) {
+                      final cart = ref.watch(cartProvider(widget.table.tableId));
+                      final count = cart.fold(0, (sum, i) => sum + i.quantity);
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryCoffee.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '$count items',
+                          style: const TextStyle(
+                            color: AppTheme.primaryCoffee,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11.5,
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
               Expanded(child: _buildCartList()),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                decoration: BoxDecoration(
-                  color: Colors.brown.withValues(alpha: 0.04),
-                  border: const Border(top: BorderSide(color: Color(0xFFE5DDD5), width: 1)),
+                decoration: const BoxDecoration(
+                  color: AppTheme.cardWhite,
+                  border: Border(top: BorderSide(color: AppTheme.borderWarm, width: 1.5)),
                 ),
                 child: Column(
                   children: [
@@ -1634,11 +1731,20 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                       children: [
                         const Text(
                           'TOTAL',
-                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15, letterSpacing: 0.5),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            letterSpacing: 0.5,
+                            color: AppTheme.textDark,
+                          ),
                         ),
                         Text(
                           '₹${ref.read(cartProvider(widget.table.tableId).notifier).total.toStringAsFixed(0)}',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: AppTheme.maroon),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 20,
+                            color: AppTheme.primaryCoffee,
+                          ),
                         ),
                       ],
                     ),
@@ -1654,7 +1760,7 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                               icon: const Icon(Icons.send_rounded, size: 16),
                               label: const Text('SEND', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.maroon,
+                                backgroundColor: AppTheme.primaryCoffee,
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               ),
@@ -1671,7 +1777,7 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                               icon: const Icon(Icons.print, size: 16),
                               label: const Text('SEND & PRINT', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.maroon,
+                                backgroundColor: AppTheme.primaryCoffee,
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               ),
@@ -1725,14 +1831,14 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
 
             return Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppTheme.cardWhite,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFEADBCE), width: 1),
+                border: Border.all(color: AppTheme.borderWarm, width: 1),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
+                    color: Colors.black.withValues(alpha: 0.02),
+                    blurRadius: 3,
+                    offset: const Offset(0, 1),
                   ),
                 ],
               ),
@@ -1754,21 +1860,21 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                               i.item.name,
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                                color: AppTheme.espressoBrown,
+                                fontSize: 13.5,
+                                color: AppTheme.textDark,
                               ),
                             ),
                             if (i.variant != null && i.variant!.isNotEmpty && i.variant != 'Standard')
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.warmCaramel.withValues(alpha: 0.12),
+                                  color: AppTheme.accentCaramel.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
                                   i.variant!,
                                   style: const TextStyle(
-                                    color: AppTheme.warmCaramel,
+                                    color: AppTheme.accentCaramel,
                                     fontSize: 10.5,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -1782,9 +1888,9 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                       // Compact Quantity Stepper
                       Container(
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF7F4EF),
+                          color: AppTheme.backgroundWarm,
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFFE2D7CC)),
+                          border: Border.all(color: AppTheme.borderWarm),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -1797,7 +1903,7 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                                 child: Icon(
                                   i.quantity == 1 ? Icons.delete_outline : Icons.remove,
                                   size: 15,
-                                  color: i.quantity == 1 ? Colors.red[600] : AppTheme.espressoBrown,
+                                  color: i.quantity == 1 ? Colors.red[600] : AppTheme.primaryCoffee,
                                 ),
                               ),
                             ),
@@ -1806,7 +1912,7 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                               alignment: Alignment.center,
                               child: Text(
                                 '${i.quantity}',
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.espressoBrown),
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textDark),
                               ),
                             ),
                             InkWell(
@@ -1814,7 +1920,7 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                               borderRadius: const BorderRadius.horizontal(right: Radius.circular(8)),
                               child: const Padding(
                                 padding: EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-                                child: Icon(Icons.add, size: 15, color: AppTheme.espressoBrown),
+                                child: Icon(Icons.add, size: 15, color: AppTheme.primaryCoffee),
                               ),
                             ),
                           ],
@@ -1830,20 +1936,20 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFAF3EC),
+                        color: AppTheme.backgroundWarm,
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: const Color(0xFFF0E0D0)),
+                        border: Border.all(color: AppTheme.borderWarm),
                       ),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.tune, size: 13, color: AppTheme.warmCaramel),
+                          const Icon(Icons.tune, size: 13, color: AppTheme.accentCaramel),
                           const SizedBox(width: 5),
                           Expanded(
                             child: Text(
                               i.note,
                               style: const TextStyle(
-                                color: AppTheme.warmCaramel,
+                                color: AppTheme.accentCaramel,
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -1865,7 +1971,7 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                           Text(
                             '₹${lineTotal.toStringAsFixed(0)}',
                             style: const TextStyle(
-                              color: AppTheme.deepGreen,
+                              color: AppTheme.successGreenPrice,
                               fontWeight: FontWeight.bold,
                               fontSize: 15,
                             ),
@@ -1873,23 +1979,23 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                           if (i.quantity > 1)
                             Text(
                               ' (₹${i.price.toStringAsFixed(0)} ea)',
-                              style: TextStyle(color: Colors.brown[400], fontSize: 11),
+                              style: TextStyle(color: AppTheme.textDark.withValues(alpha: 0.5), fontSize: 11),
                             ),
                         ],
                       ),
                       InkWell(
                         onTap: () => _showNoteDialog(i.cartId, i.note),
                         borderRadius: BorderRadius.circular(4),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.edit_note, size: 16, color: Colors.brown[400]),
-                              const SizedBox(width: 2),
+                              Icon(Icons.edit_note, size: 16, color: AppTheme.accentCaramel),
+                              SizedBox(width: 2),
                               Text(
-                                i.note.isEmpty ? 'Add note' : 'Edit note',
-                                style: TextStyle(fontSize: 11, color: Colors.brown[600], fontWeight: FontWeight.w500),
+                                'Edit note',
+                                style: TextStyle(fontSize: 11, color: AppTheme.accentCaramel, fontWeight: FontWeight.w500),
                               ),
                             ],
                           ),
