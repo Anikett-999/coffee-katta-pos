@@ -537,13 +537,15 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
 
         if (displayItems.isEmpty) return Center(child: Text(query.isNotEmpty ? 'No items matched "$query"' : 'No items found.'));
 
+        final cart = ref.watch(cartProvider(widget.table.tableId));
+
         return GridView.builder(
           padding: const EdgeInsets.all(8),
           gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-            maxCrossAxisExtent: isMobile ? 135 : 155, // Optimized compact sizing for high item visibility
+            maxCrossAxisExtent: isMobile ? 140 : 160, // Optimized compact sizing for high item visibility
             mainAxisSpacing: 8,
             crossAxisSpacing: 8,
-            childAspectRatio: isMobile ? 1.05 : 1.25,
+            childAspectRatio: isMobile ? 1.05 : 1.2,
           ),
           itemCount: displayItems.length,
           itemBuilder: (context, index) {
@@ -557,12 +559,22 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                   catName = matched.first.name;
                }
             }
+
+            final inCartCount = cart
+                .where((c) => c.item.itemId == item.itemId)
+                .fold<int>(0, (sum, c) => sum + c.quantity);
+
             return Card(
               elevation: 0,
               color: AppTheme.cardWhite,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
-                side: const BorderSide(color: AppTheme.borderWarm, width: 1),
+                side: BorderSide(
+                  color: inCartCount > 0
+                      ? AppTheme.accentCaramel.withValues(alpha: 0.6)
+                      : AppTheme.borderWarm,
+                  width: inCartCount > 0 ? 1.5 : 1.0,
+                ),
               ),
               child: InkWell(
                 borderRadius: BorderRadius.circular(10),
@@ -570,41 +582,111 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                   _showItemCustomizer(item, catName);
                 },
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        item.name,
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          color: AppTheme.textDark,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      Text(
-                        '₹${item.price.toStringAsFixed(0)}',
-                        style: const TextStyle(
-                          color: AppTheme.successGreenPrice,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      if (item.variants.length > 1) ...[
-                        const SizedBox(height: 2),
-                        const Text(
-                          'Has Sizes',
-                          style: TextStyle(
-                            color: AppTheme.accentCaramel,
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.bold,
+                      // Top Section: Item Name and in-cart count badge
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item.name,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    height: 1.15,
+                                    color: AppTheme.textDark,
+                                  ),
+                                ),
+                                if (item.variants.length > 1) ...[
+                                  const SizedBox(height: 2),
+                                  const Text(
+                                    'Sizes available',
+                                    style: TextStyle(
+                                      color: AppTheme.accentCaramel,
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                          if (inCartCount > 0)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: AppTheme.accentCaramel,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                '$inCartCount',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+
+                      // Bottom Section: Price on left, '+' action button on right
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            '₹${item.price.toStringAsFixed(0)}',
+                            style: const TextStyle(
+                              color: AppTheme.successGreenPrice,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 15.5,
+                            ),
+                          ),
+                          GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () {
+                              if (item.variants.length > 1) {
+                                _showItemCustomizer(item, catName);
+                              } else {
+                                ref
+                                    .read(cartProvider(widget.table.tableId).notifier)
+                                    .addItem(item, catName);
+                                _showItemAddedFeedback('${item.name} added!');
+                              }
+                            },
+                            child: Container(
+                              width: 28,
+                              height: 28,
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryCoffee,
+                                borderRadius: BorderRadius.circular(7),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppTheme.primaryCoffee.withValues(alpha: 0.22),
+                                    blurRadius: 3,
+                                    offset: const Offset(0, 1),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.add,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
