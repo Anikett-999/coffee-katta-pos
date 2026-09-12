@@ -8,7 +8,24 @@ import re
 
 PROJECT_ID = "coffee-katta-pos"
 BUSINESS_ID = "coffee_katta"
-BRANCH_ID = "latur_main"
+TARGET_BRANCHES = [
+    {
+        "id": "branch_001",
+        "name": "Coffee Katta - Flagship",
+        "location": "Latur, Maharashtra",
+        "address": "Near Rajiv Gandhi Chowk, Latur, Maharashtra 413512",
+        "phone": "+91 98765 43210",
+        "instagramId": "@coffeekatta_official",
+    },
+    {
+        "id": "latur_main",
+        "name": "Coffee Katta - Flagship",
+        "location": "Latur, Maharashtra",
+        "address": "Opposite Town Hall, Shivaji Chowk, Latur, Maharashtra 413512",
+        "phone": "+91 98765 43210",
+        "instagramId": "@coffeekatta_official",
+    }
+]
 
 def get_access_token():
     try:
@@ -75,17 +92,27 @@ def delete_document(token, doc_path):
         return False
 
 def list_documents(token, col_path):
-    url = f"https://firestore.googleapis.com/v1/projects/{PROJECT_ID}/databases/(default)/documents/{col_path}?pageSize=100"
-    req = urllib.request.Request(
-        url,
-        headers={"Authorization": f"Bearer {token}"}
-    )
-    try:
-        with urllib.request.urlopen(req) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            return data.get("documents", [])
-    except urllib.error.HTTPError as e:
-        return []
+    all_docs = []
+    page_token = ""
+    while True:
+        url = f"https://firestore.googleapis.com/v1/projects/{PROJECT_ID}/databases/(default)/documents/{col_path}?pageSize=300"
+        if page_token:
+            url += f"&pageToken={page_token}"
+        req = urllib.request.Request(
+            url,
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        try:
+            with urllib.request.urlopen(req) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                docs = data.get("documents", [])
+                all_docs.extend(docs)
+                page_token = data.get("nextPageToken", "")
+                if not page_token:
+                    break
+        except urllib.error.HTTPError as e:
+            break
+    return all_docs
 
 def slugify(text):
     text = text.lower()
@@ -109,21 +136,7 @@ def main():
         "currencySymbol": "₹"
     })
 
-    # 2. Branch doc
-    branch_path = f"businesses/{BUSINESS_ID}/branches/{BRANCH_ID}"
-    print(f"[*] Setting Branch doc: {branch_path}")
-    patch_document(token, branch_path, {
-        "branchId": BRANCH_ID,
-        "branchName": "Coffee Katta - Flagship",
-        "location": "Latur, Maharashtra",
-        "address": "Opposite Town Hall, Shivaji Chowk, Latur, Maharashtra 413512",
-        "phone": "+91 98765 43210",
-        "instagramId": "@coffeekatta_official",
-        "reviewQrUrl": "",
-        "isActive": True
-    })
-
-    # 3. Categories (Official 9 Categories from Physical Menu)
+    # Official 9 Categories from Physical Menu
     CATEGORIES = [
         {"id": "cat_katta_coffee", "name": "Katta Coffee", "order": 1},
         {"id": "cat_hot_beverages", "name": "Hot Beverages", "order": 2},
@@ -136,125 +149,147 @@ def main():
         {"id": "cat_on_the_sides_non_veg", "name": "On the Sides (Non Veg)", "order": 9},
     ]
 
-    cat_map = {}
-    valid_cat_ids = set()
-    print(f"[*] Seeding {len(CATEGORIES)} menu categories...")
-    for cat in CATEGORIES:
-        valid_cat_ids.add(cat["id"])
-        cat_doc_path = f"{branch_path}/menu_categories/{cat['id']}"
-        patch_document(token, cat_doc_path, {
-            "categoryId": cat["id"],
-            "name": cat["name"],
-            "order": cat["order"]
-        })
-        cat_map[cat["name"]] = cat["id"]
-        print(f"    - [{cat['id']}] {cat['name']} (order: {cat['order']})")
-
-    # Clean old categories
-    existing_cats = list_documents(token, f"{branch_path}/menu_categories")
-    for doc in existing_cats:
-        doc_name = doc["name"].split("/")[-1]
-        if doc_name not in valid_cat_ids:
-            print(f"    [Cleaning old category] Deleting {doc_name}")
-            delete_document(token, f"{branch_path}/menu_categories/{doc_name}")
-
-    # 4. Menu Items from assets/data/menu_items.json
+    # Load 43 Menu Items from assets/data/menu_items.json
     script_dir = os.path.dirname(os.path.abspath(__file__))
     json_path = os.path.join(script_dir, "..", "assets", "data", "menu_items.json")
     with open(json_path, "r", encoding="utf-8") as f:
         menu_items_data = json.load(f)
 
-    print(f"[*] Seeding {len(menu_items_data)} menu items from assets/data/menu_items.json...")
-    valid_item_doc_ids = set()
+    # Process all target branches
+    for branch_info in TARGET_BRANCHES:
+        branch_id = branch_info["id"]
+        branch_path = f"businesses/{BUSINESS_ID}/branches/{branch_id}"
+        print(f"\n=======================================================")
+        print(f"[*] Seeding Branch: {branch_id} ({branch_info['name']})")
+        print(f"=======================================================")
 
-    for idx, item in enumerate(menu_items_data, 1):
-        cat_name = item["category"]
-        cat_id = cat_map.get(cat_name, "cat_other")
-        item_slug = slugify(item["name"])
-        item_id = f"item_{item_slug}"
-        valid_item_doc_ids.add(item_id)
-
-        item_doc_path = f"{branch_path}/menu_items/{item_id}"
-        patch_document(token, item_doc_path, {
-            "itemId": item_id,
-            "name": item["name"],
-            "categoryId": cat_id,
-            "groupName": "",
-            "price": float(item["price"]),
-            "variants": item.get("variants", []),
-            "isVeg": item.get("isVeg", True),
-            "isAvailable": True
+        # 2. Branch doc
+        patch_document(token, branch_path, {
+            "branchId": branch_id,
+            "branchName": branch_info["name"],
+            "location": branch_info["location"],
+            "address": branch_info["address"],
+            "phone": branch_info["phone"],
+            "instagramId": branch_info["instagramId"],
+            "reviewQrUrl": "",
+            "currencySymbol": "₹",
+            "isActive": True
         })
-        veg_symbol = "🟢" if item.get("isVeg", True) else "🔴"
-        print(f"    [{idx:02d}/{len(menu_items_data)}] {veg_symbol} {item['name']} (₹{item['price']}) -> {cat_name}")
 
-    # Remove any stale menu items not in current list
-    existing_items = list_documents(token, f"{branch_path}/menu_items")
-    for doc in existing_items:
-        doc_name = doc["name"].split("/")[-1]
-        if doc_name not in valid_item_doc_ids:
-            print(f"    [Cleaning stale item] Deleting {doc_name}")
-            delete_document(token, f"{branch_path}/menu_items/{doc_name}")
+        # 3. Categories
+        cat_map = {}
+        valid_cat_ids = set()
+        print(f"[*] Seeding {len(CATEGORIES)} menu categories for {branch_id}...")
+        for cat in CATEGORIES:
+            valid_cat_ids.add(cat["id"])
+            cat_doc_path = f"{branch_path}/menu_categories/{cat['id']}"
+            patch_document(token, cat_doc_path, {
+                "categoryId": cat["id"],
+                "name": cat["name"],
+                "order": cat["order"]
+            })
+            cat_map[cat["name"]] = cat["id"]
+            print(f"    - [{cat['id']}] {cat['name']} (order: {cat['order']})")
 
-    # 5. Tables: T1 to T20
-    print(f"[*] Seeding 20 tables (T1 - T20)...")
-    valid_table_ids = set()
-    for i in range(1, 21):
-        table_id = f"T{i}"
-        valid_table_ids.add(table_id)
+        # Clean old categories
+        existing_cats = list_documents(token, f"{branch_path}/menu_categories")
+        for doc in existing_cats:
+            doc_name = doc["name"].split("/")[-1]
+            if doc_name not in valid_cat_ids:
+                print(f"    [Cleaning old category] Deleting {doc_name}")
+                delete_document(token, f"{branch_path}/menu_categories/{doc_name}")
 
-        if 1 <= i <= 8:
-            section = "Indoor AC"
-            capacity = 4
-        elif 9 <= i <= 12:
-            section = "Outdoor Patio"
-            capacity = 4
-        elif 13 <= i <= 14:
-            section = "Outdoor Patio"
-            capacity = 6
-        else:
-            section = "Katta High Tops"
-            capacity = 2
+        # 4. Menu Items
+        print(f"[*] Seeding {len(menu_items_data)} menu items for {branch_id}...")
+        valid_item_doc_ids = set()
 
-        table_doc_path = f"{branch_path}/tables/{table_id}"
-        patch_document(token, table_doc_path, {
-            "tableId": table_id,
-            "name": f"Table {i}",
-            "section": section,
-            "capacity": capacity,
-            "status": "available",
-            "activeOrderId": None,
-            "totalAmount": 0.0,
-            "itemCount": 0,
-            "kotCount": 0,
-            "unprintedKotCount": 0
+        for idx, item in enumerate(menu_items_data, 1):
+            cat_name = item["category"]
+            cat_id = cat_map.get(cat_name, "cat_other")
+            item_slug = slugify(item["name"])
+            item_id = f"item_{item_slug}"
+            valid_item_doc_ids.add(item_id)
+
+            item_doc_path = f"{branch_path}/menu_items/{item_id}"
+            patch_document(token, item_doc_path, {
+                "itemId": item_id,
+                "name": item["name"],
+                "categoryId": cat_id,
+                "groupName": "",
+                "price": float(item["price"]),
+                "variants": item.get("variants", []),
+                "isVeg": item.get("isVeg", True),
+                "isAvailable": True
+            })
+            veg_symbol = "🟢" if item.get("isVeg", True) else "🔴"
+            print(f"    [{idx:02d}/{len(menu_items_data)}] {veg_symbol} {item['name']} (₹{item['price']}) -> {cat_name}")
+
+        # Remove any stale menu items not in current list
+        existing_items = list_documents(token, f"{branch_path}/menu_items")
+        for doc in existing_items:
+            doc_name = doc["name"].split("/")[-1]
+            if doc_name not in valid_item_doc_ids:
+                print(f"    [Cleaning stale item] Deleting {doc_name}")
+                delete_document(token, f"{branch_path}/menu_items/{doc_name}")
+
+        # 5. Tables: T1 to T20
+        print(f"[*] Seeding 20 tables (T1 - T20) for {branch_id}...")
+        valid_table_ids = set()
+        for i in range(1, 21):
+            table_id = f"T{i}"
+            valid_table_ids.add(table_id)
+
+            if 1 <= i <= 8:
+                section = "Indoor AC"
+                capacity = 4
+            elif 9 <= i <= 12:
+                section = "Outdoor Patio"
+                capacity = 4
+            elif 13 <= i <= 14:
+                section = "Outdoor Patio"
+                capacity = 6
+            else:
+                section = "Katta High Tops"
+                capacity = 2
+
+            table_doc_path = f"{branch_path}/tables/{table_id}"
+            patch_document(token, table_doc_path, {
+                "tableId": table_id,
+                "name": f"Table {i}",
+                "section": section,
+                "capacity": capacity,
+                "status": "available",
+                "activeOrderId": None,
+                "totalAmount": 0.0,
+                "itemCount": 0,
+                "kotCount": 0,
+                "unprintedKotCount": 0
+            })
+
+        # Delete any old table IDs
+        existing_tables = list_documents(token, f"{branch_path}/tables")
+        for doc in existing_tables:
+            doc_name = doc["name"].split("/")[-1]
+            if doc_name not in valid_table_ids:
+                print(f"    [Cleaning old table] Deleting {doc_name}")
+                delete_document(token, f"{branch_path}/tables/{doc_name}")
+
+        # 6. Global counters
+        print(f"[*] Initializing global counters for {branch_id}...")
+        counter_path = f"{branch_path}/counters/global"
+        patch_document(token, counter_path, {
+            "kotCounter": 1000,
+            "billCounter": 1000,
+            "lastResetDate": "2026-09-11",
+            "lastBillResetDate": "2026-09-11"
         })
-        print(f"    - Table {table_id}: {section}, Capacity {capacity}")
 
-    # Delete any old table IDs (like T-01 to T-10)
-    existing_tables = list_documents(token, f"{branch_path}/tables")
-    for doc in existing_tables:
-        doc_name = doc["name"].split("/")[-1]
-        if doc_name not in valid_table_ids:
-            print(f"    [Cleaning old table] Deleting {doc_name}")
-            delete_document(token, f"{branch_path}/tables/{doc_name}")
-
-    # 6. Global counters
-    print(f"[*] Initializing global counters...")
-    counter_path = f"{branch_path}/counters/global"
-    patch_document(token, counter_path, {
-        "kotCounter": 1000,
-        "billCounter": 1000,
-        "lastResetDate": "2026-09-11",
-        "lastBillResetDate": "2026-09-11"
-    })
-
-    print("\n[SUCCESS] Phase 2 Firestore seeding completed successfully!")
-    print(f"Branch: /businesses/{BUSINESS_ID}/branches/{BRANCH_ID}")
-    print(f"- 6 Categories")
-    print(f"- {len(menu_items_data)} Menu Items")
-    print(f"- 20 Tables (T1-T20)")
-    print(f"- Global Counter (KOT: 1000, Bill: 1000)")
+    print("\n[SUCCESS] Firestore multi-branch seeding completed successfully!")
+    print(f"Updated branches: {[b['id'] for b in TARGET_BRANCHES]}")
+    print(f"- 9 Categories each")
+    print(f"- {len(menu_items_data)} Menu Items each")
+    print(f"- 20 Tables (T1-T20) each")
+    print(f"- Global Counters initialized")
 
 if __name__ == "__main__":
     main()
