@@ -169,11 +169,11 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
       final authService = ref.read(authServiceProvider);
       final currentUser = authService.currentUser;
       final currentUserData = await authService.getCurrentUserData();
-      final cleanUserName = currentUserData?.name.trim().isNotEmpty == true
+      final cleanUserName = (currentUserData?.name ?? '').trim().isNotEmpty
           ? currentUserData!.name.trim()
-          : (currentUser?.displayName?.trim().isNotEmpty == true
+          : ((currentUser?.displayName ?? '').trim().isNotEmpty
               ? currentUser!.displayName!.trim()
-              : (currentUser?.email?.split('@')[0] ?? 'Staff'));
+              : ((currentUser?.email ?? '').contains('@') ? currentUser!.email!.split('@')[0] : 'Staff'));
 
       if (widget.table.activeOrderId == null) {
         throw Exception('Cannot generate bill: Missing Order ID');
@@ -705,7 +705,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
                 ),
                 Text('  •  ', style: TextStyle(fontSize: 11, color: Colors.grey.shade400)),
                 Text(
-                  kot.tableName.isNotEmpty ? 'Table ${kot.tableName}' : 'Table ${widget.table.name}',
+                  ((kot.tableName as String?) ?? '').trim().isNotEmpty ? 'Table ${kot.tableName}' : 'Table ${widget.table.name}',
                   style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                 ),
               ],

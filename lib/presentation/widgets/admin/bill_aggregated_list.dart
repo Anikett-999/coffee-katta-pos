@@ -12,20 +12,6 @@ class BillAggregatedList extends StatelessWidget {
     this.searchQuery = '',
   });
 
-  IconData _getCategoryIcon(String category) {
-    final cat = category.toLowerCase();
-    if (cat.contains('coffee') || cat.contains('hot')) {
-      return Icons.local_cafe_outlined;
-    } else if (cat.contains('shake') || cat.contains('frappé') || cat.contains('frappe')) {
-      return Icons.blender_outlined;
-    } else if (cat.contains('tea') || cat.contains('ice tea')) {
-      return Icons.local_drink_outlined;
-    } else if (cat.contains('starter') || cat.contains('side') || cat.contains('pizza') || cat.contains('burger')) {
-      return Icons.lunch_dining_outlined;
-    }
-    return Icons.restaurant_menu_outlined;
-  }
-
   @override
   Widget build(BuildContext context) {
     if (items.isEmpty) {
@@ -46,14 +32,15 @@ class BillAggregatedList extends StatelessWidget {
       );
     }
 
-    // Filter items by search query if present
+    // Filter items by search query if present (safe against undefined/null from JS)
     final query = searchQuery.trim().toLowerCase();
     final displayedItems = query.isEmpty
         ? items
         : items.where((item) {
-            return item.name.toLowerCase().contains(query) ||
-                item.category.toLowerCase().contains(query) ||
-                item.note.toLowerCase().contains(query);
+            final name = ((item.name as String?) ?? '').toLowerCase();
+            final category = ((item.category as String?) ?? '').toLowerCase();
+            final note = ((item.note as String?) ?? '').toLowerCase();
+            return name.contains(query) || category.contains(query) || note.contains(query);
           }).toList();
 
     if (displayedItems.isEmpty) {
@@ -74,10 +61,11 @@ class BillAggregatedList extends StatelessWidget {
       );
     }
 
-    // Group items by category
+    // Group items by category (safe against undefined/null from JS)
     final Map<String, List<BillItem>> groupedItems = {};
     for (var item in displayedItems) {
-      final cat = item.category.trim().isEmpty ? 'KATTA SPECIALS' : item.category.trim().toUpperCase();
+      final rawCategory = ((item.category as String?) ?? '').trim();
+      final cat = rawCategory.isEmpty ? 'KATTA SPECIALS' : rawCategory.toUpperCase();
       groupedItems.putIfAbsent(cat, () => []).add(item);
     }
 
@@ -86,24 +74,30 @@ class BillAggregatedList extends StatelessWidget {
       children: groupedItems.entries.map((entry) {
         final categoryName = entry.key;
         final categoryItems = entry.value;
-        final categoryIcon = _getCategoryIcon(categoryName);
 
         return Padding(
           padding: const EdgeInsets.only(bottom: 16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Low-profile category micro-header bar (as seen in reference image)
+              // Low-profile category micro-header bar with neutral bullet (NO emojis)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF7F2EB),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                   border: Border.all(color: const Color(0xFFE8E1D8), width: 0.8),
                 ),
                 child: Row(
                   children: [
-                    Icon(categoryIcon, size: 16, color: AppTheme.primaryCoffee),
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppTheme.primaryCoffee,
+                      ),
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -139,9 +133,15 @@ class BillAggregatedList extends StatelessWidget {
   }
 
   Widget _buildItemCard(BillItem item) {
-    // Extract potential variant pills or custom notes
-    final noteParts = item.note.isNotEmpty ? item.note.split(',').map((s) => s.trim()).toList() : <String>[];
-    
+    // Safe string extraction handling runtime undefined/null
+    final safeNote = ((item.note as String?) ?? '').trim();
+    final safeName = ((item.name as String?) ?? '').trim();
+    final safeCategory = ((item.category as String?) ?? '').trim();
+
+    final noteParts = safeNote.isNotEmpty
+        ? safeNote.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList()
+        : <String>[];
+
     // Check if there are short variant identifiers like "Regular", "Large", "Hot", "Medium", "Cold"
     final variantBadges = <String>[];
     final otherNotes = <String>[];
@@ -177,19 +177,21 @@ class BillAggregatedList extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Item Thumbnail Placeholder (Future-proof slot for images)
+          // Normal Clean Placeholder (NO emojis)
           Container(
-            width: 54,
-            height: 54,
+            width: 52,
+            height: 52,
             decoration: BoxDecoration(
               color: const Color(0xFFF7F3EE),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(8),
               border: Border.all(color: const Color(0xFFE8E1D8), width: 0.8),
             ),
-            child: Icon(
-              _getCategoryIcon(item.category),
-              size: 26,
-              color: AppTheme.primaryCoffee.withValues(alpha: 0.75),
+            child: Center(
+              child: Icon(
+                Icons.image_outlined,
+                size: 22,
+                color: Colors.grey.shade400,
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -206,19 +208,19 @@ class BillAggregatedList extends StatelessWidget {
                   runSpacing: 4,
                   children: [
                     Text(
-                      item.name,
+                      safeName.isNotEmpty ? safeName : 'Item',
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
                         color: AppTheme.textDark,
                       ),
                     ),
-                    // Variant Pills
+                    // Variant Pills (Clean text pills, NO emojis)
                     ...variantBadges.map((v) => Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: const Color(0xFFFAF7F2),
-                            borderRadius: BorderRadius.circular(6),
+                            borderRadius: BorderRadius.circular(4),
                             border: Border.all(color: const Color(0xFFE8E1D8), width: 0.8),
                           ),
                           child: Text(
@@ -249,7 +251,7 @@ class BillAggregatedList extends StatelessWidget {
 
                 // Subtle Embedded Category Name
                 Text(
-                  item.category.isNotEmpty ? item.category : 'Katta Specials',
+                  safeCategory.isNotEmpty ? safeCategory : 'Katta Specials',
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
@@ -293,7 +295,7 @@ class BillAggregatedList extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
 
               // Final Item Price (Total for this line item)
               Text(
