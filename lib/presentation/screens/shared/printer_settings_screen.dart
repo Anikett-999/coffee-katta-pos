@@ -1,14 +1,19 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'dart:convert';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_pos_printer_platform_image_3/flutter_pos_printer_platform_image_3.dart';
-import '../../providers/printer_provider.dart';
-import '../../../domain/models/printer_config.dart';
-import '../../widgets/global/confirmation_dialog.dart';
+import 'package:printing/printing.dart' as printing;
+
 import '../../../core/app_theme.dart';
+import '../../../domain/models/printer_config.dart';
+import '../../../domain/models/user_model.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/branch_provider.dart';
+import '../../providers/printer_provider.dart';
+import '../../widgets/global/confirmation_dialog.dart';
 import '../../widgets/global/editorial_background.dart';
+import '../../widgets/shared/thermal_receipt_preview.dart';
 
 class PrinterSettingsScreen extends ConsumerStatefulWidget {
   const PrinterSettingsScreen({super.key});
@@ -20,13 +25,15 @@ class PrinterSettingsScreen extends ConsumerStatefulWidget {
 class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
   final List<PrinterDevice> _bluetoothDevices = [];
   final List<PrinterDevice> _usbDevices = [];
+  final List<PrinterDevice> _networkDevices = [];
 
   StreamSubscription? _scanSubscription;
   bool _isScanning = false;
+  bool _isTesting = false;
   String? _lastTestStatus; // 'success' | 'failed' | null
   String? _lastTestError;
+
   final TextEditingController _ipController = TextEditingController();
-  final List<PrinterDevice> _networkDevices = []; // To store discovered WiFi printers
 
   @override
   void initState() {
@@ -85,10 +92,12 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
         }
       });
     }, onDone: () {
-      setState(() => _isScanning = false);
+      if (mounted) setState(() => _isScanning = false);
     }, onError: (e) {
-      setState(() => _isScanning = false);
-      _showError('Scan Error: $e');
+      if (mounted) {
+        setState(() => _isScanning = false);
+        _showErrorDialog('Scan Error: $e');
+      }
     });
   }
 
@@ -98,102 +107,114 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
   }
 
   bool _isValidIp(String ip) {
-    return RegExp(r'^(\d{1,3}\.){3}\d{1,3}$').hasMatch(ip);
+    return RegExp(r'^(\d{1,3}\.){3}\d{1,3}$').hasMatch(ip.trim());
   }
 
   Future<void> _handleTestPrint() async {
     final config = ref.read(printerConfigProvider);
-    
+    final user = ref.read(userModelProvider).value;
+    final branch = ref.read(branchProvider).value;
+
     if (config.connectionType == PrinterConnectionType.network) {
-      if (!_isValidIp(_ipController.text)) {
-        _showError('Please enter a valid IP address (e.g., 192.168.1.100)');
+      final ip = _ipController.text.trim();
+      if (!_isValidIp(ip)) {
+        _showErrorDialog('Please enter a valid IP address (e.g., 192.168.1.100)');
         return;
       }
     }
 
-    if (config.address == null || config.address!.isEmpty) {
-      _showError('Please select or configure a printer address first.');
+    if (config.address == null || config.address!.trim().isEmpty) {
+      _showErrorDialog('Please configure a printer address or select an active device first.');
       return;
     }
 
-    
-    // Show immediate feedback
+    setState(() {
+      _isTesting = true;
+      _lastTestStatus = null;
+      _lastTestError = null;
+    });
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
-            const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+            ),
             const SizedBox(width: 12),
-            Text('Attempting to connect to ${config.connectionType.name}...'),
+            Text('Testing connection to ${config.name} (${config.connectionType.name.toUpperCase()})...'),
           ],
         ),
-        backgroundColor: AppTheme.maroon,
-        duration: const Duration(seconds: 2),
+        backgroundColor: AppTheme.primaryCoffee,
+        duration: const Duration(seconds: 3),
       ),
     );
 
     try {
       final printService = ref.read(printServiceProvider);
-      
-      final List<int> testBytes = [
-        27, 64, // Initialize
-        10, 
-        ...utf8.encode('================================\n'),
-        ...utf8.encode('      COFFEE KATTA POS          \n'),
-        ...utf8.encode('      PRINTER TEST TICKET       \n'),
-        ...utf8.encode('================================\n'),
-        ...utf8.encode('Status: ALIVE & CONNECTED\n'),
-        ...utf8.encode('Size:   ${config.paperSize.name}\n'),
-        ...utf8.encode('Type:   ${config.connectionType.name}\n'),
-        ...utf8.encode('Addr:   ${config.address}\n'),
-        ...utf8.encode('Time:   ${DateTime.now().toString().substring(0, 16)}\n'),
-        ...utf8.encode('================================\n'),
-        10, 10, 10,
-        27, 105, // Full cut
-      ];
-      
-      await printService.printReceipt(testBytes, config);
-      
-      if (mounted) {
-        setState(() {
-          _lastTestStatus = 'success';
-          _lastTestError = null;
-        });
+      final testBytes = await printService.generateDiagnosticTestBytes(
+        config,
+        branchName: branch?.branchName ?? 'Coffee Katta — Latur Main',
+        userRole: user?.role ?? 'Staff',
+      );
+
+      final success = await printService.printReceipt(testBytes, config);
+
+      if (!mounted) return;
+      setState(() {
+        _isTesting = false;
+        _lastTestStatus = success ? 'success' : 'failed';
+        if (!success) {
+          _lastTestError = 'Printer did not respond. Ensure it is powered ON and reachable on this network/interface.';
+        }
+      });
+
+      if (success) {
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             title: const Row(
               children: [
-                Icon(Icons.check_circle, color: AppTheme.successGreen),
-                SizedBox(width: 8),
+                Icon(Icons.check_circle_rounded, color: AppTheme.successGreen, size: 24),
+                SizedBox(width: 10),
                 Expanded(
-                  child: Text('Connection Success', style: TextStyle(color: AppTheme.successGreen, fontWeight: FontWeight.bold)),
+                  child: Text(
+                    'Printer Verified',
+                    style: TextStyle(color: AppTheme.textDark, fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
                 ),
               ],
             ),
-            content: Text('Succesfully connected to ${config.name}. Test receipt generated.'),
+            content: Text(
+              'Diagnostic test slip was successfully transmitted to ${config.name}. Thermal hardware is online and operational.',
+              style: const TextStyle(fontSize: 13.5, height: 1.4),
+            ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context), 
-                child: const Text('GREAT', style: TextStyle(color: AppTheme.maroon, fontWeight: FontWeight.w900)),
+                onPressed: () => Navigator.pop(context),
+                child: const Text('GREAT', style: TextStyle(color: AppTheme.primaryCoffee, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
         );
+      } else {
+        _showErrorDialog(_lastTestError ?? 'Communication failed. Please check cables, power, and IP/Bluetooth pairing.');
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _lastTestStatus = 'failed';
-          _lastTestError = e.toString();
-        });
-        _showError('Connection Failed!\n\nDetails: $e\n\nEnsure the printer is turned ON and connected to the same network/BT/USB.');
-      }
+      if (!mounted) return;
+      setState(() {
+        _isTesting = false;
+        _lastTestStatus = 'failed';
+        _lastTestError = e.toString();
+      });
+      _showErrorDialog('Hardware Connection Failed:\n\n$e');
     }
   }
 
-  void _showError(String message) {
+  void _showErrorDialog(String message) {
     if (!mounted) return;
     showDialog(
       context: context,
@@ -201,18 +222,21 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Row(
           children: [
-            Icon(Icons.error_outline, color: AppTheme.maroon),
-            SizedBox(width: 8),
+            Icon(Icons.error_outline_rounded, color: Colors.red, size: 24),
+            SizedBox(width: 10),
             Expanded(
-              child: Text('Printer Error', style: TextStyle(color: AppTheme.maroon, fontWeight: FontWeight.bold)),
+              child: Text(
+                'Hardware Error',
+                style: TextStyle(color: AppTheme.primaryCoffee, fontWeight: FontWeight.bold, fontSize: 18),
+              ),
             ),
           ],
         ),
-        content: Text(message),
+        content: Text(message, style: const TextStyle(fontSize: 13.5, height: 1.4)),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context), 
-            child: const Text('DISMISS', style: TextStyle(color: AppTheme.maroon, fontWeight: FontWeight.w900)),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('DISMISS', style: TextStyle(color: AppTheme.primaryCoffee, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -222,281 +246,648 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final config = ref.watch(printerConfigProvider);
+    final userModel = ref.watch(userModelProvider).value;
+    final branchModel = ref.watch(branchProvider).value;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: const Text('HARDWARE SETTINGS', 
-          style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.2)),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        surfaceTintColor: Colors.white,
-        foregroundColor: AppTheme.maroon,
-      ),
-      body: EditorialBackground(
-        child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-        children: [
-          _buildSectionHeader('Connection Protocol'),
-          _buildConnectionTypesGrid(config),
-          
-          if (config.connectionType == PrinterConnectionType.network) ...[
-            const SizedBox(height: 24),
-            _buildIpInputField(),
-          ],
+      backgroundColor: const Color(0xFFF7F4EF),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Top Branded Header (Matches Finalized Billing Screen)
+            _buildTopBrandedHeader(userModel),
 
-          if (config.connectionType == PrinterConnectionType.bluetooth || 
-              config.connectionType == PrinterConnectionType.usb ||
-              config.connectionType == PrinterConnectionType.network) ...[
-            const SizedBox(height: 24),
-            _buildDeviceSection(config),
-          ],
-
-          const SizedBox(height: 32),
-          _buildSectionHeader('Printing Preferences'),
-          _buildPreferenceCard(config),
-          
-          const SizedBox(height: 32),
-          _buildTestPrintButton(),
-          
-          Center(
-            child: TextButton(
-              onPressed: () {
-                ConfirmationDialog.show(
-                  context: context,
-                  title: 'Reset Hardware?',
-                  message: 'This will clear all saved printer settings. Are you sure?',
-                  onConfirm: () {
-                    ref.read(printerConfigProvider.notifier).updateConfig(const PrinterConfig());
-                    _ipController.clear();
+            // Responsive Layout Body
+            Expanded(
+              child: EditorialBackground(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isDesktopOrTablet = constraints.maxWidth >= 900;
+                    if (isDesktopOrTablet) {
+                      return _buildDesktopLayout(config, userModel, branchModel);
+                    } else {
+                      return _buildMobileLayout(config, userModel, branchModel);
+                    }
                   },
-                );
-              },
-              child: Text('RESET TO DEFAULTS', 
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 1)),
+                ),
+              ),
             ),
-          ),
-          const SizedBox(height: 48),
-        ],
-      ),
-    ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5)),
           ],
         ),
-        child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+      ),
+      bottomNavigationBar: _buildBottomConfirmBar(config),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // BRANDED HEADER (Matches Finalized Billing Screen)
+  // ─────────────────────────────────────────────────────────────
+  Widget _buildTopBrandedHeader(UserModel? user) {
+    final isWaiter = user?.isWaiter ?? false;
+
+    return Container(
+      height: 62,
+      color: const Color(0xFF382012), // Deep Coffee Brown
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          // Back Button
+          IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white, size: 22),
+            onPressed: () => Navigator.pop(context),
+            tooltip: 'Back',
+          ),
+          const SizedBox(width: 4),
+
+          // Coffee Katta Branding
+          Row(
             children: [
-              if (_lastTestStatus != 'success' && config.connectionType != PrinterConnectionType.rawbt)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.info_outline, size: 16, color: Colors.orange),
-                      const SizedBox(width: 8),
-                      const Expanded(
-                        child: Text(
-                          'Please perform a test print to verify connection before confirming.',
-                          style: TextStyle(fontSize: 12, color: Colors.orange, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ],
+              const Icon(Icons.local_cafe_rounded, color: Color(0xFFF7F4EF), size: 24),
+              const SizedBox(width: 8),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: const [
+                  Text(
+                    'Coffee Katta',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
                   ),
-                ),
-              ElevatedButton(
-                onPressed: (_lastTestStatus == 'success' || config.connectionType == PrinterConnectionType.rawbt) 
-                    ? () => Navigator.pop(context)
-                    : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.deepGreen,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: Colors.grey.shade300,
-                  minimumSize: const Size(double.infinity, 54),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  elevation: 0,
-                ),
-                child: const Text('CONFIRM HARDWARE SETUP', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+                  Text(
+                    'GOOD FOOD • GREAT VIBES',
+                    style: TextStyle(
+                      color: Color(0xFFD4A373),
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.1,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
 
-  Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 24, 8, 12),
-      child: Text(
-        title.toUpperCase(),
-        style: const TextStyle(
-          color: AppTheme.maroon,
-          fontWeight: FontWeight.w900,
-          fontSize: 12,
-          letterSpacing: 1.5,
-        ),
-      ),
-    );
-  }
+          // Vertical Divider
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 14),
+            width: 1,
+            height: 26,
+            color: Colors.white24,
+          ),
 
-  Widget _buildConnectionTypesGrid(PrinterConfig config) {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: GridView.count(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        crossAxisCount: 2,
-        childAspectRatio: 1.6,
-        mainAxisSpacing: 4,
-        crossAxisSpacing: 4,
-        children: [
-          _protocolTile(PrinterConnectionType.bluetooth, 'Bluetooth', Icons.bluetooth_rounded, config),
-          _protocolTile(PrinterConnectionType.usb, 'Direct USB', Icons.usb_rounded, config),
-          _protocolTile(PrinterConnectionType.network, 'Network/IP', Icons.wifi_rounded, config),
-          _protocolTile(PrinterConnectionType.rawbt, 'RawBT App', Icons.android_rounded, config),
+          // Context Pill Badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.print_rounded, size: 13, color: Colors.white70),
+                SizedBox(width: 6),
+                Text(
+                  'HARDWARE & THERMAL ENGINE',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const Spacer(),
+
+          // Role Context Badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
+            decoration: BoxDecoration(
+              color: isWaiter
+                  ? const Color(0xFF287A55).withValues(alpha: 0.8)
+                  : const Color(0xFFB77945).withValues(alpha: 0.8),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              isWaiter ? 'WAITER TERMINAL' : 'COUNTER CONSOLE',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1,
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _protocolTile(PrinterConnectionType type, String label, IconData icon, PrinterConfig config) {
-    final isSelected = config.connectionType == type;
-    return InkWell(
-      onTap: () {
-        ref.read(printerConfigProvider.notifier).updateConnectionType(type);
-        setState(() => _lastTestStatus = null); // Reset status on switch
-        _stopScan();
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: isSelected ? AppTheme.maroon : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: isSelected ? Colors.white : Colors.grey, size: 28),
-            const SizedBox(height: 4),
-            Text(label, 
-              style: TextStyle(
-                color: isSelected ? Colors.white : Colors.grey.shade700,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                fontSize: 13,
-              )),
-          ],
-        ),
+  // ─────────────────────────────────────────────────────────────
+  // DESKTOP & TABLET LAYOUT (Multi-Column Dashboard)
+  // ─────────────────────────────────────────────────────────────
+  Widget _buildDesktopLayout(PrinterConfig config, UserModel? user, dynamic branch) {
+    return Padding(
+      padding: const EdgeInsets.all(20.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Left Column (390px): Status, Protocol, & Preferences
+          SizedBox(
+            width: 390,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildActiveStatusCard(config),
+                  const SizedBox(height: 16),
+                  _buildProtocolSection(config),
+                  const SizedBox(height: 16),
+                  _buildPreferencesCard(config),
+                  const SizedBox(height: 16),
+                  _buildResetDefaultsButton(),
+                ],
+              ),
+            ),
+          ),
+
+          const SizedBox(width: 20),
+
+          // Right Column (Expanded): Discovery / Configuration & Live Simulator
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildDiscoveryAndSetupCard(config),
+                  const SizedBox(height: 16),
+                  ThermalReceiptPreview(
+                    paperSize: config.paperSize,
+                    branchName: branch?.branchName ?? 'Coffee Katta',
+                    branchAddress: branch?.address ?? 'Near Rajiv Gandhi Chowk, Latur',
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildIpInputField() {
+  // ─────────────────────────────────────────────────────────────
+  // MOBILE LAYOUT (Single Column Stacked View)
+  // ─────────────────────────────────────────────────────────────
+  Widget _buildMobileLayout(PrinterConfig config, UserModel? user, dynamic branch) {
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      children: [
+        _buildActiveStatusCard(config),
+        const SizedBox(height: 16),
+        _buildProtocolSection(config),
+        const SizedBox(height: 16),
+        _buildDiscoveryAndSetupCard(config),
+        const SizedBox(height: 16),
+        _buildPreferencesCard(config),
+        const SizedBox(height: 16),
+        ThermalReceiptPreview(
+          paperSize: config.paperSize,
+          branchName: branch?.branchName ?? 'Coffee Katta',
+          branchAddress: branch?.address ?? 'Near Rajiv Gandhi Chowk, Latur',
+        ),
+        const SizedBox(height: 16),
+        _buildResetDefaultsButton(),
+        const SizedBox(height: 32),
+      ],
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // 1. ACTIVE HARDWARE STATUS CARD
+  // ─────────────────────────────────────────────────────────────
+  Widget _buildActiveStatusCard(PrinterConfig config) {
+    final isConfigured = config.address != null && config.address!.trim().isNotEmpty;
+    final isVerified = _lastTestStatus == 'success';
+
+    Color statusColor;
+    String statusText;
+    if (isVerified) {
+      statusColor = const Color(0xFF287A55);
+      statusText = 'ONLINE & VERIFIED';
+    } else if (isConfigured) {
+      statusColor = const Color(0xFFB77945);
+      statusText = 'CONFIGURED (NOT VERIFIED)';
+    } else {
+      statusColor = const Color(0xFFDC2626);
+      statusText = 'NOT CONFIGURED';
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE8E1D8), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryCoffee.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Icon(
+                    _getProtocolIcon(config.connectionType),
+                    color: AppTheme.primaryCoffee,
+                    size: 24,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      config.name.isNotEmpty ? config.name : 'Default Printer',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textDark,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      config.address?.isNotEmpty == true
+                          ? '${config.connectionType.name.toUpperCase()} • ${config.address}'
+                          : '${config.connectionType.name.toUpperCase()} • Address Not Set',
+                      style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          const Divider(height: 1, color: Color(0xFFE8E1D8)),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 9,
+                    height: 9,
+                    decoration: BoxDecoration(
+                      color: statusColor,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    statusText,
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w800,
+                      color: statusColor,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                '${config.paperSize.name.toUpperCase()} ROLL',
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Instant Test Print Button
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: ElevatedButton.icon(
+              onPressed: _isTesting ? null : _handleTestPrint,
+              icon: _isTesting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.print_rounded, size: 18),
+              label: Text(
+                _isTesting ? 'TRANSMITTING TEST...' : 'RUN HARDWARE TEST TICKET',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5, letterSpacing: 0.8),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryCoffee,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // 2. CONNECTION PROTOCOL SECTION
+  // ─────────────────────────────────────────────────────────────
+  Widget _buildProtocolSection(PrinterConfig config) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE8E1D8), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Network Configuration', style: TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _ipController,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              labelText: 'Printer IP Address',
-              hintText: 'e.g. 192.168.1.100',
-              prefixIcon: const Icon(Icons.lan_outlined, color: AppTheme.maroon),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              filled: true,
-              fillColor: AppTheme.cream.withOpacity(0.3),
+          const Text(
+            'CONNECTION PROTOCOL',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.1,
+              color: AppTheme.primaryCoffee,
             ),
-            onChanged: (val) {
-              if (_isValidIp(val)) {
-                ref.read(printerConfigProvider.notifier).updateAddress(val);
-              }
-            },
           ),
-          const SizedBox(height: 8),
-          const Text('Note: Ensure printer is on the same WiFi network as this device.', 
-            style: TextStyle(fontSize: 10, color: Colors.grey)),
+          const SizedBox(height: 12),
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 2,
+            childAspectRatio: 1.55,
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            children: [
+              _buildProtocolCard(
+                PrinterConnectionType.network,
+                'WiFi / Network',
+                'Counter & Kitchen LAN',
+                Icons.wifi_rounded,
+                config,
+              ),
+              _buildProtocolCard(
+                PrinterConnectionType.bluetooth,
+                'Bluetooth',
+                'Mobile Handheld KOT',
+                Icons.bluetooth_rounded,
+                config,
+              ),
+              _buildProtocolCard(
+                PrinterConnectionType.usb,
+                'Direct USB',
+                'Counter Thermal Hub',
+                Icons.usb_rounded,
+                config,
+              ),
+              _buildProtocolCard(
+                PrinterConnectionType.rawbt,
+                'RawBT / System',
+                'OS Spooler / Android',
+                Icons.print_rounded,
+                config,
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildDeviceSection(PrinterConfig config) {
+  Widget _buildProtocolCard(
+    PrinterConnectionType type,
+    String title,
+    String subtitle,
+    IconData icon,
+    PrinterConfig config,
+  ) {
+    final isSelected = config.connectionType == type;
+
+    return InkWell(
+      onTap: () {
+        ref.read(printerConfigProvider.notifier).updateConnectionType(type);
+        setState(() {
+          _lastTestStatus = null;
+          _lastTestError = null;
+        });
+        _stopScan();
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.primaryCoffee.withValues(alpha: 0.05) : const Color(0xFFF7F4EF),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? AppTheme.primaryCoffee : const Color(0xFFE8E1D8),
+            width: isSelected ? 1.8 : 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Icon(
+                  icon,
+                  size: 20,
+                  color: isSelected ? AppTheme.primaryCoffee : Colors.grey.shade600,
+                ),
+                if (isSelected)
+                  const Icon(Icons.check_circle_rounded, size: 16, color: AppTheme.primaryCoffee),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              title,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+                color: isSelected ? AppTheme.primaryCoffee : AppTheme.textDark,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              subtitle,
+              style: TextStyle(fontSize: 9.5, color: Colors.grey.shade600),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // 3. DISCOVERY & SETUP CARD
+  // ─────────────────────────────────────────────────────────────
+  Widget _buildDiscoveryAndSetupCard(PrinterConfig config) {
     return Container(
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE8E1D8), width: 1),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ListTile(
-            title: Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Available Devices', 
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${config.connectionType.name.toUpperCase()} CONFIGURATION',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.1,
+                  color: AppTheme.primaryCoffee,
                 ),
-                if (_lastTestStatus != null) ...[
-                  const SizedBox(width: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: _lastTestStatus == 'success' ? AppTheme.successGreen.withOpacity(0.1) : Colors.red.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: GestureDetector(
-                      onTap: _lastTestStatus == 'failed' && _lastTestError != null 
-                        ? () => ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Error: $_lastTestError'))
-                          )
-                        : null,
-                      child: Text(
-                        _lastTestStatus == 'success' ? 'CONNECTED' : 'FAILED',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: _lastTestStatus == 'success' ? AppTheme.successGreen : Colors.red,
-                        ),
-                      ),
-                    ),
+              ),
+              if (config.connectionType != PrinterConnectionType.rawbt)
+                TextButton.icon(
+                  onPressed: _isScanning ? _stopScan : _startScan,
+                  icon: _isScanning
+                      ? const SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primaryCoffee),
+                        )
+                      : const Icon(Icons.radar_rounded, size: 16),
+                  label: Text(
+                    _isScanning ? 'SCANNING...' : 'SCAN NETWORK',
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
                   ),
-                ],
-              ],
-            ),
-            trailing: _isScanning 
-              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.maroon))
-              : IconButton(
-                  icon: const Icon(Icons.refresh_rounded, color: AppTheme.maroon),
-                  onPressed: _startScan,
+                  style: TextButton.styleFrom(foregroundColor: AppTheme.primaryCoffee),
                 ),
+            ],
           ),
-          const Divider(height: 1),
-          _buildDeviceList(config),
+          const SizedBox(height: 14),
+
+          // Protocol-Specific Body
+          if (config.connectionType == PrinterConnectionType.network) ...[
+            _buildNetworkIpInputs(config),
+          ] else if (config.connectionType == PrinterConnectionType.bluetooth ||
+              config.connectionType == PrinterConnectionType.usb) ...[
+            _buildDiscoveredDeviceList(config),
+          ] else ...[
+            _buildSystemAndRawBtInfo(config),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildDeviceList(PrinterConfig config) {
+  Widget _buildNetworkIpInputs(PrinterConfig config) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 7,
+              child: TextFormField(
+                controller: _ipController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'Thermal Printer IP Address *',
+                  hintText: '192.168.1.100',
+                  prefixIcon: const Icon(Icons.lan_outlined, color: AppTheme.primaryCoffee, size: 20),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  helperText: 'Fixed LAN / WiFi IP configured on thermal printer',
+                  helperStyle: TextStyle(fontSize: 10.5, color: Colors.grey.shade600),
+                ),
+                onChanged: (val) {
+                  if (_isValidIp(val)) {
+                    ref.read(printerConfigProvider.notifier).updateAddress(val.trim());
+                    ref.read(printerConfigProvider.notifier).updateName('Network Printer ($val)');
+                  }
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              flex: 3,
+              child: TextFormField(
+                initialValue: '${config.port}',
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'Port',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  helperText: 'Standard: 9100',
+                  helperStyle: TextStyle(fontSize: 10.5, color: Colors.grey.shade600),
+                ),
+                enabled: false,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF7F4EF),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFE8E1D8)),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.tips_and_updates_outlined, size: 18, color: AppTheme.primaryCoffee),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Quick Tip: Direct Raw TCP uses port 9100. Ensure this device is connected to the same cafe WiFi router as your network printer.',
+                  style: TextStyle(fontSize: 11, color: AppTheme.textDark, height: 1.3),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDiscoveredDeviceList(PrinterConfig config) {
     List<PrinterDevice> devices;
     switch (config.connectionType) {
       case PrinterConnectionType.bluetooth:
@@ -505,34 +896,25 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
       case PrinterConnectionType.usb:
         devices = _usbDevices;
         break;
-      case PrinterConnectionType.network:
-        devices = _networkDevices;
-        break;
       default:
         devices = [];
     }
-    
+
     if (devices.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.all(24.0),
+      return Container(
+        padding: const EdgeInsets.all(24),
+        alignment: Alignment.center,
         child: Column(
           children: [
-            Icon(Icons.print_disabled_rounded, size: 40, color: Colors.grey.shade300),
-            const SizedBox(height: 12),
+            Icon(Icons.print_disabled_rounded, size: 36, color: Colors.grey.shade400),
+            const SizedBox(height: 10),
             Text(
-              _isScanning ? 'Scanning for printers...' : 'No printers found on this network.', 
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+              _isScanning
+                  ? 'Searching for nearby thermal hardware...'
+                  : 'No devices detected yet. Tap "SCAN NETWORK" above to search.',
               textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12.5, color: Colors.grey.shade600),
             ),
-            if (!_isScanning) ...[
-              const SizedBox(height: 8),
-              TextButton.icon(
-                onPressed: _startScan,
-                icon: const Icon(Icons.refresh, size: 16),
-                label: const Text('Try Again'),
-                style: TextButton.styleFrom(foregroundColor: AppTheme.maroon),
-              ),
-            ],
           ],
         ),
       );
@@ -542,86 +924,221 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: devices.length,
-      separatorBuilder: (_, __) => const Divider(height: 1),
+      separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFE8E1D8)),
       itemBuilder: (context, index) {
         final device = devices[index];
-        final name = device.name;
-        
+        final name = device.name.isNotEmpty ? device.name : 'Unknown Hardware';
+
         String address;
         if (config.connectionType == PrinterConnectionType.bluetooth) {
           address = device.address ?? '';
-        } else if (config.connectionType == PrinterConnectionType.usb) {
-          address = '${device.vendorId}:${device.productId}';
         } else {
-          address = device.address ?? ''; // IP for network
+          address = '${device.vendorId}:${device.productId}';
         }
 
         final isSelected = config.address == address;
 
         return ListTile(
           dense: true,
-          leading: Icon(
-            config.connectionType == PrinterConnectionType.network ? Icons.wifi_rounded :
-            config.connectionType == PrinterConnectionType.bluetooth ? Icons.bluetooth_rounded : Icons.usb_rounded,
-            color: isSelected ? AppTheme.maroon : Colors.grey,
+          contentPadding: EdgeInsets.zero,
+          leading: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: isSelected ? AppTheme.primaryCoffee : const Color(0xFFF7F4EF),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              config.connectionType == PrinterConnectionType.bluetooth
+                  ? Icons.bluetooth_rounded
+                  : Icons.usb_rounded,
+              size: 18,
+              color: isSelected ? Colors.white : AppTheme.primaryCoffee,
+            ),
           ),
-          title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
-          subtitle: Text(address, style: const TextStyle(fontSize: 11)),
-          trailing: isSelected ? const Icon(Icons.check_circle, color: AppTheme.successGreen) : null,
-          onTap: () {
-            ref.read(printerConfigProvider.notifier).updateAddress(address);
-            ref.read(printerConfigProvider.notifier).updateName(name);
-            setState(() => _lastTestStatus = null); // Reset status on selection
-            if (config.connectionType == PrinterConnectionType.network) {
-              _ipController.text = address;
-            }
-          },
+          title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5)),
+          subtitle: Text(address, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+          trailing: isSelected
+              ? const Icon(Icons.check_circle_rounded, color: AppTheme.successGreen, size: 20)
+              : OutlinedButton(
+                  onPressed: () {
+                    ref.read(printerConfigProvider.notifier).updateAddress(address);
+                    ref.read(printerConfigProvider.notifier).updateName(name);
+                    setState(() => _lastTestStatus = null);
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.primaryCoffee,
+                    side: const BorderSide(color: AppTheme.primaryCoffee),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  ),
+                  child: const Text('SELECT', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                ),
         );
       },
     );
   }
 
-  Widget _buildPreferenceCard(PrinterConfig config) {
-    return Card(
-      elevation: 0,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
+  Widget _buildSystemAndRawBtInfo(PrinterConfig config) {
+    final systemPrintersAsync = ref.watch(systemPrintersProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (Platform.isWindows) ...[
+          const Text(
+            'INSTALLED WINDOWS PRINTERS',
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey),
+          ),
+          const SizedBox(height: 8),
+          systemPrintersAsync.when(
+            data: (printers) {
+              if (printers.isEmpty) {
+                return const Text('No Windows OS printers found installed in system settings.');
+              }
+              return Column(
+                children: printers.map((p) {
+                  final isSelected = config.address == p.name;
+                  return ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.print_outlined, color: AppTheme.primaryCoffee),
+                    title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    subtitle: Text(p.url, style: const TextStyle(fontSize: 10.5)),
+                    trailing: isSelected
+                        ? const Icon(Icons.check_circle_rounded, color: AppTheme.successGreen)
+                        : TextButton(
+                            onPressed: () {
+                              ref.read(printerConfigProvider.notifier).updateAddress(p.name);
+                              ref.read(printerConfigProvider.notifier).updateName(p.name);
+                            },
+                            child: const Text('SELECT'),
+                          ),
+                  );
+                }).toList(),
+              );
+            },
+            loading: () => const LinearProgressIndicator(),
+            error: (e, _) => Text('Error reading system printers: $e'),
+          ),
+        ] else ...[
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF7F4EF),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFE8E1D8)),
+            ),
+            child: const Row(
               children: [
-                const Icon(Icons.straighten_rounded, color: AppTheme.maroon, size: 20),
-                const SizedBox(width: 12),
-                const Expanded(child: Text('Paper Width', style: TextStyle(fontWeight: FontWeight.bold))),
-                _buildPaperChip('58mm', config.paperSize == PrinterPaperSize.mm58, () => ref.read(printerConfigProvider.notifier).updatePaperSize(PrinterPaperSize.mm58)),
-                const SizedBox(width: 8),
-                _buildPaperChip('80mm', config.paperSize == PrinterPaperSize.mm80, () => ref.read(printerConfigProvider.notifier).updatePaperSize(PrinterPaperSize.mm80)),
+                Icon(Icons.android_rounded, size: 28, color: AppTheme.primaryCoffee),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'RawBT Thermal Print Service',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                      SizedBox(height: 3),
+                      Text(
+                        'Prints directly via Android RawBT driver intent. Ensure the RawBT app is installed and configured on your Android device.',
+                        style: TextStyle(fontSize: 11, color: AppTheme.textDark, height: 1.3),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
-          const Divider(height: 1),
-          _buildAestheticToggle(
-            'Auto-print KOT', 
-            'Generate KOT on order submit', 
-            config.autoPrintKOT, 
-            (val) => ref.read(printerConfigProvider.notifier).toggleAutoKOT(val)
+        ],
+      ],
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // 4. PRINTING PREFERENCES & AUTOMATIONS CARD
+  // ─────────────────────────────────────────────────────────────
+  Widget _buildPreferencesCard(PrinterConfig config) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE8E1D8), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'PRINTING PREFERENCES',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.1,
+              color: AppTheme.primaryCoffee,
+            ),
           ),
-          const Divider(height: 1, indent: 16),
-          _buildAestheticToggle(
-            'Auto-print Bills', 
-            'Generate bill on checkout', 
-            config.autoPrintBill, 
-            (val) => ref.read(printerConfigProvider.notifier).toggleAutoBill(val)
+          const SizedBox(height: 14),
+
+          // Paper Width Segmented Chips
+          Row(
+            children: [
+              const Icon(Icons.straighten_rounded, size: 20, color: AppTheme.primaryCoffee),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Thermal Paper Roll',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
+                ),
+              ),
+              _buildPaperChip(
+                '58mm (Compact)',
+                config.paperSize == PrinterPaperSize.mm58,
+                () => ref.read(printerConfigProvider.notifier).updatePaperSize(PrinterPaperSize.mm58),
+              ),
+              const SizedBox(width: 8),
+              _buildPaperChip(
+                '80mm (Full Width)',
+                config.paperSize == PrinterPaperSize.mm80,
+                () => ref.read(printerConfigProvider.notifier).updatePaperSize(PrinterPaperSize.mm80),
+              ),
+            ],
           ),
+          const SizedBox(height: 14),
+          const Divider(height: 1, color: Color(0xFFE8E1D8)),
+
+          // Auto-print KOT
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Auto-print KOT on Submit', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
+            subtitle: const Text('Instantly dispatches kitchen slip upon placing order', style: TextStyle(fontSize: 11)),
+            activeColor: AppTheme.primaryCoffee,
+            value: config.autoPrintKOT,
+            onChanged: (val) => ref.read(printerConfigProvider.notifier).toggleAutoKOT(val),
+          ),
+          const Divider(height: 1, color: Color(0xFFE8E1D8)),
+
+          // Auto-print Bill
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Auto-print Bill on Settle', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
+            subtitle: const Text('Generates final customer receipt upon payment completion', style: TextStyle(fontSize: 11)),
+            activeColor: AppTheme.primaryCoffee,
+            value: config.autoPrintBill,
+            onChanged: (val) => ref.read(printerConfigProvider.notifier).toggleAutoBill(val),
+          ),
+
           if (config.connectionType == PrinterConnectionType.bluetooth) ...[
-            const Divider(height: 1, indent: 16),
-            _buildAestheticToggle(
-              'BLE Mode', 
-              'Use Bluetooth Low Energy (for newer printers)', 
-              config.isBle, 
-              (val) => ref.read(printerConfigProvider.notifier).toggleBle(val)
+            const Divider(height: 1, color: Color(0xFFE8E1D8)),
+            SwitchListTile.adaptive(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Bluetooth Low Energy (BLE)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
+              subtitle: const Text('Enable for BLE-compatible handheld thermal printers', style: TextStyle(fontSize: 11)),
+              activeColor: AppTheme.primaryCoffee,
+              value: config.isBle,
+              onChanged: (val) => ref.read(printerConfigProvider.notifier).toggleBle(val),
             ),
           ],
         ],
@@ -632,55 +1149,110 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
   Widget _buildPaperChip(String label, bool isSelected, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? AppTheme.maroon : AppTheme.cream,
-          borderRadius: BorderRadius.circular(20),
+          color: isSelected ? AppTheme.primaryCoffee : const Color(0xFFF7F4EF),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? AppTheme.primaryCoffee : const Color(0xFFE8E1D8),
+          ),
         ),
-        child: Text(label, style: TextStyle(color: isSelected ? Colors.white : Colors.black87, fontSize: 12, fontWeight: FontWeight.bold)),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+            color: isSelected ? Colors.white : AppTheme.textDark,
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildAestheticToggle(String title, String subtitle, bool value, Function(bool) onChanged) {
-    return ListTile(
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
-      trailing: Switch.adaptive(
-        value: value,
-        activeColor: AppTheme.maroon,
-        onChanged: onChanged,
+  Widget _buildResetDefaultsButton() {
+    return Center(
+      child: TextButton.icon(
+        onPressed: () {
+          ConfirmationDialog.show(
+            context: context,
+            title: 'Reset Printer Hardware?',
+            message: 'This will reset all hardware connection preferences to defaults. Continue?',
+            confirmLabel: 'RESET',
+            onConfirm: () {
+              ref.read(printerConfigProvider.notifier).updateConfig(const PrinterConfig());
+              _ipController.clear();
+              setState(() {
+                _lastTestStatus = null;
+                _lastTestError = null;
+              });
+            },
+          );
+        },
+        icon: const Icon(Icons.restore_rounded, size: 16, color: Colors.grey),
+        label: const Text(
+          'RESET HARDWARE CONFIGURATION',
+          style: TextStyle(
+            color: Colors.grey,
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 0.8,
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildTestPrintButton() {
+  // ─────────────────────────────────────────────────────────────
+  // BOTTOM CONFIRMATION BAR
+  // ─────────────────────────────────────────────────────────────
+  Widget _buildBottomConfirmBar(PrinterConfig config) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        gradient: const LinearGradient(
-          colors: [AppTheme.espressoBrown, Color(0xFF2E1A09)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: Colors.white,
+        border: const Border(top: BorderSide(color: Color(0xFFE8E1D8))),
         boxShadow: [
-          BoxShadow(color: AppTheme.espressoBrown.withValues(alpha: 0.3), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, -4),
+          ),
         ],
       ),
-      child: ElevatedButton.icon(
-        onPressed: _handleTestPrint,
-        icon: const Icon(Icons.print_rounded, color: Colors.white),
-        label: const Text('GENERATE TEST RECEIPT', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1)),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          foregroundColor: Colors.white,
-          shadowColor: Colors.transparent,
-          minimumSize: const Size(double.infinity, 60),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: SafeArea(
+        child: SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF287A55),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text(
+              'CONFIRM & SAVE HARDWARE SETUP',
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, letterSpacing: 0.8),
+            ),
+          ),
         ),
       ),
     );
+  }
+
+  IconData _getProtocolIcon(PrinterConnectionType type) {
+    switch (type) {
+      case PrinterConnectionType.bluetooth:
+        return Icons.bluetooth_rounded;
+      case PrinterConnectionType.network:
+        return Icons.wifi_rounded;
+      case PrinterConnectionType.usb:
+        return Icons.usb_rounded;
+      case PrinterConnectionType.rawbt:
+        return Icons.print_rounded;
+    }
   }
 }

@@ -296,6 +296,98 @@ class PrintService {
     return bytes;
   }
 
+  /// Generates a comprehensive hardware diagnostic test ticket for Coffee Katta.
+  Future<List<int>> generateDiagnosticTestBytes(
+    PrinterConfig config, {
+    String branchName = 'Coffee Katta — Latur Main',
+    String userRole = 'Admin / Counter',
+  }) async {
+    final profile = await CapabilityProfile.load();
+    final generator = Generator(
+      config.paperSize == PrinterPaperSize.mm80 ? PaperSize.mm80 : PaperSize.mm58,
+      profile,
+    );
+    List<int> bytes = [];
+
+    bytes += [0x1B, 0x40]; // Initialize
+    bytes += [0x1D, 0x4C, 0x00, 0x00]; // Reset margin
+
+    final int maxChars = config.paperSize == PrinterPaperSize.mm80 ? 64 : 32;
+    final String sep = '-' * maxChars;
+    final String dsep = '=' * maxChars;
+
+    // Header
+    bytes += generator.text(dsep);
+    bytes += generator.text(
+      'COFFEE KATTA',
+      styles: const PosStyles(
+        align: PosAlign.center,
+        bold: true,
+        height: PosTextSize.size2,
+        width: PosTextSize.size2,
+      ),
+    );
+    bytes += generator.text(
+      'PRINTER DIAGNOSTIC TEST',
+      styles: const PosStyles(align: PosAlign.center, bold: true),
+    );
+    bytes += generator.text(dsep);
+
+    // Diagnostics Metadata
+    final safeBranch = branchName.replaceAll('—', '-').replaceAll('–', '-').replaceAll('•', '-');
+    final safeRole = userRole.replaceAll('—', '-').replaceAll('–', '-').replaceAll('•', '-').toUpperCase();
+    final timeStr = DateFormat('dd/MM/yyyy - hh:mm a').format(DateTime.now());
+    bytes += generator.text('Date & Time: $timeStr');
+    bytes += generator.text('Branch:      $safeBranch');
+    bytes += generator.text('Terminal:    $safeRole');
+    bytes += generator.text(sep);
+
+    // Hardware Configuration
+    bytes += generator.text('HARDWARE CONFIGURATION:', styles: const PosStyles(bold: true));
+    bytes += generator.text('Protocol:    ${config.connectionType.name.toUpperCase()}');
+    bytes += generator.text('Target Addr: ${config.address ?? "Not set"}');
+    if (config.connectionType == PrinterConnectionType.network) {
+      bytes += generator.text('Network Port: ${config.port}');
+    }
+    bytes += generator.text('Paper Width: ${config.paperSize.name.toUpperCase()} ($maxChars cols)');
+    bytes += generator.text('Auto KOT:    ${config.autoPrintKOT ? "ENABLED" : "DISABLED"}');
+    bytes += generator.text('Auto Bill:   ${config.autoPrintBill ? "ENABLED" : "DISABLED"}');
+    bytes += generator.text(sep);
+
+    // Alignment & Column Test
+    bytes += generator.text('ALIGNMENT TEST:', styles: const PosStyles(bold: true));
+    bytes += generator.text('Left Aligned', styles: const PosStyles(align: PosAlign.left));
+    bytes += generator.text('Center Aligned', styles: const PosStyles(align: PosAlign.center));
+    bytes += generator.text('Right Aligned', styles: const PosStyles(align: PosAlign.right));
+    bytes += generator.text(sep);
+
+    // Text Style Tests
+    bytes += generator.text('FONT FORMATTING TEST:', styles: const PosStyles(bold: true));
+    bytes += generator.text('Normal Text: Coffee Katta POS');
+    bytes += generator.text('Bold Text:   Coffee Katta POS', styles: const PosStyles(bold: true));
+    bytes += generator.text(
+      'Double Size',
+      styles: const PosStyles(
+        align: PosAlign.center,
+        bold: true,
+        height: PosTextSize.size2,
+        width: PosTextSize.size2,
+      ),
+    );
+    bytes += generator.text(sep);
+
+    // Footer & Auto-cut
+    bytes += generator.text(
+      'HARDWARE STATUS: ONLINE & READY',
+      styles: const PosStyles(align: PosAlign.center, bold: true),
+    );
+    bytes += generator.text(dsep);
+    bytes += generator.feed(3);
+    bytes += generator.cut();
+
+    return bytes;
+  }
+
   // Master Print Function
   Future<bool> printReceipt(List<int> bytes, PrinterConfig config) async {
     if (config.connectionType == PrinterConnectionType.rawbt && Platform.isAndroid) {
@@ -304,6 +396,26 @@ class PrintService {
         return true; // Sent to external app successfully
       } catch (e) {
         return false;
+      }
+    }
+
+    // Direct raw TCP socket optimization for Network printers
+    // Pure Dart socket communicates directly with WiFi/Ethernet thermal printers across Windows & Android
+    if (config.connectionType == PrinterConnectionType.network &&
+        config.address != null &&
+        config.address!.trim().isNotEmpty) {
+      try {
+        final socket = await Socket.connect(
+          config.address!.trim(),
+          config.port,
+          timeout: const Duration(seconds: 4),
+        );
+        socket.add(bytes);
+        await socket.flush();
+        await socket.close();
+        return true;
+      } catch (_) {
+        // Fall through to PrinterManager if raw socket fails
       }
     }
 
@@ -505,8 +617,8 @@ class PrintService {
 
     // Convert to Image
     final picture = recorder.endRecording();
-    final img_ui = await picture.toImage(totalWidth, height.toInt());
-    final byteData = await img_ui.toByteData(format: ui.ImageByteFormat.png);
+    final imgUi = await picture.toImage(totalWidth, height.toInt());
+    final byteData = await imgUi.toByteData(format: ui.ImageByteFormat.png);
     
     if (byteData == null) return null;
     

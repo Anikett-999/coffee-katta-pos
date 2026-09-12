@@ -1,10 +1,20 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:printing/printing.dart' as printing;
 import '../../domain/models/printer_config.dart';
 import '../../services/print_service.dart';
 
 final printServiceProvider = Provider<PrintService>((ref) => PrintService());
+
+/// Discovered OS-level printers (e.g. Windows USB/Network driver printers)
+final systemPrintersProvider = FutureProvider<List<printing.Printer>>((ref) async {
+  try {
+    return await printing.Printing.listPrinters();
+  } catch (e) {
+    return [];
+  }
+});
 
 final sharedPrefsProvider = Provider<SharedPreferences>((ref) {
   throw UnimplementedError('Initialize this in main.dart');

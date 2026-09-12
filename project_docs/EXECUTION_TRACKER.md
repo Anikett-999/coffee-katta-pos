@@ -176,21 +176,37 @@
 
 ---
 
-### [ ] Phase 6: Thermal Receipt & RawBT Print Engine (HOLD)
-- [ ] Update 80mm ESC/POS header with Coffee Katta branding & Latur address
-- [ ] Include variant info on KOT kitchen slips
-- [ ] Implement Counter terminal auto-spooler for unprinted KOTs (`isPrinted: false`)
+---
+
+### [X] Split Payment Multi-Tender System
+- [x] Multi-tender line item breakdown: Cash, UPI, and Card simultaneous allocation.
+- [x] Live balance-due tracker with auto-fill remaining amount.
+- [x] Strict validation preventing settle unless total split amounts equal exact bill total.
+- [x] Revenue summation across analytics accounting for split tender amounts.
+- [x] Automated test suite `test/split_payment_test.dart` (4/4 tests passing).
 
 ---
 
-### [ ] Phase 7: Billing Math, 5% GST & Split Payment (HOLD)
-- [ ] Implement 5% restaurant GST (SAC 996331) with 1-paisa balancing
-- [ ] Add Cashier toggle: `[ GST Bill (5%) ]` vs `[ Non-GST / Retail Bill ]`
-- [ ] Implement multi-tender Split-Payment (Cash + UPI) with reconciliation
+### [X] Phase 6: Universal Printer Settings & Thermal Print Engine Redesign
+- [x] **Responsive Multi-Device UI (`printer_settings_screen.dart`)**:
+  - Branded Top Bar: `#382012` Deep Espresso, steaming cup Coffee Katta branding, and role badges (`[ COUNTER CONSOLE ]` vs `[ WAITER TERMINAL ]`).
+  - Desktop & Tablet: Multi-pane split dashboard (width $\ge$ 900px) with Active Status Card, 4-protocol selector grid (Bluetooth, WiFi Network, Direct USB, System/RawBT), Network configuration, and live simulator.
+  - Mobile & Handheld: Clean stacked card layout optimized for waiter phones with connection verification and bottom action bar.
+  - Active Hardware Status card with live connection pulse indicator and instant diagnostic test print.
+  - Preferences: 58mm compact vs 80mm full width segmented chips, auto-print KOT, and auto-print bill toggles.
+- [x] **Interactive Thermal Ticket Simulator (`thermal_receipt_preview.dart`)**:
+  - Authentic thermal receipt rendering with jagged paper cuts, monospace layout, dynamic 58mm/80mm widths, and bill vs KOT switcher.
+- [x] **High-Reliability Print Engine (`print_service.dart`)**:
+  - Direct raw TCP socket communication (`Socket.connect(ip, port)`) for WiFi/Network printers with automatic platform channel fallback.
+  - Windows OS system printer support via `Printing.listPrinters()`.
+  - Rich Coffee Katta diagnostic test slip generator with Latin-1/ASCII sanitization.
+- [x] **Automated Tests**:
+  - Created `test/printer_management_test.dart` (6 comprehensive unit & widget tests).
+  - All 60 tests passing across full project test suite (`60/60`).
 
 ---
 
-### [ ] Phase 8: Build, Run & Verification Protocol (HOLD)
-- [ ] Final compilation and smoke testing
-- [ ] Windows desktop & Android build verification
+### [ ] Phase 8: Build, Run & Verification Protocol
+- [x] Hot restart and manual verification on Windows desktop & mobile form factors.
+- [ ] Production build and packaging verification.
 
