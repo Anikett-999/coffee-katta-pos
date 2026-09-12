@@ -406,6 +406,204 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
     Navigator.maybePop(context);
   }
 
+  Future<String?> _showUnsentItemsDialog({
+    required BuildContext context,
+    required int totalItems,
+    required double totalAmount,
+    required String tableName,
+  }) {
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        backgroundColor: AppTheme.cardWhite,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: AppTheme.borderWarm, width: 1.5),
+        ),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // 1. Warm Icon Badge
+                Container(
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentCaramel.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.shopping_bag_outlined,
+                    color: AppTheme.accentCaramel,
+                    size: 26,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // 2. Clear Dialog Title
+                const Text(
+                  'Unsent Items in Cart',
+                  style: TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.textDark,
+                    letterSpacing: -0.2,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+
+                // 3. Context Ticket Summary Box
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppTheme.backgroundWarm,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppTheme.borderWarm),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.table_restaurant, size: 18, color: AppTheme.primaryCoffee),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Table $tableName',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13.5,
+                              color: AppTheme.textDark,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppTheme.cardWhite,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: AppTheme.borderWarm),
+                        ),
+                        child: Text(
+                          '$totalItems ${totalItems == 1 ? "item" : "items"} • ₹${totalAmount.toStringAsFixed(0)}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 12.5,
+                            color: AppTheme.successGreenPrice,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                // 4. Description Text
+                const Text(
+                  'You have active items on this ticket that haven’t been sent to the kitchen. What would you like to do?',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    height: 1.45,
+                    color: AppTheme.textDark,
+                  ),
+                ),
+                const SizedBox(height: 22),
+
+                // 5. Action Buttons with Clear POS Usability Hierarchy
+                // Primary: Keep as Draft & Exit
+                SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: ElevatedButton.icon(
+                    onPressed: () => Navigator.pop(context, 'keep'),
+                    icon: const Icon(Icons.bookmark_outline, size: 18),
+                    label: const Text(
+                      'Keep Draft & Exit',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryCoffee,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+
+                // Secondary Row: Discard (Destructive) & Stay (Neutral)
+                Row(
+                  children: [
+                    // Discard (Soft red tint with red text)
+                    Expanded(
+                      child: SizedBox(
+                        height: 42,
+                        child: OutlinedButton.icon(
+                          onPressed: () => Navigator.pop(context, 'discard'),
+                          icon: const Icon(Icons.delete_outline, size: 17, color: Color(0xFFDC2626)),
+                          label: const Text(
+                            'Discard',
+                            style: TextStyle(
+                              color: Color(0xFFDC2626),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFEF2F2),
+                            side: const BorderSide(color: Color(0xFFFECACA)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+
+                    // Stay on Table
+                    Expanded(
+                      child: SizedBox(
+                        height: 42,
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(context, 'stay'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppTheme.textDark,
+                            side: const BorderSide(color: AppTheme.borderWarm, width: 1.2),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          child: const Text(
+                            'Stay on Table',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                              color: AppTheme.textDark,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Determine screen layout boundaries (900px is the crossover point)
@@ -420,32 +618,13 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
           canPop: cart.isEmpty && !_isProcessing,
           onPopInvokedWithResult: (didPop, result) async {
             if (didPop) return;
-            final action = await showDialog<String>(
+            final totalItems = cart.fold<int>(0, (sum, i) => sum + i.quantity);
+            final totalAmount = ref.read(cartProvider(widget.table.tableId).notifier).total;
+            final action = await _showUnsentItemsDialog(
               context: context,
-              builder: (context) => AlertDialog(
-                title: const Text('Unsent Items in Cart'),
-                content: const Text(
-                    'You have unsent items for this table. Would you like to keep them as a draft or discard them?'),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context, 'stay'),
-                    child: const Text('Stay'),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.pop(context, 'discard'),
-                    child: Text('Discard',
-                        style: TextStyle(color: Theme.of(context).colorScheme.error)),
-                  ),
-                  ElevatedButton(
-                    onPressed: () => Navigator.pop(context, 'keep'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.maroon,
-                      foregroundColor: Colors.white,
-                    ),
-                    child: const Text('Keep Draft'),
-                  ),
-                ],
-              ),
+              totalItems: totalItems,
+              totalAmount: totalAmount,
+              tableName: tableName,
             );
             if (!context.mounted) return;
             if (action == 'discard') {
