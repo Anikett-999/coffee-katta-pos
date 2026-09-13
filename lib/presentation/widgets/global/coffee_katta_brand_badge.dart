@@ -18,7 +18,7 @@ class CoffeeKattaBrandBadge extends StatelessWidget {
     this.showText = true,
     this.showTagline = true,
     this.textColor = Colors.white,
-    this.taglineColor = AppTheme.warmAmber,
+    this.taglineColor = Colors.white,
   });
 
   @override
