@@ -59,33 +59,39 @@ class CoffeeKattaBrandBadge extends StatelessWidget {
         ),
         if (showText) ...[
           const SizedBox(width: 10),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Coffee Katta',
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 15.5,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 0.4,
-                  height: 1.15,
-                ),
-              ),
-              if (showTagline)
+          Flexible(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
                 Text(
-                  'GOOD FOOD • GREAT VIBES',
+                  'Coffee Katta',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: taglineColor,
-                    fontSize: 8.5,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.3,
-                    height: 1.2,
+                    color: textColor,
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.4,
+                    height: 1.15,
                   ),
                 ),
-            ],
+                if (showTagline)
+                  Text(
+                    'GOOD FOOD • GREAT VIBES',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: taglineColor,
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.3,
+                      height: 1.2,
+                    ),
+                  ),
+              ],
+            ),
           ),
         ],
       ],

@@ -113,31 +113,33 @@ class _MenuManagementScreenState extends ConsumerState<MenuManagementScreen>
             const Expanded(
               child: CoffeeKattaBrandBadge(),
             ),
-            // Catalog Badge
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.26)),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.restaurant_menu_rounded, color: AppTheme.warmAmber, size: 14),
-                  SizedBox(width: 5),
-                  Text(
-                    'MENU CATALOG',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.0,
+            // Catalog Badge (Desktop / Tablet only)
+            if (MediaQuery.of(context).size.width >= 600) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.26)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.restaurant_menu_rounded, color: AppTheme.warmAmber, size: 14),
+                    SizedBox(width: 5),
+                    Text(
+                      'MENU CATALOG',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.0,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),

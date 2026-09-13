@@ -96,31 +96,33 @@ class _AdminMainScreenState extends ConsumerState<AdminMainScreen> {
                   const Expanded(
                     child: CoffeeKattaBrandBadge(),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.26)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(_currentTabBadgeIcon, color: AppTheme.warmAmber, size: 14),
-                        const SizedBox(width: 5),
-                        Text(
-                          _currentTabBadgeLabel,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.8,
+                  if (MediaQuery.of(context).size.width >= 600) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.26)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(_currentTabBadgeIcon, color: AppTheme.warmAmber, size: 14),
+                          const SizedBox(width: 5),
+                          Text(
+                            _currentTabBadgeLabel,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.8,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 6),
+                    const SizedBox(width: 6),
+                  ],
                   IconButton(
                     icon: const Icon(Icons.person_outline_rounded, color: Colors.white, size: 22),
                     tooltip: 'Profile',

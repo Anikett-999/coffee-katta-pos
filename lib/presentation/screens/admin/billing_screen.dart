@@ -402,6 +402,8 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
   // HEADER COMPONENT (Matches Reference Image)
   // ─────────────────────────────────────────────────────────────
   Widget _buildTopBrandedHeader(List<KOTModel> kots) {
+    final isDesktop = MediaQuery.of(context).size.width >= 600;
+
     return Container(
       height: 62,
       color: const Color(0xFF382012), // Deep Coffee Brown
@@ -417,91 +419,122 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
           const SizedBox(width: 4),
 
           // Coffee Katta Brand Badge with Bearded Man Logo
-          const CoffeeKattaBrandBadge(),
+          CoffeeKattaBrandBadge(showTagline: isDesktop),
 
-          // Vertical Divider
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 14),
-            width: 1,
-            height: 26,
-            color: Colors.white24,
-          ),
-
-          // Context Badge & Table Info (Clean table name without duplication)
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: const Color(0xFF4A2D1B),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFF5A3825)),
+          if (isDesktop) ...[
+            // Vertical Divider
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 14),
+              width: 1,
+              height: 26,
+              color: Colors.white24,
             ),
-            child: const Icon(Icons.receipt_long_rounded, color: Color(0xFFB77945), size: 18),
-          ),
-          const SizedBox(width: 10),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Billing / Checkout',
-                style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
-              ),
-              Text(
-                '${_formatTableName(widget.table.name)}  •  Dine-in',
-                style: const TextStyle(color: Colors.white70, fontSize: 11),
-              ),
-            ],
-          ),
 
-          const Spacer(),
-
-          // Search Field ("Search menu, item or SKU..." with Ctrl + K)
-          Container(
-            width: 220,
-            height: 36,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            decoration: BoxDecoration(
-              color: const Color(0xFF2C170B),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFF5A3825)),
+            // Context Badge & Table Info (Clean table name without duplication)
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: const Color(0xFF4A2D1B),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFF5A3825)),
+              ),
+              child: const Icon(Icons.receipt_long_rounded, color: Color(0xFFB77945), size: 18),
             ),
-            child: Row(
+            const SizedBox(width: 10),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.search, color: Colors.white60, size: 17),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    style: const TextStyle(color: Colors.white, fontSize: 12),
-                    decoration: const InputDecoration(
-                      hintText: 'Search menu, item or SKU...',
-                      hintStyle: TextStyle(color: Colors.white54, fontSize: 11.5),
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      isDense: true,
-                      filled: true,
-                      fillColor: Colors.transparent,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ),
+                const Text(
+                  'Billing',
+                  style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.white12,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: const Text(
-                    'Ctrl + K',
-                    style: TextStyle(color: Colors.white60, fontSize: 9, fontWeight: FontWeight.w600),
-                  ),
+                Text(
+                  '${_formatTableName(widget.table.name)}  •  Dine-in',
+                  style: const TextStyle(color: Colors.white70, fontSize: 11),
                 ),
               ],
             ),
-          ),
-          const SizedBox(width: 10),
+          ],
+
+          const Spacer(),
+
+          if (isDesktop) ...[
+            // Search Field ("Search menu, item or SKU..." with Ctrl + K)
+            Container(
+              width: 220,
+              height: 36,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2C170B),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFF5A3825)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.search, color: Colors.white60, size: 17),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                      decoration: const InputDecoration(
+                        hintText: 'Search menu, item or SKU...',
+                        hintStyle: TextStyle(color: Colors.white54, fontSize: 11.5),
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        isDense: true,
+                        filled: true,
+                        fillColor: Colors.transparent,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.white12,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text(
+                      'Ctrl + K',
+                      style: TextStyle(color: Colors.white60, fontSize: 9, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+          ] else ...[
+            // Compact Table Pill for Mobile
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.26)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.table_restaurant_rounded, color: AppTheme.warmAmber, size: 14),
+                  const SizedBox(width: 4),
+                  Text(
+                    _formatTableName(widget.table.name),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 6),
+          ],
 
           // Refresh Action
           IconButton(
@@ -510,17 +543,19 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
             tooltip: 'Refresh Items',
           ),
 
-          // Profile / User Action
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: const Color(0xFF2C170B),
-              shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xFF5A3825)),
+          if (isDesktop) ...[
+            // Profile / User Action
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: const Color(0xFF2C170B),
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFF5A3825)),
+              ),
+              child: const Icon(Icons.person_outline_rounded, color: Colors.white70, size: 18),
             ),
-            child: const Icon(Icons.person_outline_rounded, color: Colors.white70, size: 18),
-          ),
+          ],
         ],
       ),
     );
