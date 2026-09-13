@@ -45,7 +45,7 @@ class _AdminMainScreenState extends ConsumerState<AdminMainScreen> {
         return 'TABLE MANAGEMENT';
       case 0:
       default:
-        return 'FLOOR / CHECKOUT';
+        return 'TABLES';
     }
   }
 
@@ -56,10 +56,10 @@ class _AdminMainScreenState extends ConsumerState<AdminMainScreen> {
       case 2:
         return Icons.restaurant_menu_rounded;
       case 3:
-        return Icons.table_restaurant_rounded;
+        return Icons.tune_rounded;
       case 0:
       default:
-        return Icons.point_of_sale_rounded;
+        return Icons.table_restaurant_rounded;
     }
   }
 
@@ -188,8 +188,8 @@ class _AdminMainScreenState extends ConsumerState<AdminMainScreen> {
                 elevation: 8,
                 items: const [
                   BottomNavigationBarItem(
-                    icon: Icon(Icons.point_of_sale_rounded),
-                    label: 'Checkout',
+                    icon: Icon(Icons.table_restaurant_rounded),
+                    label: 'Tables',
                   ),
                   BottomNavigationBarItem(
                     icon: Icon(Icons.analytics_rounded),
@@ -200,8 +200,8 @@ class _AdminMainScreenState extends ConsumerState<AdminMainScreen> {
                     label: 'Menu',
                   ),
                   BottomNavigationBarItem(
-                    icon: Icon(Icons.table_restaurant_rounded),
-                    label: 'Tables',
+                    icon: Icon(Icons.tune_rounded),
+                    label: 'Manage Tables',
                   ),
                 ],
               ),

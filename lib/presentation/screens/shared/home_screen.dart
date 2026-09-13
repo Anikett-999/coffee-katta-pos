@@ -239,10 +239,10 @@ class _OperationalHomeScreenState extends ConsumerState<OperationalHomeScreen> {
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.point_of_sale_rounded, color: AppTheme.warmAmber, size: 14),
+                        Icon(Icons.table_restaurant_rounded, color: AppTheme.warmAmber, size: 14),
                         SizedBox(width: 5),
                         Text(
-                          'FLOOR / TABLES',
+                          'TABLES',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 10.5,
