@@ -4,10 +4,15 @@ import '../../screens/shared/profile_screen.dart';
 import '../../../core/app_theme.dart';
 
 class ProfileMenu extends ConsumerWidget {
-  const ProfileMenu({super.key});
+  final bool isDarkHeader;
+  const ProfileMenu({super.key, this.isDarkHeader = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final borderColor = isDarkHeader ? Colors.white24 : AppTheme.maroon.withOpacity(0.2);
+    final bgColor = isDarkHeader ? Colors.white.withValues(alpha: 0.12) : AppTheme.maroon.withOpacity(0.05);
+    final iconColor = isDarkHeader ? Colors.white : AppTheme.maroon;
+
     return Padding(
       padding: const EdgeInsets.only(right: 12.0),
       child: GestureDetector(
@@ -23,12 +28,12 @@ class ProfileMenu extends ConsumerWidget {
             padding: const EdgeInsets.all(2),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: AppTheme.maroon.withOpacity(0.2), width: 1),
+              border: Border.all(color: borderColor, width: 1),
             ),
             child: CircleAvatar(
               radius: 18,
-              backgroundColor: AppTheme.maroon.withOpacity(0.05),
-              child: const Icon(Icons.account_circle_rounded, color: AppTheme.maroon, size: 24),
+              backgroundColor: bgColor,
+              child: Icon(Icons.account_circle_rounded, color: iconColor, size: 24),
             ),
           ),
         ),

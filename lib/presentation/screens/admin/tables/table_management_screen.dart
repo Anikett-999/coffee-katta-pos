@@ -6,6 +6,7 @@ import '../../../providers/table_provider.dart';
 import '../../../widgets/global/base_widgets.dart';
 import '../../../widgets/global/confirmation_dialog.dart';
 import '../../../widgets/global/editorial_background.dart';
+import '../../../widgets/global/coffee_katta_brand_badge.dart';
 
 class TableManagementScreen extends ConsumerStatefulWidget {
   final bool useShell;
@@ -87,19 +88,72 @@ class _TableManagementScreenState extends ConsumerState<TableManagementScreen> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: const Text('TABLE MANAGEMENT', 
-          style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.2, color: AppTheme.maroon)),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        elevation: 0,
-        surfaceTintColor: Colors.white,
-        shadowColor: Colors.black.withOpacity(0.1),
-        scrolledUnderElevation: 4,
-        iconTheme: const IconThemeData(color: AppTheme.maroon),
-        actions: [
-          _buildAddTableButton(isShell: false),
-        ],
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(62),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFF382012),
+            boxShadow: [
+              BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
+            ],
+          ),
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  if (Navigator.canPop(context)) ...[
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                      onPressed: () => Navigator.of(context).pop(),
+                      tooltip: 'Back',
+                    ),
+                    const SizedBox(width: 4),
+                  ] else ...[
+                    Builder(
+                      builder: (ctx) => IconButton(
+                        icon: const Icon(Icons.menu_rounded, color: Colors.white, size: 22),
+                        onPressed: () => Scaffold.of(ctx).openDrawer(),
+                        tooltip: 'Menu',
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                  ],
+                  const Expanded(
+                    child: CoffeeKattaBrandBadge(),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.26)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.table_restaurant_rounded, color: AppTheme.warmAmber, size: 14),
+                        SizedBox(width: 5),
+                        Text(
+                          'TABLE MANAGEMENT',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _buildAddTableButton(isShell: false),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
       body: EditorialBackground(child: content),
     );

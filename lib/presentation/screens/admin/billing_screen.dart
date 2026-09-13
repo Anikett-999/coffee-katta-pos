@@ -14,6 +14,7 @@ import '../../providers/branch_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/admin/bill_aggregated_list.dart';
 import '../../widgets/global/editorial_background.dart';
+import '../../widgets/global/coffee_katta_brand_badge.dart';
 
 class BillingScreen extends ConsumerStatefulWidget {
   final TableModel table;
@@ -415,37 +416,8 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
           ),
           const SizedBox(width: 4),
 
-          // Coffee Katta Logo Branding
-          Row(
-            children: [
-              const Icon(Icons.local_cafe_rounded, color: Color(0xFFF7F4EF), size: 24),
-              const SizedBox(width: 8),
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text(
-                    'Coffee Katta',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  Text(
-                    'GOOD FOOD • GREAT VIBES',
-                    style: TextStyle(
-                      color: Color(0xFFD4A373),
-                      fontSize: 8.5,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.1,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+          // Coffee Katta Brand Badge with Bearded Man Logo
+          const CoffeeKattaBrandBadge(),
 
           // Vertical Divider
           Container(

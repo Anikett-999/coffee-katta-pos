@@ -5,6 +5,7 @@ import '../../../providers/dashboard_provider.dart';
 import '../../../../domain/models/product_insights.dart';
 import 'package:intl/intl.dart';
 import '../../../widgets/global/editorial_background.dart';
+import '../../../widgets/global/coffee_katta_brand_badge.dart';
 
 class ProductInsightsScreen extends ConsumerStatefulWidget {
   const ProductInsightsScreen({super.key});
@@ -34,14 +35,59 @@ class _ProductInsightsScreenState extends ConsumerState<ProductInsightsScreen> w
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: const Text('PRODUCT INSIGHTS', 
-          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 1.5)),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        elevation: 0,
-        surfaceTintColor: Colors.white,
-        foregroundColor: AppTheme.maroon,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(62),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFF382012),
+            boxShadow: [
+              BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
+            ],
+          ),
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                    onPressed: () => Navigator.of(context).pop(),
+                    tooltip: 'Back',
+                  ),
+                  const SizedBox(width: 4),
+                  const Expanded(
+                    child: CoffeeKattaBrandBadge(),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.26)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.insights_rounded, color: AppTheme.warmAmber, size: 14),
+                        SizedBox(width: 5),
+                        Text(
+                          'PRODUCT INSIGHTS',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
       body: EditorialBackground(
         child: insightsAsync.when(

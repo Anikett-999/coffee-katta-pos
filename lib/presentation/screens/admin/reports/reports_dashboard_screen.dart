@@ -16,9 +16,11 @@ import '../../../providers/active_branch_provider.dart';
 import '../../../providers/branch_provider.dart';
 import '../../../providers/printer_provider.dart';
 import '../../../widgets/global/editorial_background.dart';
+import '../../../widgets/global/coffee_katta_brand_badge.dart';
 
 class ReportsDashboardScreen extends ConsumerStatefulWidget {
-  const ReportsDashboardScreen({super.key});
+  final bool useShell;
+  const ReportsDashboardScreen({super.key, this.useShell = false});
 
   @override
   ConsumerState<ReportsDashboardScreen> createState() => _ReportsDashboardScreenState();
@@ -39,59 +41,96 @@ class _ReportsDashboardScreenState extends ConsumerState<ReportsDashboardScreen>
     final analyticsAsync = ref.watch(dailyAnalyticsProvider(branchId: branchId));
     final branchAsync = ref.watch(branchProvider);
 
+    final mainContent = SafeArea(
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 400),
+        transitionBuilder: (child, anim) => FadeTransition(
+          opacity: anim,
+          child: SlideTransition(
+            position: anim.drive(Tween(begin: const Offset(0, 0.05), end: Offset.zero).chain(CurveTween(curve: Curves.easeOutCubic))),
+            child: child,
+          ),
+        ),
+        child: !_isDateConfirmed 
+          ? _buildDateSelectorPage(context, selection)
+          : Column(
+              children: [
+                _buildResultsHeader(context, selection, analyticsAsync, branchAsync),
+                Expanded(
+                  child: analyticsAsync.when(
+                    data: (analytics) => _buildGlassyDashboard(context, analytics, selection),
+                    loading: () => Center(child: CircularProgressIndicator(color: AppTheme.maroon.withOpacity(0.5))),
+                    error: (err, stack) => Center(child: _buildErrorState(err.toString())),
+                  ),
+                ),
+              ],
+            ),
+      ),
+    );
+
+    if (widget.useShell) {
+      return EditorialBackground(child: mainContent);
+    }
+
     return Scaffold(
       backgroundColor: Colors.transparent,
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 8.0),
-          child: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppTheme.maroon, size: 20),
-            onPressed: () => Navigator.of(context).pop(),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(62),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFF382012),
+            boxShadow: [
+              BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
+            ],
           ),
-        ),
-        title: Text(
-          'REPORTS',
-          style: GoogleFonts.epilogue(
-            fontSize: 14,
-            fontWeight: FontWeight.w900,
-            color: AppTheme.maroon,
-            letterSpacing: 2,
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: EditorialBackground(
-        child: SafeArea(
-          child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 400),
-          transitionBuilder: (child, anim) => FadeTransition(
-            opacity: anim,
-            child: SlideTransition(
-              position: anim.drive(Tween(begin: const Offset(0, 0.05), end: Offset.zero).chain(CurveTween(curve: Curves.easeOutCubic))),
-              child: child,
-            ),
-          ),
-          child: !_isDateConfirmed 
-            ? _buildDateSelectorPage(context, selection)
-            : Column(
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
                 children: [
-                  _buildResultsHeader(context, selection, analyticsAsync, branchAsync),
-                  Expanded(
-                    child: analyticsAsync.when(
-                      data: (analytics) => _buildGlassyDashboard(context, analytics, selection),
-                      loading: () => Center(child: CircularProgressIndicator(color: AppTheme.maroon.withOpacity(0.5))),
-                      error: (err, stack) => Center(child: _buildErrorState(err.toString())),
+                  if (Navigator.canPop(context)) ...[
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                      onPressed: () => Navigator.of(context).pop(),
+                      tooltip: 'Back',
+                    ),
+                    const SizedBox(width: 4),
+                  ],
+                  const Expanded(
+                    child: CoffeeKattaBrandBadge(),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.26)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.analytics_rounded, color: AppTheme.warmAmber, size: 14),
+                        SizedBox(width: 5),
+                        Text(
+                          'REPORTS & ANALYTICS',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.0,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
+            ),
+          ),
         ),
       ),
-    ),
+      body: EditorialBackground(child: mainContent),
     );
   }
 

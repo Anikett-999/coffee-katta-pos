@@ -9,6 +9,7 @@ import 'tables/table_management_screen.dart';
 import '../../../core/app_theme.dart';
 import '../shared/profile_screen.dart';
 import '../../widgets/global/editorial_background.dart';
+import '../../widgets/global/coffee_katta_brand_badge.dart';
 
 class AdminMainScreen extends ConsumerStatefulWidget {
   const AdminMainScreen({super.key});
@@ -23,7 +24,7 @@ class _AdminMainScreenState extends ConsumerState<AdminMainScreen> {
 
   final List<Widget> _screens = [
     const OperationalHomeScreen(useShell: true),
-    const ReportsDashboardScreen(),
+    const ReportsDashboardScreen(useShell: true),
     const MenuManagementScreen(useShell: true),
     const TableManagementScreen(useShell: true),
   ];
@@ -34,27 +35,105 @@ class _AdminMainScreenState extends ConsumerState<AdminMainScreen> {
     });
   }
 
+  String get _currentTabBadgeLabel {
+    switch (_selectedIndex) {
+      case 1:
+        return 'REPORTS & ANALYTICS';
+      case 2:
+        return 'MENU CATALOG';
+      case 3:
+        return 'TABLE MANAGEMENT';
+      case 0:
+      default:
+        return 'FLOOR / CHECKOUT';
+    }
+  }
+
+  IconData get _currentTabBadgeIcon {
+    switch (_selectedIndex) {
+      case 1:
+        return Icons.analytics_rounded;
+      case 2:
+        return Icons.restaurant_menu_rounded;
+      case 3:
+        return Icons.table_restaurant_rounded;
+      case 0:
+      default:
+        return Icons.point_of_sale_rounded;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: _selectedIndex == 1 
-          ? const Text('DATA ANALYTICS', style: TextStyle(color: AppTheme.maroon, fontWeight: FontWeight.bold, fontSize: 18))
-          : Image.asset('assets/branding/splash_logo.png', height: 35),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        elevation: 0,
-        surfaceTintColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person_outline_rounded, color: AppTheme.maroon),
-            onPressed: () => Navigator.push(
-              context, 
-              MaterialPageRoute(builder: (context) => const ProfileScreen())
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(62),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFF382012),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 6,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Builder(
+                    builder: (ctx) => IconButton(
+                      icon: const Icon(Icons.menu_rounded, color: Colors.white, size: 22),
+                      onPressed: () => Scaffold.of(ctx).openDrawer(),
+                      tooltip: 'Menu',
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Expanded(
+                    child: CoffeeKattaBrandBadge(),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.26)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(_currentTabBadgeIcon, color: AppTheme.warmAmber, size: 14),
+                        const SizedBox(width: 5),
+                        Text(
+                          _currentTabBadgeLabel,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  IconButton(
+                    icon: const Icon(Icons.person_outline_rounded, color: Colors.white, size: 22),
+                    tooltip: 'Profile',
+                    onPressed: () => Navigator.push(
+                      context, 
+                      MaterialPageRoute(builder: (context) => const ProfileScreen()),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(width: 8),
-        ],
+        ),
       ),
       drawer: const AppDrawer(),
       body: GestureDetector(

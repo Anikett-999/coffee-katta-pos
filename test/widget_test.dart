@@ -7,6 +7,7 @@ import 'package:coffee_katta_pos/domain/models/category.dart';
 import 'package:coffee_katta_pos/presentation/screens/admin/menu/category_items_screen.dart';
 import 'package:coffee_katta_pos/presentation/providers/menu_provider.dart';
 import 'package:coffee_katta_pos/presentation/providers/auth_provider.dart';
+import 'package:coffee_katta_pos/presentation/widgets/global/coffee_katta_brand_badge.dart';
 
 void main() {
   test('AppTheme brand colors smoke test', () {
@@ -40,5 +41,19 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Katta Coffee'), findsOneWidget);
     expect(find.byType(CategoryItemsScreen), findsOneWidget);
+  });
+
+  testWidgets('CoffeeKattaBrandBadge renders Bearded Man asset and typography', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: CoffeeKattaBrandBadge(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Coffee Katta'), findsOneWidget);
+    expect(find.text('GOOD FOOD • GREAT VIBES'), findsOneWidget);
+    expect(find.byType(Image), findsOneWidget);
   });
 }

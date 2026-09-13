@@ -9,6 +9,7 @@ import '../admin/admin_main_screen.dart';
 import '../../providers/table_provider.dart';
 import '../../../services/table_service.dart';
 import '../../widgets/global/editorial_background.dart';
+import '../../widgets/global/coffee_katta_brand_badge.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -201,17 +202,64 @@ class _OperationalHomeScreenState extends ConsumerState<OperationalHomeScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: Image.asset('assets/branding/splash_logo.png', height: 40),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        elevation: 0,
-        surfaceTintColor: Colors.white,
-        actions: const [
-          ProfileMenu(),
-          SizedBox(width: 8),
-        ],
+      backgroundColor: Colors.transparent,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(62),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFF382012),
+            boxShadow: [
+              BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2)),
+            ],
+          ),
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Builder(
+                    builder: (ctx) => IconButton(
+                      icon: const Icon(Icons.menu_rounded, color: Colors.white, size: 22),
+                      onPressed: () => Scaffold.of(ctx).openDrawer(),
+                      tooltip: 'Menu',
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Expanded(
+                    child: CoffeeKattaBrandBadge(),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.26)),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.point_of_sale_rounded, color: AppTheme.warmAmber, size: 14),
+                        SizedBox(width: 5),
+                        Text(
+                          'FLOOR / TABLES',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const ProfileMenu(isDarkHeader: true),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
       drawer: const AppDrawer(),
       body: EditorialBackground(child: content),

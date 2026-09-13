@@ -19,6 +19,7 @@ import 'package:coffee_katta_pos/presentation/providers/active_branch_provider.d
 import 'package:coffee_katta_pos/presentation/widgets/global/profile_menu.dart';
 import 'package:coffee_katta_pos/presentation/widgets/global/base_widgets.dart'; // Added for LoadingIndicator
 import 'package:coffee_katta_pos/presentation/widgets/global/editorial_background.dart';
+import 'package:coffee_katta_pos/presentation/widgets/global/coffee_katta_brand_badge.dart';
 import 'package:uuid/uuid.dart';
 
 // --- State Providers ---
@@ -649,43 +650,106 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
           child: EditorialBackground(
             child: Scaffold(
               backgroundColor: Colors.transparent,
-              appBar: AppBar(
-                title: Text('Table $tableName',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, color: AppTheme.primaryCoffee)),
-                backgroundColor: AppTheme.cardWhite,
-                elevation: 0,
-                surfaceTintColor: AppTheme.cardWhite,
-                shape: const Border(bottom: BorderSide(color: AppTheme.borderWarm, width: 1)),
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new, color: AppTheme.primaryCoffee),
-                onPressed: () => _handleBack(context, ref),
-              ),
-              actions: [
-                // Search Input
-                Container(
-                  width: isDesktop ? 300 : MediaQuery.of(context).size.width * 0.35,
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: CupertinoSearchTextField(
-                    placeholder: 'Search',
-                    style: const TextStyle(color: AppTheme.textDark, fontSize: 14),
-                    placeholderStyle: TextStyle(
-                      color: AppTheme.textDark.withValues(alpha: 0.45),
-                      fontSize: 14,
+              appBar: PreferredSize(
+                preferredSize: const Size.fromHeight(62),
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF382012),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 6,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: SafeArea(
+                    bottom: false,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                            onPressed: () => _handleBack(context, ref),
+                            tooltip: 'Back',
+                          ),
+                          const SizedBox(width: 2),
+                          CoffeeKattaBrandBadge(showText: MediaQuery.of(context).size.width >= 600),
+                          Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 8),
+                            width: 1,
+                            height: 22,
+                            color: Colors.white24,
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4.5),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.26)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.table_restaurant_rounded, color: AppTheme.warmAmber, size: 14),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'T-$tableName',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.6,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Spacer(),
+                          Container(
+                            width: isDesktop ? 260 : (MediaQuery.of(context).size.width > 480 ? 160 : 110),
+                            height: 36,
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF2C170B),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFF5A3825)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.search_rounded, color: Colors.white60, size: 16),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: TextField(
+                                    onChanged: (val) =>
+                                        ref.read(searchQueryProvider.notifier).state = val,
+                                    style: const TextStyle(color: Colors.white, fontSize: 12),
+                                    decoration: const InputDecoration(
+                                      hintText: 'Search...',
+                                      hintStyle: TextStyle(color: Colors.white54, fontSize: 11.5),
+                                      border: InputBorder.none,
+                                      isDense: true,
+                                      contentPadding: EdgeInsets.zero,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          IconButton(
+                            icon: const Icon(Icons.history_rounded, color: Colors.white, size: 22),
+                            tooltip: 'View Sent Items',
+                            onPressed: () => _showOrderHistory(context),
+                          ),
+                          const ProfileMenu(isDarkHeader: true),
+                        ],
+                      ),
                     ),
-                    itemColor: AppTheme.primaryCoffee,
-                    onChanged: (val) =>
-                        ref.read(searchQueryProvider.notifier).state = val,
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.history, color: AppTheme.maroon),
-                  tooltip: 'View Sent Items',
-                  onPressed: () => _showOrderHistory(context),
-                ),
-                const ProfileMenu(),
-              ],
-            ),
+              ),
             body: LayoutBuilder(
               builder: (context, constraints) {
                 if (constraints.maxWidth > 900) {
