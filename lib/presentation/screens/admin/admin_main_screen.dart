@@ -125,7 +125,7 @@ class _AdminMainScreenState extends ConsumerState<AdminMainScreen> {
                     const SizedBox(width: 6),
                   ],
                   IconButton(
-                    icon: const Icon(Icons.person_outline_rounded, color: Colors.white, size: 22),
+                    icon: const Icon(Icons.account_circle_rounded, color: Colors.white, size: 28),
                     tooltip: 'Profile',
                     onPressed: () => Navigator.push(
                       context, 

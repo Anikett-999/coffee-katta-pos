@@ -9,8 +9,6 @@ class ProfileMenu extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final borderColor = isDarkHeader ? Colors.white24 : AppTheme.maroon.withOpacity(0.2);
-    final bgColor = isDarkHeader ? Colors.white.withValues(alpha: 0.12) : AppTheme.maroon.withOpacity(0.05);
     final iconColor = isDarkHeader ? Colors.white : AppTheme.maroon;
 
     return Padding(
@@ -24,17 +22,10 @@ class ProfileMenu extends ConsumerWidget {
         },
         child: Hero(
           tag: 'profile-avatar',
-          child: Container(
-            padding: const EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: borderColor, width: 1),
-            ),
-            child: CircleAvatar(
-              radius: 18,
-              backgroundColor: bgColor,
-              child: Icon(Icons.account_circle_rounded, color: iconColor, size: 24),
-            ),
+          child: Icon(
+            Icons.account_circle_rounded,
+            color: iconColor,
+            size: 28,
           ),
         ),
       ),
