@@ -59,8 +59,19 @@ class AppTheme {
         surface: Colors.white,
         brightness: Brightness.light,
       ),
-      textTheme: GoogleFonts.epilogueTextTheme(),
+      textTheme: GoogleFonts.epilogueTextTheme().apply(
+        bodyColor: textDark,
+        displayColor: textDark,
+      ),
       elevatedButtonTheme: ElevatedButtonThemeData(style: _buttonStyle),
+      dialogTheme: const DialogThemeData(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+      ),
       cardTheme: CardThemeData(
         color: Colors.white,
         shape: RoundedRectangleBorder(
@@ -87,7 +98,8 @@ class AppTheme {
           color: textDark.withValues(alpha: 0.45),
           fontSize: 13,
         ),
-        labelStyle: const TextStyle(color: textDark),
+        labelStyle: const TextStyle(color: espressoBrown, fontWeight: FontWeight.bold),
+        floatingLabelStyle: const TextStyle(color: espressoBrown, fontWeight: FontWeight.bold),
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
@@ -108,6 +120,7 @@ class AppTheme {
   static ThemeData get darkTheme {
     return ThemeData(
       useMaterial3: true,
+      scaffoldBackgroundColor: const Color(0xFF1E1E1E),
       colorScheme: ColorScheme.fromSeed(
         seedColor: espressoBrown,
         primary: espressoBrown,
@@ -117,9 +130,38 @@ class AppTheme {
       ),
       textTheme: GoogleFonts.epilogueTextTheme(ThemeData.dark().textTheme),
       elevatedButtonTheme: ElevatedButtonThemeData(style: _buttonStyle),
+      dialogTheme: const DialogThemeData(
+        backgroundColor: Color(0xFF281E18),
+        surfaceTintColor: Colors.transparent,
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: Color(0xFF281E18),
+        surfaceTintColor: Colors.transparent,
+      ),
       cardTheme: CardThemeData(
+        color: const Color(0xFF281E18),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         elevation: 1,
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: const Color(0xFF2C2420),
+        hintStyle: const TextStyle(color: Colors.white54, fontSize: 13),
+        labelStyle: const TextStyle(color: warmAmber, fontWeight: FontWeight.bold),
+        floatingLabelStyle: const TextStyle(color: warmAmber, fontWeight: FontWeight.bold),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFF4A3B32), width: 1.2),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFF4A3B32), width: 1.2),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: warmAmber, width: 1.5),
+        ),
       ),
     );
   }

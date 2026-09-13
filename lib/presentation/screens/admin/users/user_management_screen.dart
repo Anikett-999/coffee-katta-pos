@@ -86,34 +86,17 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                     ),
                     const SizedBox(width: 8),
                   ],
-                  SizedBox(
-                    height: 36,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        showModalBottomSheet(
-                          context: context,
-                          isScrollControlled: true,
-                          backgroundColor: Colors.transparent,
-                          builder: (context) => const _AddUserBottomSheet(),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF287A55),
-                        foregroundColor: Colors.white,
-                        elevation: 1,
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      icon: const Icon(Icons.person_add_alt_1_rounded, size: 16),
-                      label: const Text(
-                        'ADD STAFF',
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
+                  IconButton(
+                    icon: const Icon(Icons.person_add_alt_1_rounded, color: Colors.white, size: 26),
+                    tooltip: 'Add Staff Member',
+                    onPressed: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (context) => const _AddUserBottomSheet(),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -349,47 +332,32 @@ class _UserListItem extends ConsumerWidget {
               ),
             ),
             const SizedBox(width: 8),
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  user.isActive ? 'ACTIVE' : 'DISABLED',
-                  style: TextStyle(
-                    fontSize: 8.5,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.5,
-                    color: user.isActive ? const Color(0xFF287A55) : Colors.red,
-                  ),
-                ),
-                Transform.scale(
-                  scale: 0.75,
-                  child: Switch(
-                    value: user.isActive,
-                    activeColor: const Color(0xFF287A55),
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    onChanged: (value) async {
-                      try {
-                        await authService.toggleUserActiveStatus(user.userId, user.isActive);
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Account ${value ? 'enabled' : 'disabled'} for ${user.name}'),
-                              backgroundColor: value ? const Color(0xFF287A55) : Colors.orange,
-                            ),
-                          );
-                        }
-                      } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-                          );
-                        }
-                      }
-                    },
-                  ),
-                ),
-              ],
+            Transform.scale(
+              scale: 0.75,
+              child: Switch(
+                value: user.isActive,
+                activeColor: const Color(0xFF287A55),
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                onChanged: (value) async {
+                  try {
+                    await authService.toggleUserActiveStatus(user.userId, user.isActive);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Account ${value ? 'enabled' : 'disabled'} for ${user.name}'),
+                          backgroundColor: value ? const Color(0xFF287A55) : Colors.orange,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                      );
+                    }
+                  }
+                },
+              ),
             ),
             const SizedBox(width: 2),
             IconButton(
@@ -715,24 +683,47 @@ class _UserFormSheet extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: 16),
+
                 TextFormField(
                   controller: nameCtrl,
+                  style: const TextStyle(color: AppTheme.textDark, fontWeight: FontWeight.bold, fontSize: 14),
                   decoration: InputDecoration(
                     labelText: 'Full Name',
+                    labelStyle: const TextStyle(color: AppTheme.primaryCoffee, fontWeight: FontWeight.bold),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    prefixIcon: const Icon(Icons.person_outline, size: 20),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFE8E1D8)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppTheme.primaryCoffee, width: 1.8),
+                    ),
+                    prefixIcon: const Icon(Icons.person_outline, color: AppTheme.primaryCoffee, size: 20),
+                    filled: true,
+                    fillColor: Colors.white,
                   ),
                   validator: (v) => v!.isEmpty ? 'Name is required' : null,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: emailCtrl,
+                  style: const TextStyle(color: AppTheme.textDark, fontWeight: FontWeight.bold, fontSize: 14),
                   decoration: InputDecoration(
                     labelText: 'Email Address',
+                    labelStyle: const TextStyle(color: AppTheme.primaryCoffee, fontWeight: FontWeight.bold),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    prefixIcon: const Icon(Icons.email_outlined, size: 20),
-                    filled: !isNew,
-                    fillColor: isNew ? null : Colors.grey.shade100,
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFE8E1D8)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppTheme.primaryCoffee, width: 1.8),
+                    ),
+                    prefixIcon: const Icon(Icons.email_outlined, color: AppTheme.primaryCoffee, size: 20),
+                    filled: true,
+                    fillColor: isNew ? Colors.white : const Color(0xFFF7F4EF),
                   ),
                   keyboardType: TextInputType.emailAddress,
                   enabled: isNew,
@@ -744,10 +735,22 @@ class _UserFormSheet extends ConsumerWidget {
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: passCtrl,
+                    style: const TextStyle(color: AppTheme.textDark, fontWeight: FontWeight.bold, fontSize: 14),
                     decoration: InputDecoration(
                       labelText: 'Password',
+                      labelStyle: const TextStyle(color: AppTheme.primaryCoffee, fontWeight: FontWeight.bold),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      prefixIcon: const Icon(Icons.lock_outline, size: 20),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFE8E1D8)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppTheme.primaryCoffee, width: 1.8),
+                      ),
+                      prefixIcon: const Icon(Icons.lock_outline, color: AppTheme.primaryCoffee, size: 20),
+                      filled: true,
+                      fillColor: Colors.white,
                     ),
                     obscureText: true,
                     validator: (v) => v!.length < 6 ? 'Password must be at least 6 characters' : null,
@@ -757,17 +760,30 @@ class _UserFormSheet extends ConsumerWidget {
                 // Role dropdown
                 DropdownButtonFormField<String>(
                   value: selectedRole,
+                  style: const TextStyle(color: AppTheme.textDark, fontWeight: FontWeight.bold, fontSize: 14),
+                  dropdownColor: Colors.white,
                   decoration: InputDecoration(
                     labelText: 'Staff Role',
+                    labelStyle: const TextStyle(color: AppTheme.primaryCoffee, fontWeight: FontWeight.bold),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    prefixIcon: const Icon(Icons.badge_outlined, size: 20),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFE8E1D8)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppTheme.primaryCoffee, width: 1.8),
+                    ),
+                    prefixIcon: const Icon(Icons.badge_outlined, color: AppTheme.primaryCoffee, size: 20),
+                    filled: true,
+                    fillColor: Colors.white,
                   ),
                   items: availableRoles
                       .map((r) => DropdownMenuItem(
                             value: r,
                             child: Text(
                               r.toUpperCase(),
-                              style: const TextStyle(fontWeight: FontWeight.w600),
+                              style: const TextStyle(fontWeight: FontWeight.w700, color: AppTheme.textDark, fontSize: 13.5),
                             ),
                           ))
                       .toList(),
@@ -832,21 +848,37 @@ class _UserFormSheet extends ConsumerWidget {
 
                       return DropdownButtonFormField<String>(
                         value: currentSelected,
+                        style: const TextStyle(color: AppTheme.textDark, fontWeight: FontWeight.bold, fontSize: 13.5),
+                        dropdownColor: Colors.white,
                         decoration: InputDecoration(
                           labelText: selectedRole == 'waiter'
                               ? 'Assigned Work Branch *'
                               : 'Assigned Primary Branch *',
+                          labelStyle: const TextStyle(color: AppTheme.primaryCoffee, fontWeight: FontWeight.bold),
                           helperText: selectedRole == 'waiter'
                               ? 'Waiters serve strictly at a single physical branch.'
                               : 'Cashiers operate primarily at their assigned branch.',
-                          helperStyle: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                          helperStyle: const TextStyle(fontSize: 11, color: Color(0xFF6B5E55)),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: Color(0xFFE8E1D8)),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: AppTheme.primaryCoffee, width: 1.8),
+                          ),
                           prefixIcon: const Icon(Icons.storefront_outlined, color: AppTheme.primaryCoffee, size: 20),
+                          filled: true,
+                          fillColor: Colors.white,
                         ),
                         items: branches
                             .map((b) => DropdownMenuItem(
                                   value: b.branchId,
-                                  child: Text('${b.branchName} (${b.branchId})'),
+                                  child: Text(
+                                    '${b.branchName} (${b.branchId})',
+                                    style: const TextStyle(color: AppTheme.textDark, fontWeight: FontWeight.w600, fontSize: 13.5),
+                                  ),
                                 ))
                             .toList(),
                         onChanged: (v) {
