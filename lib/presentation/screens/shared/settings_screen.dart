@@ -265,8 +265,8 @@ class SettingsScreen extends ConsumerWidget {
                           _buildActionTile(
                             context,
                             icon: Icons.print_rounded,
-                            title: 'Thermal Printer Engine',
-                            subtitle: 'Configure ESC/POS receipt, KOT, and hardware options',
+                            title: 'Printer Settings',
+                            subtitle: 'Configure thermal receipt, KOT, and hardware printer engine',
                             onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(builder: (context) => const PrinterSettingsScreen()),

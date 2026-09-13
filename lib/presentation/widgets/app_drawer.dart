@@ -5,7 +5,6 @@ import '../../core/app_theme.dart';
 import '../screens/shared/home_screen.dart';
 import '../screens/shared/profile_screen.dart';
 import '../screens/shared/settings_screen.dart';
-import '../screens/shared/printer_settings_screen.dart';
 import '../screens/shared/kot_screen.dart';
 import './global/confirmation_dialog.dart';
 import '../providers/branch_provider.dart';
@@ -182,19 +181,6 @@ class AppDrawer extends ConsumerWidget {
                   ),
                 ),
 
-                // Printer Settings (accessible to all operational roles)
-                ListTile(
-                  leading: const Icon(Icons.print_rounded, color: Color(0xFF5A3825)),
-                  title: const Text('Printer Settings', style: TextStyle(fontWeight: FontWeight.bold)),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const PrinterSettingsScreen()),
-                    );
-                  },
-                ),
-
                 // My Profile
                 ListTile(
                   leading: const Icon(Icons.person_outline_rounded, color: Color(0xFF5A3825)),
@@ -208,19 +194,18 @@ class AppDrawer extends ConsumerWidget {
                   },
                 ),
 
-                // App Settings (Admins only)
-                if (isAdmin)
-                  ListTile(
-                    leading: const Icon(Icons.settings_outlined, color: Color(0xFF5A3825)),
-                    title: const Text('App Settings', style: TextStyle(fontWeight: FontWeight.bold)),
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const SettingsScreen()),
-                      );
-                    },
-                  ),
+                // Settings (Hardware, Printers, Appearance & Branch config)
+                ListTile(
+                  leading: const Icon(Icons.settings_outlined, color: Color(0xFF5A3825)),
+                  title: const Text('Settings', style: TextStyle(fontWeight: FontWeight.bold)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                    );
+                  },
+                ),
               ],
             ),
           ),
