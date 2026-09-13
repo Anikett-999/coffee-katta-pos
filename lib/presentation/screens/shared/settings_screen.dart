@@ -144,14 +144,19 @@ class SettingsScreen extends ConsumerWidget {
                       children: [
                         _buildSectionHeader('APPEARANCE'),
                         _buildAestheticCard([
-                          _buildToggleRow(
-                            context,
-                            title: 'Dark Mode',
-                            subtitle: 'Sleek dark theme for night shifts',
-                            value: themeMode == ThemeMode.dark,
-                            icon: Icons.dark_mode_rounded,
-                            onChanged: (val) => ref.read(themeProvider.notifier).toggleTheme(val),
-                            isLast: true,
+                          InkWell(
+                            onTap: () => _showDarkThemeRestrictedDialog(context),
+                            borderRadius: BorderRadius.circular(16),
+                            child: _buildToggleRow(
+                              context,
+                              title: 'Dark Mode',
+                              subtitle: 'Currently restricted • Feature upcoming in future release',
+                              badge: 'UPCOMING',
+                              value: false,
+                              icon: Icons.dark_mode_rounded,
+                              onChanged: (_) => _showDarkThemeRestrictedDialog(context),
+                              isLast: true,
+                            ),
                           ),
                         ]),
 
@@ -394,6 +399,49 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
+  void _showDarkThemeRestrictedDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: Colors.white,
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF382012).withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.palette_outlined, color: Color(0xFF382012), size: 22),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Feature Upcoming',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF382012)),
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Dark Theme is currently restricted in this deployment. The system is standardized on Coffee Katta\'s signature Light Editorial Theme to ensure optimal visibility and thermal POS clarity across all workstations.\n\nDark Theme support is under active development and will be introduced in an upcoming release.',
+          style: TextStyle(fontSize: 13.5, color: Color(0xFF5A4C42), height: 1.45),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF382012),
+              textStyle: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            child: const Text('UNDERSTOOD'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildToggleRow(
     BuildContext context, {
     required String title,
@@ -401,6 +449,7 @@ class SettingsScreen extends ConsumerWidget {
     required bool value,
     required IconData icon,
     required Function(bool) onChanged,
+    String? badge,
     bool isLast = false,
   }) {
     return Column(
@@ -422,13 +471,37 @@ class SettingsScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        color: Color(0xFF29231F),
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            color: Color(0xFF29231F),
+                          ),
+                        ),
+                        if (badge != null) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppTheme.warmAmber.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: AppTheme.warmAmber.withValues(alpha: 0.4)),
+                            ),
+                            child: Text(
+                              badge,
+                              style: const TextStyle(
+                                color: Color(0xFF8D5B18),
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 2),
                     Text(
