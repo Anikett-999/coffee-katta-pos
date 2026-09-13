@@ -116,17 +116,64 @@ class KOTScreen extends ConsumerWidget {
               );
             }
 
-            return GridView.builder(
-              padding: const EdgeInsets.all(20),
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 450,
-                mainAxisSpacing: 20,
-                crossAxisSpacing: 20,
-                mainAxisExtent: 480,
-              ),
-              itemCount: kots.length,
-              itemBuilder: (context, index) {
-                return _KOTCard(kot: kots[index]);
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.maxWidth;
+                int crossAxisCount = 1;
+                if (width >= 1400) {
+                  crossAxisCount = 4;
+                } else if (width >= 1050) {
+                  crossAxisCount = 3;
+                } else if (width >= 650) {
+                  crossAxisCount = 2;
+                }
+
+                if (crossAxisCount == 1) {
+                  return ListView.separated(
+                    padding: const EdgeInsets.all(20),
+                    itemCount: kots.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 20),
+                    itemBuilder: (context, index) {
+                      return _KOTCard(
+                        key: ValueKey(kots[index].kotId),
+                        kot: kots[index],
+                      );
+                    },
+                  );
+                }
+
+                final List<List<KOTModel>> columns = List.generate(crossAxisCount, (_) => []);
+                for (int i = 0; i < kots.length; i++) {
+                  columns[i % crossAxisCount].add(kots[i]);
+                }
+
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (int c = 0; c < crossAxisCount; c++) ...[
+                        if (c > 0) const SizedBox(width: 20),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              for (final kot in columns[c])
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 20),
+                                  child: _KOTCard(
+                                    key: ValueKey(kot.kotId),
+                                    kot: kot,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                );
               },
             );
           },
@@ -140,7 +187,7 @@ class KOTScreen extends ConsumerWidget {
 
 class _KOTCard extends ConsumerStatefulWidget {
   final KOTModel kot;
-  const _KOTCard({required this.kot});
+  const _KOTCard({super.key, required this.kot});
 
   @override
   ConsumerState<_KOTCard> createState() => _KOTCardState();
@@ -201,7 +248,8 @@ class _KOTCardState extends ConsumerState<_KOTCard> {
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
           // Header with Gradient
           Container(
@@ -227,7 +275,7 @@ class _KOTCardState extends ConsumerState<_KOTCard> {
                     ],
                   ),
                 ),
-                const SizedBox(width: 16), // Increased space between table name and timer
+                const SizedBox(width: 16), // Space between table name and timer
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
@@ -251,92 +299,23 @@ class _KOTCardState extends ConsumerState<_KOTCard> {
             ),
           ),
           
-          // Items List
-          Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.all(12),
-              itemCount: widget.kot.items.length,
-              separatorBuilder: (c, i) => const Divider(height: 1),
-              itemBuilder: (context, idx) {
-                final item = widget.kot.items[idx];
-                final isServed = item.status == 'served';
-
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: isServed ? Colors.grey.shade100 : AppTheme.maroon.withOpacity(0.05),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text('${item.qty}x', 
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold, 
-                          color: isServed ? Colors.grey : AppTheme.maroon,
-                        )),
-                    ),
-                    title: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(item.name, 
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                            decoration: isServed ? TextDecoration.lineThrough : null,
-                            color: isServed ? Colors.grey : Colors.black87,
-                          )),
-                        const SizedBox(height: 2),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: isServed ? Colors.grey.shade100 : AppTheme.maroon.withOpacity(0.05),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(item.category.toUpperCase(), 
-                            style: TextStyle(
-                              color: isServed ? Colors.grey : AppTheme.maroon.withOpacity(0.6), 
-                              fontSize: 9, 
-                              fontWeight: FontWeight.w900, 
-                              letterSpacing: 0.5
-                            )),
-                        ),
-                      ],
-                    ),
-                    subtitle: item.note.isNotEmpty 
-                      ? Padding(
-                          padding: const EdgeInsets.only(top: 4.0),
-                          child: Text(item.note, style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.blueGrey)),
-                        )
-                      : null,
-                    trailing: isServed 
-                      ? const Icon(Icons.check_circle, color: AppTheme.successGreen)
-                      : TextButton(
-                          onPressed: () {
-                            ref.read(kotServiceProvider).updateItemStatus(
-                              kotId: widget.kot.kotId,
-                              itemUniqueId: item.uniqueId,
-                              status: 'served',
-                            );
-                          },
-                          style: TextButton.styleFrom(
-                            foregroundColor: AppTheme.successGreen,
-                            backgroundColor: AppTheme.successGreen.withOpacity(0.1),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                          ),
-                          child: const Text('SERVE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                        ),
-                  ),
-                );
-              },
+          // Items List (hug-fit height, only as tall as its items)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (int idx = 0; idx < widget.kot.items.length; idx++) ...[
+                  if (idx > 0) const Divider(height: 1),
+                  _buildItemRow(widget.kot.items[idx]),
+                ],
+              ],
             ),
           ),
           
-          // Footer
+          // Footer (sits snugly below items)
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: Colors.grey.shade50,
               border: Border(top: BorderSide(color: Colors.grey.shade200)),
@@ -366,6 +345,89 @@ class _KOTCardState extends ConsumerState<_KOTCard> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildItemRow(KOTItem item) {
+    final isServed = item.status == 'served';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: ListTile(
+        dense: true,
+        contentPadding: EdgeInsets.zero,
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: isServed ? Colors.grey.shade100 : AppTheme.maroon.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            '${item.qty}x', 
+            style: TextStyle(
+              fontWeight: FontWeight.bold, 
+              color: isServed ? Colors.grey : AppTheme.maroon,
+            ),
+          ),
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              item.name, 
+              style: TextStyle(
+                fontWeight: FontWeight.bold, 
+                fontSize: 15,
+                decoration: isServed ? TextDecoration.lineThrough : null,
+                color: isServed ? Colors.grey : Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(
+                color: isServed ? Colors.grey.shade100 : AppTheme.maroon.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                item.category.toUpperCase(), 
+                style: TextStyle(
+                  color: isServed ? Colors.grey : AppTheme.maroon.withOpacity(0.6), 
+                  fontSize: 9, 
+                  fontWeight: FontWeight.w900, 
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ],
+        ),
+        subtitle: item.note.isNotEmpty 
+          ? Padding(
+              padding: const EdgeInsets.only(top: 4.0),
+              child: Text(
+                item.note, 
+                style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.blueGrey),
+              ),
+            )
+          : null,
+        trailing: isServed 
+          ? const Icon(Icons.check_circle, color: AppTheme.successGreen)
+          : TextButton(
+              onPressed: () {
+                ref.read(kotServiceProvider).updateItemStatus(
+                  kotId: widget.kot.kotId,
+                  itemUniqueId: item.uniqueId,
+                  status: 'served',
+                );
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: AppTheme.successGreen,
+                backgroundColor: AppTheme.successGreen.withOpacity(0.1),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text('SERVE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+            ),
       ),
     );
   }
