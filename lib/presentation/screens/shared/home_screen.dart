@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../core/app_theme.dart';
 import '../../widgets/table_card.dart';
 import '../../widgets/app_drawer.dart';
@@ -76,20 +77,31 @@ class _OperationalHomeScreenState extends ConsumerState<OperationalHomeScreen> {
                 children: [
                   // Status Filter Dropdown
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    height: 45,
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    height: 46,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey[200]!),
+                      border: Border.all(color: AppTheme.borderWarm, width: 1.2),
                       boxShadow: [
-                        BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))
+                        BoxShadow(
+                          color: AppTheme.primaryCoffee.withValues(alpha: 0.06),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
                       ],
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
                         value: _selectedFilter,
-                        icon: const Icon(Icons.filter_list_rounded, size: 18, color: AppTheme.maroon),
+                        style: GoogleFonts.epilogue(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.primaryCoffee,
+                        ),
+                        icon: const Icon(Icons.filter_list_rounded, size: 18, color: AppTheme.primaryCoffee),
+                        dropdownColor: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
                         onChanged: (String? newValue) {
                           if (newValue != null) setState(() => _selectedFilter = newValue);
                         },
@@ -97,7 +109,14 @@ class _OperationalHomeScreenState extends ConsumerState<OperationalHomeScreen> {
                             .map<DropdownMenuItem<String>>((String value) {
                           return DropdownMenuItem<String>(
                             value: value,
-                            child: Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                            child: Text(
+                              value,
+                              style: GoogleFonts.epilogue(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.textDark,
+                              ),
+                            ),
                           );
                         }).toList(),
                       ),
@@ -107,25 +126,40 @@ class _OperationalHomeScreenState extends ConsumerState<OperationalHomeScreen> {
                   // Search Bar
                   Expanded(
                     child: Container(
-                      height: 45,
+                      height: 46,
                       decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppTheme.borderWarm, width: 1.2),
                         boxShadow: [
-                          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))
+                          BoxShadow(
+                            color: AppTheme.primaryCoffee.withValues(alpha: 0.06),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
                         ],
                       ),
                       child: TextField(
                         onChanged: (value) => setState(() => _searchQuery = value),
-                        style: const TextStyle(color: AppTheme.textDark, fontSize: 14),
+                        style: GoogleFonts.epilogue(
+                          color: AppTheme.textDark,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
                         decoration: InputDecoration(
                           hintText: 'Search table...',
-                          hintStyle: TextStyle(color: AppTheme.textDark.withValues(alpha: 0.5), fontSize: 14),
-                          prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AppTheme.maroon),
+                          hintStyle: GoogleFonts.epilogue(
+                            color: AppTheme.textDark.withValues(alpha: 0.45),
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AppTheme.primaryCoffee),
                           isDense: true,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.maroon, width: 1.5)),
-                          filled: true,
-                          fillColor: Colors.white,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          filled: false,
                         ),
                       ),
                     ),
@@ -155,9 +189,16 @@ class _OperationalHomeScreenState extends ConsumerState<OperationalHomeScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.table_restaurant_outlined, size: 64, color: Colors.grey[300]),
+                      Icon(Icons.table_restaurant_outlined, size: 64, color: AppTheme.borderWarm),
                       const SizedBox(height: 16),
-                      Text('No tables found', style: TextStyle(color: Colors.grey[400], fontSize: 16)),
+                      Text(
+                        'No tables found',
+                        style: GoogleFonts.epilogue(
+                          color: AppTheme.textDark.withValues(alpha: 0.45),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ],
                   ),
                 );
@@ -237,14 +278,14 @@ class _OperationalHomeScreenState extends ConsumerState<OperationalHomeScreen> {
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(color: Colors.white.withValues(alpha: 0.26)),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.table_restaurant_rounded, color: AppTheme.warmAmber, size: 14),
-                          SizedBox(width: 5),
+                          const Icon(Icons.table_restaurant_rounded, color: AppTheme.warmAmber, size: 14),
+                          const SizedBox(width: 5),
                           Text(
                             'TABLES',
-                            style: TextStyle(
+                            style: GoogleFonts.epilogue(
                               color: Colors.white,
                               fontSize: 10.5,
                               fontWeight: FontWeight.w800,

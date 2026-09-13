@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../core/app_theme.dart';
 
 /// Standard Coffee Katta Brand Header Logo Component.
@@ -69,7 +70,7 @@ class CoffeeKattaBrandBadge extends StatelessWidget {
                   'Coffee Katta',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
+                  style: GoogleFonts.epilogue(
                     color: textColor,
                     fontSize: 15.5,
                     fontWeight: FontWeight.w900,
@@ -82,7 +83,7 @@ class CoffeeKattaBrandBadge extends StatelessWidget {
                     'GOOD FOOD • GREAT VIBES',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
+                    style: GoogleFonts.epilogue(
                       color: taglineColor,
                       fontSize: 8.5,
                       fontWeight: FontWeight.w800,

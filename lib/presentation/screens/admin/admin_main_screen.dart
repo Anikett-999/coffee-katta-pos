@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../widgets/app_drawer.dart';
 import '../shared/home_screen.dart';
 
@@ -111,7 +112,7 @@ class _AdminMainScreenState extends ConsumerState<AdminMainScreen> {
                           const SizedBox(width: 5),
                           Text(
                             _currentTabBadgeLabel,
-                            style: const TextStyle(
+                            style: GoogleFonts.epilogue(
                               color: Colors.white,
                               fontSize: 10.5,
                               fontWeight: FontWeight.w800,
@@ -184,7 +185,16 @@ class _AdminMainScreenState extends ConsumerState<AdminMainScreen> {
                 },
                 type: BottomNavigationBarType.fixed,
                 selectedItemColor: AppTheme.maroon,
-                unselectedItemColor: Colors.grey,
+                unselectedItemColor: AppTheme.textDark.withValues(alpha: 0.45),
+                selectedLabelStyle: GoogleFonts.epilogue(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 11.5,
+                  letterSpacing: 0.2,
+                ),
+                unselectedLabelStyle: GoogleFonts.epilogue(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 10.5,
+                ),
                 showUnselectedLabels: true,
                 backgroundColor: Colors.white,
                 elevation: 8,

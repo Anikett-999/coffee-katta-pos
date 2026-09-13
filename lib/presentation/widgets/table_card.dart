@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:coffee_katta_pos/core/app_theme.dart';
 import 'package:coffee_katta_pos/domain/models/table_model.dart';
 import 'package:coffee_katta_pos/presentation/screens/waiter/order_screen.dart';
@@ -38,7 +39,7 @@ class TableCard extends StatelessWidget {
       color: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade200),
+        side: const BorderSide(color: AppTheme.borderWarm, width: 1.2),
       ),
       clipBehavior: Clip.antiAlias,
       child: Stack(
@@ -61,10 +62,10 @@ class TableCard extends StatelessWidget {
                   child: Text(
                     table.status.toUpperCase(),
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: GoogleFonts.epilogue(
                       color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 9.5,
                       letterSpacing: 1.2,
                     ),
                   ),
@@ -82,10 +83,10 @@ class TableCard extends StatelessWidget {
                             fit: BoxFit.scaleDown,
                             child: Text(
                               table.name,
-                              style: TextStyle(
-                                fontSize: isOccupied ? 36 : 28,
-                                fontWeight: FontWeight.w900,
-                                color: AppTheme.maroon,
+                              style: GoogleFonts.epilogue(
+                                fontSize: isOccupied ? 34 : 28,
+                                fontWeight: FontWeight.w800,
+                                color: AppTheme.primaryCoffee,
                                 letterSpacing: -0.5,
                               ),
                             ),
@@ -94,20 +95,32 @@ class TableCard extends StatelessWidget {
                         if (!isOccupied) ...[
                           const SizedBox(height: 2),
                           if (table.activeOrderId != null) ...[
-                            Text('${table.itemCount} Items', 
-                              style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold, fontSize: 11)),
+                            Text(
+                              '${table.itemCount} Items', 
+                              style: GoogleFonts.epilogue(
+                                color: AppTheme.textDark.withValues(alpha: 0.65),
+                                fontWeight: FontWeight.w700,
+                                fontSize: 11,
+                              ),
+                            ),
                             const SizedBox(height: 2),
                             Text(
                               '₹${table.totalAmount.toStringAsFixed(0)}',
-                              style: const TextStyle(
+                              style: GoogleFonts.epilogue(
                                 fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.deepGreen,
+                                fontWeight: FontWeight.w800,
+                                color: AppTheme.successGreenPrice,
                               ),
                             ),
                           ] else
-                            Text('Seats: ${table.capacity}', 
-                              style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                            Text(
+                              'Seats: ${table.capacity}', 
+                              style: GoogleFonts.epilogue(
+                                color: AppTheme.textDark.withValues(alpha: 0.55),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                         ],
                       ],
                     ),
@@ -131,9 +144,9 @@ class TableCard extends StatelessWidget {
                         child: Text(
                           isBilling ? 'RESUME BILLING' : 'CHECKOUT',
                           textAlign: TextAlign.center,
-                          style: TextStyle(
+                          style: GoogleFonts.epilogue(
                             color: Colors.white,
-                            fontWeight: FontWeight.w900,
+                            fontWeight: FontWeight.w800,
                             fontSize: 11,
                             letterSpacing: 1.2,
                           ),
