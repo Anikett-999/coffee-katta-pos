@@ -202,6 +202,10 @@ class PrintService {
     if (branch.phone.isNotEmpty) {
       bytes += generator.text('Phone: ${branch.phone}', styles: const PosStyles(align: PosAlign.center));
     }
+    bytes += generator.text('RETAIL INVOICE', styles: const PosStyles(align: PosAlign.center, bold: true));
+    if (bill.printCount > 1) {
+      bytes += generator.text('*** DUPLICATE COPY (#${bill.printCount}) ***', styles: const PosStyles(align: PosAlign.center));
+    }
     bytes += generator.feed(1);
 
     // 2. Metadata (Professional Layout)

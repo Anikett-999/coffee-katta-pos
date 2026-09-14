@@ -56,12 +56,12 @@ void main() {
           reason: 'Found legacy Rajmandir database paths in: $violations');
     });
 
-    test('assets/data/menu_items.json contains valid 43 Coffee Katta items', () {
+    test('assets/data/menu_items.json contains valid 106 Coffee Katta items across 15 categories', () {
       final menuFile = File('assets/data/menu_items.json');
       expect(menuFile.existsSync(), isTrue);
 
       final List<dynamic> items = jsonDecode(menuFile.readAsStringSync());
-      expect(items.length, equals(43));
+      expect(items.length, equals(106));
 
       final expectedCategories = {
         'Katta Coffee',
@@ -73,6 +73,12 @@ void main() {
         'On the Sides',
         'Katta Starter (Non Veg)',
         'On the Sides (Non Veg)',
+        'Artisan Pizzas',
+        'Gourmet Burgers',
+        'Grilled Sandwiches',
+        'Italian Pasta',
+        'Egg Specialties',
+        'Waffle Special Menu',
       };
 
       final foundCategories = <String>{};

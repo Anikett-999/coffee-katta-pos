@@ -4,7 +4,11 @@ import '../../domain/models/item.dart';
 import '../../domain/models/addon_item.dart';
 import '../../domain/models/customization_group.dart';
 import '../../services/menu_service.dart';
+import '../../services/seed_data_service.dart';
+import '../../services/menu_availability_service.dart';
 import 'active_branch_provider.dart';
+
+export '../../services/menu_availability_service.dart';
 
 // Provider for MenuService
 final menuServiceProvider = Provider<MenuService>((ref) {
@@ -17,6 +21,43 @@ final menuServiceProvider = Provider<MenuService>((ref) {
 final categoriesStreamProvider = StreamProvider<List<Category>>((ref) {
   final service = ref.watch(menuServiceProvider);
   return service.watchCategories();
+});
+
+// Sort mode for menu management categories (defaults to availability fill rate %)
+final categorySortModeProvider = StateProvider<CategorySortMode>((ref) => CategorySortMode.availabilityFillRate);
+
+// Reactive provider that ranks categories by availability fill rate (%) (mostly filled first)
+final rankedCategoriesProvider = Provider<AsyncValue<List<CategoryAvailabilityMetrics>>>((ref) {
+  final categoriesAsync = ref.watch(categoriesStreamProvider);
+  final allItemsAsync = ref.watch(allItemsStreamProvider);
+  final sortMode = ref.watch(categorySortModeProvider);
+
+  if (categoriesAsync.isLoading || allItemsAsync.isLoading) {
+    return const AsyncValue.loading();
+  }
+  if (categoriesAsync.hasError) {
+    return AsyncValue.error(categoriesAsync.error!, categoriesAsync.stackTrace!);
+  }
+  if (allItemsAsync.hasError) {
+    return AsyncValue.error(allItemsAsync.error!, allItemsAsync.stackTrace!);
+  }
+
+  final categories = categoriesAsync.value ?? [];
+  final items = allItemsAsync.value ?? [];
+
+  final ranked = CategoryAvailabilityAlgorithm.rankCategories(
+    categories: categories,
+    items: items,
+    sortMode: sortMode,
+  );
+
+  return AsyncValue.data(ranked);
+});
+
+// Provider yielding List<Category> ranked by availability fill rate (%) (mostly filled first)
+final rankedCategoryListProvider = Provider<AsyncValue<List<Category>>>((ref) {
+  final rankedAsync = ref.watch(rankedCategoriesProvider);
+  return rankedAsync.whenData((metricsList) => metricsList.map((m) => m.category).toList());
 });
 
 // State for the currently selected category ID in the management UI
@@ -136,5 +177,12 @@ class MenuController {
   // Seed Default Presets
   Future<void> seedDefaultModifiers() async {
     await _service.seedDefaultKattaModifiersIfEmpty();
+  }
+
+  // Seed Official Menu Catalog (106 items across 15 categories)
+  Future<void> seedOfficialMenuCatalog() async {
+    final activeBranch = _ref.read(activeBranchIdProvider) ?? 'latur_main';
+    final seeder = SeedDataService(branchId: activeBranch);
+    await seeder.seedMenuData();
   }
 }

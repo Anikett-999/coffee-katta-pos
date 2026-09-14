@@ -50,4 +50,6 @@ app.*.map.json
 # Gemini/AI noise
 .gemini/
 /brain/
+scratch/
+*.pdf
 

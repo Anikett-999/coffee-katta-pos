@@ -52,13 +52,13 @@ class ItemListView extends ConsumerWidget {
                   const SizedBox(height: 16),
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF287A55),
+                      backgroundColor: const Color(0xFF382012),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                     onPressed: () => ItemListViewLogic.showItemDialog(context, ref, selectedCategoryId),
-                    icon: const Icon(Icons.add_rounded, size: 20),
+                    icon: const Icon(Icons.add_rounded, size: 20, color: AppTheme.warmAmber),
                     label: const Text('Add First Item', style: TextStyle(fontWeight: FontWeight.w800)),
                   ),
                 ],
@@ -99,15 +99,32 @@ class _ItemCard extends ConsumerWidget {
 
   const _ItemCard({required this.item, required this.isAdmin});
 
-  bool _isNonVeg(Item item) {
+  String _getDietaryType(Item item) {
     final lower = item.name.toLowerCase();
     final group = item.groupName.toLowerCase();
-    return lower.contains('chicken') || lower.contains('meat') || lower.contains('egg') ||
-           group.contains('non veg') || group.contains('non-veg');
+    if (lower.contains('egg') || group.contains('egg')) {
+      return 'egg';
+    }
+    if (lower.contains('chicken') || lower.contains('meat') || group.contains('non veg') || group.contains('non-veg')) {
+      return 'non_veg';
+    }
+    return 'veg';
   }
 
-  Widget _buildDietaryBadge(bool isNonVeg) {
-    final color = isNonVeg ? const Color(0xFFC0392B) : const Color(0xFF287A55);
+  Widget _buildDietaryBadge(String dietaryType) {
+    final Color color;
+    final bool isSquare;
+    if (dietaryType == 'non_veg') {
+      color = const Color(0xFFC0392B);
+      isSquare = true;
+    } else if (dietaryType == 'egg') {
+      color = const Color(0xFFE67E22);
+      isSquare = false;
+    } else {
+      color = const Color(0xFF287A55);
+      isSquare = false;
+    }
+
     return Container(
       width: 17,
       height: 17,
@@ -121,7 +138,7 @@ class _ItemCard extends ConsumerWidget {
         child: Container(
           decoration: BoxDecoration(
             color: color,
-            shape: isNonVeg ? BoxShape.rectangle : BoxShape.circle,
+            shape: isSquare ? BoxShape.rectangle : BoxShape.circle,
           ),
         ),
       ),
@@ -130,7 +147,7 @@ class _ItemCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isNonVeg = _isNonVeg(item);
+    final dietaryType = _getDietaryType(item);
 
     return Opacity(
       opacity: item.isAvailable ? 1.0 : 0.65,
@@ -154,7 +171,7 @@ class _ItemCard extends ConsumerWidget {
         child: Row(
           children: [
             // Dietary Symbol
-            _buildDietaryBadge(isNonVeg),
+            _buildDietaryBadge(dietaryType),
             const SizedBox(width: 12),
             // Details
             Expanded(
@@ -445,7 +462,7 @@ class ItemListViewLogic {
                     controller: groupController,
                     style: const TextStyle(color: Color(0xFF29231F), fontSize: 14, fontWeight: FontWeight.w600),
                     decoration: InputDecoration(
-                      hintText: 'e.g. Special, Seasonal, Non-Veg',
+                      hintText: 'e.g. Veg, Non-Veg, Egg, Special...',
                       hintStyle: const TextStyle(color: Color(0xFF8C7B70), fontSize: 13),
                       filled: true,
                       fillColor: const Color(0xFFF7F4EF),
@@ -459,6 +476,41 @@ class ItemListViewLogic {
                       ),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     ),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      ActionChip(
+                        avatar: const Icon(Icons.circle, color: Color(0xFF287A55), size: 10),
+                        label: const Text('Veg', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF287A55))),
+                        backgroundColor: const Color(0xFFE8F5E9),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: const BorderSide(color: Color(0xFFC8E6C9))),
+                        onPressed: () => setState(() => groupController.text = 'Veg'),
+                      ),
+                      ActionChip(
+                        avatar: const Icon(Icons.stop, color: Color(0xFFC0392B), size: 10),
+                        label: const Text('Non-Veg', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFFC0392B))),
+                        backgroundColor: const Color(0xFFFFEBEE),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: const BorderSide(color: Color(0xFFFFCDD2))),
+                        onPressed: () => setState(() => groupController.text = 'Non-Veg'),
+                      ),
+                      ActionChip(
+                        avatar: const Icon(Icons.circle, color: Color(0xFFE67E22), size: 10),
+                        label: const Text('Egg', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFFE67E22))),
+                        backgroundColor: const Color(0xFFFFF8E1),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: const BorderSide(color: Color(0xFFFFECB3))),
+                        onPressed: () => setState(() => groupController.text = 'Egg'),
+                      ),
+                      ActionChip(
+                        avatar: const Icon(Icons.spa_outlined, color: Color(0xFF16A085), size: 11),
+                        label: const Text('Jain', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF16A085))),
+                        backgroundColor: const Color(0xFFE0F2F1),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: const BorderSide(color: Color(0xFFB2DFDB))),
+                        onPressed: () => setState(() => groupController.text = 'Jain'),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 16),
 
@@ -476,6 +528,57 @@ class ItemListViewLogic {
                   const Text(
                     'Optional (e.g. Regular +₹0, Large +₹40). Leave empty if standard.',
                     style: TextStyle(fontSize: 11.5, color: Color(0xFF6B5E55)),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      ActionChip(
+                        avatar: const Icon(Icons.local_pizza_outlined, size: 13, color: Color(0xFF5A3825)),
+                        label: const Text('Pizza [7", 9", 10"]', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                        backgroundColor: const Color(0xFFF7F4EF),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: const BorderSide(color: Color(0xFFE8E1D8))),
+                        onPressed: () {
+                          setState(() {
+                            variants.clear();
+                            variants.addAll(['Small 7":0', 'Medium 9":60', 'Large 10":140']);
+                          });
+                        },
+                      ),
+                      ActionChip(
+                        avatar: const Icon(Icons.coffee_outlined, size: 13, color: Color(0xFF5A3825)),
+                        label: const Text('Drink [Reg, Lrg]', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                        backgroundColor: const Color(0xFFF7F4EF),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: const BorderSide(color: Color(0xFFE8E1D8))),
+                        onPressed: () {
+                          setState(() {
+                            variants.clear();
+                            variants.addAll(['Regular:0', 'Large:40']);
+                          });
+                        },
+                      ),
+                      ActionChip(
+                        avatar: const Icon(Icons.restaurant_outlined, size: 13, color: Color(0xFF5A3825)),
+                        label: const Text('Portion [Half, Full]', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                        backgroundColor: const Color(0xFFF7F4EF),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: const BorderSide(color: Color(0xFFE8E1D8))),
+                        onPressed: () {
+                          setState(() {
+                            variants.clear();
+                            variants.addAll(['Half:0', 'Full:50']);
+                          });
+                        },
+                      ),
+                      if (variants.isNotEmpty)
+                        ActionChip(
+                          avatar: const Icon(Icons.clear_all_rounded, size: 13, color: Color(0xFFC0392B)),
+                          label: const Text('Clear', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFFC0392B))),
+                          backgroundColor: const Color(0xFFFFF0ED),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: const BorderSide(color: Color(0xFFFFD5CC))),
+                          onPressed: () => setState(() => variants.clear()),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   Wrap(

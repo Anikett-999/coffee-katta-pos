@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.shreerajmandir" "\0"
-            VALUE "FileDescription", "shreerajmandir_pos" "\0"
+            VALUE "CompanyName", "Coffee Katta" "\0"
+            VALUE "FileDescription", "Coffee Katta POS" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "shreerajmandir_pos" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.shreerajmandir. All rights reserved." "\0"
+            VALUE "InternalName", "coffee_katta_pos" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Coffee Katta. All rights reserved." "\0"
             VALUE "OriginalFilename", "shreerajmandir_pos.exe" "\0"
-            VALUE "ProductName", "shreerajmandir_pos" "\0"
+            VALUE "ProductName", "Coffee Katta POS" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

@@ -218,6 +218,13 @@ class _ThermalReceiptPreviewState extends State<ThermalReceiptPreview> {
       children: [
         divider,
         const SizedBox(height: 6),
+        Image.asset(
+          'assets/branding/splash_logo.png',
+          height: 30,
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+        ),
+        const SizedBox(height: 4),
         Text(
           widget.branchName.toUpperCase(),
           style: const TextStyle(
@@ -241,13 +248,19 @@ class _ThermalReceiptPreviewState extends State<ThermalReceiptPreview> {
         ),
         const Text(
           'Phone: +91 98765 43210',
-          style: TextStyle(fontFamily: 'monospace', fontSize: 9.5, color: _inkDark, fontWeight: FontWeight.w600),
+          style: const TextStyle(fontFamily: 'monospace', fontSize: 9.5, color: _inkDark, fontWeight: FontWeight.w600),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'RETAIL INVOICE',
+          style: TextStyle(fontFamily: 'monospace', fontSize: 10.5, fontWeight: FontWeight.w900, color: _inkBlack, letterSpacing: 0.8),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 6),
         dashed,
-        _monoRow('Bill: CK-2026-0042', '12/09/26', isBold: true),
-        _monoRow('Table: T3 (Dine-in)', '05:30 PM', isBold: true),
+        _monoRow('Invoice: CK-2026-0042', '12/09/2026', isBold: true),
+        _monoRow('Table  : T3 (DINE-IN)', '05:30 PM', isBold: true),
         _monoRow('Cashier: Pooja S.', 'Shift: #1'),
         dashed,
         _monoItemRow('ITEMS', 'QTY', 'AMOUNT', isBold: true),

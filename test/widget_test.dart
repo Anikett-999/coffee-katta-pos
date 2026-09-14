@@ -53,7 +53,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Coffee Katta'), findsOneWidget);
-    expect(find.text('GOOD FOOD • GREAT VIBES'), findsOneWidget);
+    expect(find.text('The Beardman Cafe'), findsOneWidget);
     expect(find.byType(Image), findsOneWidget);
   });
 }

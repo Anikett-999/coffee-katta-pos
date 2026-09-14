@@ -1,3 +1,7 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:shared_preferences_windows/shared_preferences_windows.dart';
+import 'package:path_provider_windows/path_provider_windows.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +16,16 @@ import 'presentation/widgets/auth_wrapper.dart';
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+
+  // Ensure Windows desktop platform channels are bound
+  if (!kIsWeb && Platform.isWindows) {
+    try {
+      SharedPreferencesWindows.registerWith();
+      PathProviderWindows.registerWith();
+    } catch (e) {
+      debugPrint('Desktop Windows plugin registration: $e');
+    }
+  }
 
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,

@@ -1,6 +1,6 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/analytics_service.dart';
 import '../../domain/models/daily_analytics.dart';
+import '../../domain/models/bill_model.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'analytics_provider.g.dart';
@@ -60,3 +60,13 @@ Stream<DailyAnalytics> dailyAnalytics(DailyAnalyticsRef ref, {required String br
     return Stream.fromFuture(service.getAnalyticsReport(branchId, start, end));
   }
 }
+
+/// Fetches individual bills for the active date selection (used by Invoice Register & CSV export)
+final billsForPeriodProvider = FutureProvider.family<List<BillModel>, String>((ref, branchId) async {
+  final selection = ref.watch(analyticsDateSelectionProvider);
+  final start = selection['start'] as DateTime;
+  final end = selection['end'] as DateTime?;
+  final service = AnalyticsService();
+  return service.getBillsForRange(branchId, start, end);
+});
+

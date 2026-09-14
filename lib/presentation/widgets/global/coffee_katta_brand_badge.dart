@@ -80,7 +80,7 @@ class CoffeeKattaBrandBadge extends StatelessWidget {
                 ),
                 if (showTagline)
                   Text(
-                    'GOOD FOOD • GREAT VIBES',
+                    'The Beardman Cafe',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.epilogue(

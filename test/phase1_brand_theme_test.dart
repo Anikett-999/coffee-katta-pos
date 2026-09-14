@@ -79,9 +79,9 @@ void main() {
       expect(gradle.contains('applicationId = "com.coffeekatta.pos"'), isTrue);
     });
 
-    test('8. windows/runner/main.cpp contains Coffee Katta POS — Latur window title', () {
+    test('8. windows/runner/main.cpp contains Coffee Katta POS - Latur window title', () {
       final cpp = File('windows/runner/main.cpp').readAsStringSync();
-      expect(cpp.contains('L"Coffee Katta POS — Latur"'), isTrue);
+      expect(cpp.contains('L"Coffee Katta POS - Latur"'), isTrue);
     });
 
     test('9. web/index.html & manifest.json contain Coffee Katta POS', () {

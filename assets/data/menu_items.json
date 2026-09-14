@@ -1,53 +1,782 @@
 [
-  { "name": "Cold Coffee", "price": 80, "category": "Katta Coffee", "variants": [], "isVeg": true },
-  { "name": "Premium Coffee", "price": 110, "category": "Katta Coffee", "variants": [], "isVeg": true },
-  { "name": "Coffee with Crush", "price": 100, "category": "Katta Coffee", "variants": [], "isVeg": true },
-  { "name": "Coffee with Ice Cream", "price": 100, "category": "Katta Coffee", "variants": [], "isVeg": true },
-  { "name": "Oreo Coffee", "price": 110, "category": "Katta Coffee", "variants": [], "isVeg": true },
-  { "name": "KitKat Coffee", "price": 110, "category": "Katta Coffee", "variants": [], "isVeg": true },
-  { "name": "Irish Coffee", "price": 120, "category": "Katta Coffee", "variants": [], "isVeg": true },
-  { "name": "Hazelnut Coffee", "price": 120, "category": "Katta Coffee", "variants": [], "isVeg": true },
-  { "name": "Caramel Coffee", "price": 120, "category": "Katta Coffee", "variants": [], "isVeg": true },
-
-  { "name": "Espresso", "price": 40, "category": "Hot Beverages", "variants": [], "isVeg": true },
-  { "name": "Cappuccino", "price": 80, "category": "Hot Beverages", "variants": [], "isVeg": true },
-  { "name": "Cafe Latte", "price": 60, "category": "Hot Beverages", "variants": [], "isVeg": true },
-  { "name": "Cafe Mocha", "price": 80, "category": "Hot Beverages", "variants": [], "isVeg": true },
-  { "name": "Americano", "price": 60, "category": "Hot Beverages", "variants": [], "isVeg": true },
-  { "name": "Irish Coffee (Hot)", "price": 100, "category": "Hot Beverages", "variants": [], "isVeg": true },
-  { "name": "Hazelnut Coffee (Hot)", "price": 100, "category": "Hot Beverages", "variants": [], "isVeg": true },
-  { "name": "Caramel Coffee (Hot)", "price": 100, "category": "Hot Beverages", "variants": [], "isVeg": true },
-
-  { "name": "Oreo Freddo", "price": 120, "category": "Freak Shakes", "variants": [], "isVeg": true },
-  { "name": "KitKat Freddo", "price": 120, "category": "Freak Shakes", "variants": [], "isVeg": true },
-  { "name": "Brownie Grandy", "price": 150, "category": "Freak Shakes", "variants": [], "isVeg": true },
-  { "name": "Muffin Shake", "price": 150, "category": "Freak Shakes", "variants": [], "isVeg": true },
-  { "name": "Chocolate Shake", "price": 130, "category": "Freak Shakes", "variants": [], "isVeg": true },
-
-  { "name": "Strawberry Frappé", "price": 100, "category": "Katta Frappé", "variants": [], "isVeg": true },
-  { "name": "Black Current Frappé", "price": 100, "category": "Katta Frappé", "variants": [], "isVeg": true },
-  { "name": "Pina Colada Frappé", "price": 100, "category": "Katta Frappé", "variants": [], "isVeg": true },
-  { "name": "Blueberry Frappé", "price": 100, "category": "Katta Frappé", "variants": [], "isVeg": true },
-
-  { "name": "Lemon Ice Tea", "price": 80, "category": "Polare Ice Tea", "variants": [], "isVeg": true },
-  { "name": "Peach Ice Tea", "price": 80, "category": "Polare Ice Tea", "variants": [], "isVeg": true },
-
-  { "name": "French Fries", "price": 120, "category": "Katta Starter", "variants": [], "isVeg": true },
-  { "name": "Peri Peri Fries", "price": 140, "category": "Katta Starter", "variants": [], "isVeg": true },
-  { "name": "Masala Fries", "price": 140, "category": "Katta Starter", "variants": [], "isVeg": true },
-  { "name": "Cheesy Masala Fries", "price": 160, "category": "Katta Starter", "variants": [], "isVeg": true },
-  { "name": "Veg Nuggets", "price": 120, "category": "Katta Starter", "variants": [], "isVeg": true },
-  { "name": "Cheese Corn Triangle", "price": 140, "category": "Katta Starter", "variants": [], "isVeg": true },
-
-  { "name": "Cheesy Garlic Bread", "price": 120, "category": "On the Sides", "variants": [], "isVeg": true },
-  { "name": "Cheese Chilli Toast", "price": 120, "category": "On the Sides", "variants": [], "isVeg": true },
-  { "name": "Paneer on Toast", "price": 130, "category": "On the Sides", "variants": [], "isVeg": true },
-
-  { "name": "Chicken Nuggets", "price": 130, "category": "Katta Starter (Non Veg)", "variants": [], "isVeg": false },
-  { "name": "Chicken Popcorn", "price": 130, "category": "Katta Starter (Non Veg)", "variants": [], "isVeg": false },
-  { "name": "Chicken Fries", "price": 140, "category": "Katta Starter (Non Veg)", "variants": [], "isVeg": false },
-  { "name": "Chicken Wings", "price": 180, "category": "Katta Starter (Non Veg)", "variants": [], "isVeg": false },
-
-  { "name": "Chicken on Toast", "price": 120, "category": "On the Sides (Non Veg)", "variants": [], "isVeg": false },
-  { "name": "Chicken Tikka on Toast", "price": 140, "category": "On the Sides (Non Veg)", "variants": [], "isVeg": false }
+  {
+    "name": "Cold Coffee",
+    "price": 80,
+    "category": "Katta Coffee",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Premium Coffee",
+    "price": 110,
+    "category": "Katta Coffee",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Coffee with Crush",
+    "price": 100,
+    "category": "Katta Coffee",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Coffee with Ice Cream",
+    "price": 100,
+    "category": "Katta Coffee",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Oreo Coffee",
+    "price": 110,
+    "category": "Katta Coffee",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "KitKat Coffee",
+    "price": 110,
+    "category": "Katta Coffee",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Irish Coffee",
+    "price": 120,
+    "category": "Katta Coffee",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Hazelnut Coffee",
+    "price": 120,
+    "category": "Katta Coffee",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Caramel Coffee",
+    "price": 120,
+    "category": "Katta Coffee",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Espresso",
+    "price": 40,
+    "category": "Hot Beverages",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Cappuccino",
+    "price": 80,
+    "category": "Hot Beverages",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Cafe Latte",
+    "price": 60,
+    "category": "Hot Beverages",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Cafe Mocha",
+    "price": 80,
+    "category": "Hot Beverages",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Americano",
+    "price": 60,
+    "category": "Hot Beverages",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Irish Coffee (Hot)",
+    "price": 100,
+    "category": "Hot Beverages",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Hazelnut Coffee (Hot)",
+    "price": 100,
+    "category": "Hot Beverages",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Caramel Coffee (Hot)",
+    "price": 100,
+    "category": "Hot Beverages",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Oreo Freddo",
+    "price": 120,
+    "category": "Freak Shakes",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "KitKat Freddo",
+    "price": 120,
+    "category": "Freak Shakes",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Brownie Grandy",
+    "price": 150,
+    "category": "Freak Shakes",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Muffin Shake",
+    "price": 150,
+    "category": "Freak Shakes",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Chocolate Shake",
+    "price": 130,
+    "category": "Freak Shakes",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Strawberry Frappé",
+    "price": 100,
+    "category": "Katta Frappé",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Black Current Frappé",
+    "price": 100,
+    "category": "Katta Frappé",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Pina Colada Frappé",
+    "price": 100,
+    "category": "Katta Frappé",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Blueberry Frappé",
+    "price": 100,
+    "category": "Katta Frappé",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Lemon Ice Tea",
+    "price": 80,
+    "category": "Polare Ice Tea",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Peach Ice Tea",
+    "price": 80,
+    "category": "Polare Ice Tea",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "French Fries",
+    "price": 120,
+    "category": "Katta Starter",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Peri Peri Fries",
+    "price": 140,
+    "category": "Katta Starter",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Masala Fries",
+    "price": 140,
+    "category": "Katta Starter",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Cheesy Masala Fries",
+    "price": 160,
+    "category": "Katta Starter",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Veg Nuggets",
+    "price": 120,
+    "category": "Katta Starter",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Cheese Corn Triangle",
+    "price": 140,
+    "category": "Katta Starter",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Cheesy Garlic Bread",
+    "price": 120,
+    "category": "On the Sides",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Cheese Chilli Toast",
+    "price": 120,
+    "category": "On the Sides",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Paneer on Toast",
+    "price": 130,
+    "category": "On the Sides",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Chicken Nuggets",
+    "price": 130,
+    "category": "Katta Starter (Non Veg)",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "Chicken Popcorn",
+    "price": 130,
+    "category": "Katta Starter (Non Veg)",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "Chicken Fries",
+    "price": 140,
+    "category": "Katta Starter (Non Veg)",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "Chicken Wings",
+    "price": 180,
+    "category": "Katta Starter (Non Veg)",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "Chicken on Toast",
+    "price": 120,
+    "category": "On the Sides (Non Veg)",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "Chicken Tikka on Toast",
+    "price": 140,
+    "category": "On the Sides (Non Veg)",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "Queen Margherita Pizza",
+    "price": 210,
+    "category": "Artisan Pizzas",
+    "variants": [
+      "Small 7\":0",
+      "Medium 9\":60",
+      "Large 10\":140"
+    ],
+    "isVeg": true
+  },
+  {
+    "name": "Veg Cheese Pizza",
+    "price": 210,
+    "category": "Artisan Pizzas",
+    "variants": [
+      "Small 7\":0",
+      "Medium 9\":60",
+      "Large 10\":140"
+    ],
+    "isVeg": true
+  },
+  {
+    "name": "Green Corn Pizza",
+    "price": 210,
+    "category": "Artisan Pizzas",
+    "variants": [
+      "Small 7\":0",
+      "Medium 9\":60",
+      "Large 10\":140"
+    ],
+    "isVeg": true
+  },
+  {
+    "name": "Peri Peri Pizza",
+    "price": 210,
+    "category": "Artisan Pizzas",
+    "variants": [
+      "Small 7\":0",
+      "Medium 9\":60",
+      "Large 10\":140"
+    ],
+    "isVeg": true
+  },
+  {
+    "name": "Tandoori Paneer Pizza",
+    "price": 240,
+    "category": "Artisan Pizzas",
+    "variants": [
+      "Small 7\":0",
+      "Medium 9\":90",
+      "Large 10\":140"
+    ],
+    "isVeg": true
+  },
+  {
+    "name": "Jain Pizza",
+    "price": 210,
+    "category": "Artisan Pizzas",
+    "variants": [
+      "Small 7\":0",
+      "Medium 9\":60",
+      "Large 10\":120"
+    ],
+    "isVeg": true
+  },
+  {
+    "name": "Cheese Burst Paneer Pizza",
+    "price": 380,
+    "category": "Artisan Pizzas",
+    "variants": [
+      "Medium 9\":0",
+      "Large 10\":40"
+    ],
+    "isVeg": true
+  },
+  {
+    "name": "Chicken Pizza",
+    "price": 240,
+    "category": "Artisan Pizzas",
+    "variants": [
+      "Small 7\":0",
+      "Medium 9\":90",
+      "Large 10\":140"
+    ],
+    "isVeg": false
+  },
+  {
+    "name": "Chicken BBQ Pizza",
+    "price": 240,
+    "category": "Artisan Pizzas",
+    "variants": [
+      "Small 7\":0",
+      "Medium 9\":60",
+      "Large 10\":120"
+    ],
+    "isVeg": false
+  },
+  {
+    "name": "Chicken Cheese Burst Pizza",
+    "price": 380,
+    "category": "Artisan Pizzas",
+    "variants": [
+      "Medium 9\":0",
+      "Large 10\":60"
+    ],
+    "isVeg": false
+  },
+  {
+    "name": "Veg Tikki Burger",
+    "price": 100,
+    "category": "Gourmet Burgers",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Veg Cheese Burger",
+    "price": 120,
+    "category": "Gourmet Burgers",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Katta Special Burger",
+    "price": 180,
+    "category": "Gourmet Burgers",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "OMG Burger (Veg)",
+    "price": 160,
+    "category": "Gourmet Burgers",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Chicken Cheese Burger",
+    "price": 120,
+    "category": "Gourmet Burgers",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "Tex-Mex Chicken Burger",
+    "price": 160,
+    "category": "Gourmet Burgers",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "OMG Burger (Non-Veg)",
+    "price": 180,
+    "category": "Gourmet Burgers",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "Veg Cheese Grill",
+    "price": 120,
+    "category": "Grilled Sandwiches",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Katta Triple Bechat",
+    "price": 130,
+    "category": "Grilled Sandwiches",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Open Paneer Top Sandwich",
+    "price": 110,
+    "category": "Grilled Sandwiches",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Cheese Burst Sandwich",
+    "price": 110,
+    "category": "Grilled Sandwiches",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Tandoori Paneer Sandwich",
+    "price": 150,
+    "category": "Grilled Sandwiches",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Cheese Chicken Sandwich",
+    "price": 160,
+    "category": "Grilled Sandwiches",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "Chicken Cheese Burst Sandwich",
+    "price": 180,
+    "category": "Grilled Sandwiches",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "Spicy Chicken Sandwich",
+    "price": 180,
+    "category": "Grilled Sandwiches",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "White Sauce Pasta",
+    "price": 150,
+    "category": "Italian Pasta",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "White Sauce Crispy Pasta",
+    "price": 150,
+    "category": "Italian Pasta",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Red Sauce Pasta",
+    "price": 150,
+    "category": "Italian Pasta",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Red Sauce Crispy Pasta",
+    "price": 150,
+    "category": "Italian Pasta",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Chicken Pasta (White Sauce)",
+    "price": 180,
+    "category": "Italian Pasta",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "Chicken Pasta (Cheesy)",
+    "price": 180,
+    "category": "Italian Pasta",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "Egg Chilli",
+    "price": 180,
+    "category": "Egg Specialties",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "Egg 65",
+    "price": 150,
+    "category": "Egg Specialties",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "Egg 555",
+    "price": 180,
+    "category": "Egg Specialties",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "Lasoon Fry",
+    "price": 150,
+    "category": "Egg Specialties",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "Tomato Fry",
+    "price": 150,
+    "category": "Egg Specialties",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "Australian Fry",
+    "price": 270,
+    "category": "Egg Specialties",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "Katta Special (Egg)",
+    "price": 260,
+    "category": "Egg Specialties",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "Egg Toffani",
+    "price": 190,
+    "category": "Egg Specialties",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "Egg Fried Rice",
+    "price": 180,
+    "category": "Egg Specialties",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "Egg Hakka Noodles",
+    "price": 200,
+    "category": "Egg Specialties",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "Egg Schezwan Fried Rice",
+    "price": 200,
+    "category": "Egg Specialties",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "Paneer Pulao",
+    "price": 200,
+    "category": "Egg Specialties",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Egg Biryani",
+    "price": 220,
+    "category": "Egg Specialties",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "Classic Omelette",
+    "price": 100,
+    "category": "Egg Specialties",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "Cheese Omelette",
+    "price": 140,
+    "category": "Egg Specialties",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "Kheema Omelette",
+    "price": 160,
+    "category": "Egg Specialties",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "Scrambled Eggs",
+    "price": 100,
+    "category": "Egg Specialties",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "Masala Omelette",
+    "price": 140,
+    "category": "Egg Specialties",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "Lemon Pepper Omelette",
+    "price": 120,
+    "category": "Egg Specialties",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "Egg Kheema",
+    "price": 150,
+    "category": "Egg Specialties",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "Egg Bhurji",
+    "price": 150,
+    "category": "Egg Specialties",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "Bhurji Roll",
+    "price": 150,
+    "category": "Egg Specialties",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "Paneer Egg Roll",
+    "price": 170,
+    "category": "Egg Specialties",
+    "variants": [],
+    "isVeg": false
+  },
+  {
+    "name": "Milk Chocolate Overload Waffle",
+    "price": 150,
+    "category": "Waffle Special Menu",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Dark and White Chocolate Waffle",
+    "price": 160,
+    "category": "Waffle Special Menu",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Nutella Chocolate Waffle",
+    "price": 180,
+    "category": "Waffle Special Menu",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Triple Chocolate Waffle",
+    "price": 190,
+    "category": "Waffle Special Menu",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Oreo White Chocolate Waffle",
+    "price": 150,
+    "category": "Waffle Special Menu",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "KitKat Milk Chocolate Waffle",
+    "price": 150,
+    "category": "Waffle Special Menu",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Nutella Classic Waffle",
+    "price": 180,
+    "category": "Waffle Special Menu",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Death by Chocolate Waffle",
+    "price": 200,
+    "category": "Waffle Special Menu",
+    "variants": [],
+    "isVeg": true
+  },
+  {
+    "name": "Snowy Waffle",
+    "price": 190,
+    "category": "Waffle Special Menu",
+    "variants": [],
+    "isVeg": true
+  }
 ]

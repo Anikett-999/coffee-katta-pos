@@ -136,7 +136,7 @@ def main():
         "currencySymbol": "₹"
     })
 
-    # Official 9 Categories from Physical Menu
+    # Official 15 Categories from Physical Menu
     CATEGORIES = [
         {"id": "cat_katta_coffee", "name": "Katta Coffee", "order": 1},
         {"id": "cat_hot_beverages", "name": "Hot Beverages", "order": 2},
@@ -147,9 +147,15 @@ def main():
         {"id": "cat_on_the_sides", "name": "On the Sides", "order": 7},
         {"id": "cat_katta_starter_non_veg", "name": "Katta Starter (Non Veg)", "order": 8},
         {"id": "cat_on_the_sides_non_veg", "name": "On the Sides (Non Veg)", "order": 9},
+        {"id": "cat_artisan_pizzas", "name": "Artisan Pizzas", "order": 10},
+        {"id": "cat_gourmet_burgers", "name": "Gourmet Burgers", "order": 11},
+        {"id": "cat_grilled_sandwiches", "name": "Grilled Sandwiches", "order": 12},
+        {"id": "cat_italian_pasta", "name": "Italian Pasta", "order": 13},
+        {"id": "cat_egg_specialties", "name": "Egg Specialties", "order": 14},
+        {"id": "cat_waffle_special_menu", "name": "Waffle Special Menu", "order": 15},
     ]
 
-    # Load 43 Menu Items from assets/data/menu_items.json
+    # Load 106 Menu Items from assets/data/menu_items.json
     script_dir = os.path.dirname(os.path.abspath(__file__))
     json_path = os.path.join(script_dir, "..", "assets", "data", "menu_items.json")
     with open(json_path, "r", encoding="utf-8") as f:
@@ -210,12 +216,21 @@ def main():
             item_id = f"item_{item_slug}"
             valid_item_doc_ids.add(item_id)
 
+            group_name = item.get("groupName", "")
+            if not group_name:
+                if cat_name == "Egg Specialties":
+                    group_name = "Egg"
+                elif not item.get("isVeg", True):
+                    group_name = "Non-Veg"
+                elif "jain" in item["name"].lower():
+                    group_name = "Jain"
+
             item_doc_path = f"{branch_path}/menu_items/{item_id}"
             patch_document(token, item_doc_path, {
                 "itemId": item_id,
                 "name": item["name"],
                 "categoryId": cat_id,
-                "groupName": "",
+                "groupName": group_name,
                 "price": float(item["price"]),
                 "variants": item.get("variants", []),
                 "isVeg": item.get("isVeg", True),

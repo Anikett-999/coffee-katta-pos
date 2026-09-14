@@ -22,7 +22,6 @@ _$PrinterConfigImpl _$$PrinterConfigImplFromJson(Map<String, dynamic> json) =>
       name: json['name'] as String? ?? 'Default Printer',
       autoPrintKOT: json['autoPrintKOT'] as bool? ?? true,
       autoPrintBill: json['autoPrintBill'] as bool? ?? true,
-      autoConnect: json['autoConnect'] as bool? ?? false,
       isBle: json['isBle'] as bool? ?? false,
     );
 
@@ -36,7 +35,6 @@ Map<String, dynamic> _$$PrinterConfigImplToJson(
   'name': instance.name,
   'autoPrintKOT': instance.autoPrintKOT,
   'autoPrintBill': instance.autoPrintBill,
-  'autoConnect': instance.autoConnect,
   'isBle': instance.isBle,
 };
 

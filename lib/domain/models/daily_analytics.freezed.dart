@@ -235,7 +235,7 @@ class __$$DailyAnalyticsImplCopyWithImpl<$Res>
 
 /// @nodoc
 @JsonSerializable()
-class _$DailyAnalyticsImpl implements _DailyAnalytics {
+class _$DailyAnalyticsImpl extends _DailyAnalytics {
   const _$DailyAnalyticsImpl({
     this.totalSales = 0.0,
     this.totalBills = 0,
@@ -256,7 +256,8 @@ class _$DailyAnalyticsImpl implements _DailyAnalytics {
        _paymentStats = paymentStats,
        _categoryStats = categoryStats,
        _deliveryMethodsStats = deliveryMethodsStats,
-       _userStats = userStats;
+       _userStats = userStats,
+       super._();
 
   factory _$DailyAnalyticsImpl.fromJson(Map<String, dynamic> json) =>
       _$$DailyAnalyticsImplFromJson(json);
@@ -405,7 +406,7 @@ class _$DailyAnalyticsImpl implements _DailyAnalytics {
   }
 }
 
-abstract class _DailyAnalytics implements DailyAnalytics {
+abstract class _DailyAnalytics extends DailyAnalytics {
   const factory _DailyAnalytics({
     final double totalSales,
     final int totalBills,
@@ -418,6 +419,7 @@ abstract class _DailyAnalytics implements DailyAnalytics {
     final Map<String, double> deliveryMethodsStats,
     final Map<String, double> userStats,
   }) = _$DailyAnalyticsImpl;
+  const _DailyAnalytics._() : super._();
 
   factory _DailyAnalytics.fromJson(Map<String, dynamic> json) =
       _$DailyAnalyticsImpl.fromJson;

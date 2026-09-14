@@ -2,7 +2,6 @@
 // Authorized for Coffee Katta Cafe Workflow & Beverage Customization.
 
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:coffee_katta_pos/core/app_theme.dart';
 import 'package:coffee_katta_pos/domain/models/category.dart';
@@ -20,6 +19,7 @@ import 'package:coffee_katta_pos/presentation/widgets/global/profile_menu.dart';
 import 'package:coffee_katta_pos/presentation/widgets/global/base_widgets.dart'; // Added for LoadingIndicator
 import 'package:coffee_katta_pos/presentation/widgets/global/editorial_background.dart';
 import 'package:coffee_katta_pos/presentation/widgets/global/coffee_katta_brand_badge.dart';
+import 'package:coffee_katta_pos/services/menu_availability_service.dart';
 import 'package:uuid/uuid.dart';
 
 // --- State Providers ---
@@ -34,8 +34,47 @@ final kotServiceProvider = Provider((ref) {
   return KOTService(branchId: branchId);
 });
 
-final categoriesProvider = StreamProvider<List<Category>>((ref) {
+final categoriesStreamRawProvider = StreamProvider<List<Category>>((ref) {
   return ref.watch(menuServiceProvider).watchCategories();
+});
+
+// Stream of all items (available + unavailable) for calculating category availability rates
+final allCatalogItemsProvider = StreamProvider<List<Item>>((ref) {
+  return ref.watch(menuServiceProvider).watchAllItems();
+});
+
+// Ranks categories by availability fill rate % (mostly filled first, in percentage)
+final categoriesProvider = Provider<AsyncValue<List<Category>>>((ref) {
+  final categoriesAsync = ref.watch(categoriesStreamRawProvider);
+  final allCatalogItemsAsync = ref.watch(allCatalogItemsProvider);
+
+  if (categoriesAsync.isLoading || allCatalogItemsAsync.isLoading) {
+    if (categoriesAsync.hasValue && allCatalogItemsAsync.hasValue) {
+      final ranked = CategoryAvailabilityAlgorithm.rankCategories(
+        categories: categoriesAsync.value!,
+        items: allCatalogItemsAsync.value!,
+      );
+      return AsyncValue.data(ranked.map((m) => m.category).toList());
+    }
+    return const AsyncValue.loading();
+  }
+
+  if (categoriesAsync.hasError) {
+    return AsyncValue.error(categoriesAsync.error!, categoriesAsync.stackTrace!);
+  }
+  if (allCatalogItemsAsync.hasError) {
+    return AsyncValue.error(allCatalogItemsAsync.error!, allCatalogItemsAsync.stackTrace!);
+  }
+
+  final categories = categoriesAsync.value ?? [];
+  final items = allCatalogItemsAsync.value ?? [];
+
+  final ranked = CategoryAvailabilityAlgorithm.rankCategories(
+    categories: categories,
+    items: items,
+  );
+
+  return AsyncValue.data(ranked.map((m) => m.category).toList());
 });
 
 // Load the entire menu into memory so global search is instant (Zero Latency)
@@ -195,12 +234,17 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
   bool _isProcessing = false;
   String _processingStatus = "";
   bool _isUpdatingKotHistory = false;
+  late final TextEditingController _searchController;
 
   @override
   void initState() {
     super.initState();
+    _searchController = TextEditingController();
     // Wipe any lingering search state when navigating to a new table
-    Future.microtask(() => ref.read(searchQueryProvider.notifier).state = '');
+    Future.microtask(() {
+      _searchController.clear();
+      ref.read(searchQueryProvider.notifier).state = '';
+    });
     
     // Auto-open history if requested (e.g. from TableCard "Print Pending" action)
     if (widget.initialIndex == 1) {
@@ -208,6 +252,12 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
         if (mounted) _showOrderHistory(context);
       });
     }
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _sendToKitchen({KOTModel? existingKOT, bool shouldPrint = false}) async {
@@ -708,32 +758,60 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                           ),
                           const Spacer(),
                           Container(
-                            width: isDesktop ? 260 : (MediaQuery.of(context).size.width > 480 ? 160 : 110),
-                            height: 36,
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            width: isDesktop ? 260 : (MediaQuery.of(context).size.width > 480 ? 180 : 130),
+                            height: 34,
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF2C170B),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFF5A3825)),
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(18),
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.search_rounded, color: Colors.white60, size: 16),
-                                const SizedBox(width: 4),
+                                const Icon(
+                                  Icons.search_rounded,
+                                  color: Color(0xFF5A3825),
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 6),
                                 Expanded(
                                   child: TextField(
+                                    controller: _searchController,
                                     onChanged: (val) =>
                                         ref.read(searchQueryProvider.notifier).state = val,
-                                    style: const TextStyle(color: Colors.white, fontSize: 12),
-                                    decoration: const InputDecoration(
+                                    style: const TextStyle(
+                                      color: Colors.black,
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    cursorColor: const Color(0xFF5A3825),
+                                    decoration: InputDecoration(
                                       hintText: 'Search...',
-                                      hintStyle: TextStyle(color: Colors.white54, fontSize: 11.5),
+                                      hintStyle: TextStyle(
+                                        color: Colors.black.withValues(alpha: 0.4),
+                                        fontSize: 12,
+                                      ),
                                       border: InputBorder.none,
+                                      enabledBorder: InputBorder.none,
+                                      focusedBorder: InputBorder.none,
+                                      disabledBorder: InputBorder.none,
+                                      errorBorder: InputBorder.none,
+                                      filled: false,
                                       isDense: true,
-                                      contentPadding: EdgeInsets.zero,
+                                      contentPadding: const EdgeInsets.symmetric(vertical: 8),
                                     ),
                                   ),
                                 ),
+                                if (ref.watch(searchQueryProvider).isNotEmpty)
+                                  GestureDetector(
+                                    onTap: () {
+                                      _searchController.clear();
+                                      ref.read(searchQueryProvider.notifier).state = '';
+                                    },
+                                    child: const Padding(
+                                      padding: EdgeInsets.only(left: 4),
+                                      child: Icon(Icons.close_rounded, size: 16, color: Colors.black54),
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
@@ -773,6 +851,64 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
             ),
           ),
       ],
+    );
+  }
+
+  // --- DIETARY TAG IDENTIFIER & BADGES ---
+  String _getDietaryType(Item item, String catName) {
+    final lower = item.name.toLowerCase();
+    final group = item.groupName.toLowerCase();
+    final cat = catName.toLowerCase();
+
+    if (lower.contains('egg') || group.contains('egg') || cat.contains('egg')) {
+      return 'egg';
+    }
+    if (lower.contains('chicken') ||
+        lower.contains('meat') ||
+        lower.contains('non veg') ||
+        lower.contains('non-veg') ||
+        group.contains('non veg') ||
+        group.contains('non-veg') ||
+        cat.contains('non veg') ||
+        cat.contains('non-veg')) {
+      return 'non_veg';
+    }
+    return 'veg';
+  }
+
+  Widget _buildSmallDietaryBadge(String dietaryType) {
+    // Vegetarian items will not have any tag as required
+    if (dietaryType == 'veg') return const SizedBox.shrink();
+
+    final Color color;
+    final bool isSquare;
+    if (dietaryType == 'non_veg') {
+      color = const Color(0xFFC0392B);
+      isSquare = true;
+    } else if (dietaryType == 'egg') {
+      color = const Color(0xFFE67E22);
+      isSquare = false;
+    } else {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      width: 12,
+      height: 12,
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: color, width: 1.2),
+        borderRadius: BorderRadius.circular(2.5),
+      ),
+      child: Center(
+        child: Container(
+          decoration: BoxDecoration(
+            color: color,
+            shape: isSquare ? BoxShape.rectangle : BoxShape.circle,
+          ),
+        ),
+      ),
     );
   }
 
@@ -825,6 +961,8 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                 .where((c) => c.item.itemId == item.itemId)
                 .fold<int>(0, (sum, c) => sum + c.quantity);
 
+            final dietaryType = _getDietaryType(item, catName);
+
             return Card(
               elevation: 0,
               color: AppTheme.cardWhite,
@@ -848,7 +986,7 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Top Section: Item Name and in-cart count badge
+                      // Top Section: Item Name, corner dietary flag (non-veg/egg only), and in-cart count badge
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -881,22 +1019,32 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                               ],
                             ),
                           ),
-                          if (inCartCount > 0)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                              decoration: BoxDecoration(
-                                color: AppTheme.accentCaramel,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                '$inCartCount',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.bold,
+                          const SizedBox(width: 4),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              if (dietaryType != 'veg') ...[
+                                _buildSmallDietaryBadge(dietaryType),
+                                if (inCartCount > 0) const SizedBox(height: 4),
+                              ],
+                              if (inCartCount > 0)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.accentCaramel,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    '$inCartCount',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ),
+                            ],
+                          ),
                         ],
                       ),
 
@@ -993,8 +1141,9 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
         item.categoryId == 'cat_katta_frappe' ||
         item.categoryId == 'cat_polare_ice_tea';
 
-    final isNonVeg = catName.contains('Non Veg') ||
-        item.name.toLowerCase().contains('chicken');
+    final dietaryType = _getDietaryType(item, catName);
+    final isEgg = dietaryType == 'egg';
+    final isNonVeg = dietaryType == 'non_veg';
 
     // Dynamic Modifiers & Add-ons from Firestore (with zero-latency reactive fallback)
     final dynamicAddons = ref.read(addonsProvider).value ?? [];
@@ -1122,15 +1271,10 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                           children: [
                             Row(
                               children: [
-                                if (isNonVeg)
-                                  Container(
-                                    width: 8,
-                                    height: 8,
-                                    margin: const EdgeInsets.only(right: 6),
-                                    decoration: BoxDecoration(
-                                      color: Colors.red[700],
-                                      shape: BoxShape.circle,
-                                    ),
+                                if (dietaryType != 'veg')
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 8),
+                                    child: _buildSmallDietaryBadge(dietaryType),
                                   ),
                                 Expanded(
                                   child: Text(
@@ -1156,10 +1300,14 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
-                                  isNonVeg ? '• Non-Veg' : '• Veg',
+                                  isNonVeg
+                                      ? '• Non-Veg'
+                                      : (isEgg ? '• Contains Egg' : '• Veg'),
                                   style: TextStyle(
                                     fontSize: 11,
-                                    color: isNonVeg ? Colors.red[700] : Colors.green[800],
+                                    color: isNonVeg
+                                        ? Colors.red[700]
+                                        : (isEgg ? const Color(0xFFE67E22) : Colors.green[800]),
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -1665,7 +1813,8 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
              height: 60,
              child: categoriesAsync.maybeWhen(
                data: (categories) {
-                 if (_selectedCategoryId == null && categories.isNotEmpty) {
+                 final hasValidSelection = categories.any((c) => c.categoryId == _selectedCategoryId);
+                 if ((_selectedCategoryId == null || !hasValidSelection) && categories.isNotEmpty) {
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                        if(mounted) setState(() => _selectedCategoryId = categories.first.categoryId);
                     });
@@ -1706,7 +1855,11 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                             width: 1,
                           ),
                           onSelected: (val) {
-                            if(val) setState(() => _selectedCategoryId = cat.categoryId);
+                            if(val) {
+                              _searchController.clear();
+                              ref.read(searchQueryProvider.notifier).state = '';
+                              setState(() => _selectedCategoryId = cat.categoryId);
+                            }
                           },
                         ),
                       );
@@ -1867,7 +2020,8 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
           ),
           child: categoriesAsync.when(
              data: (categories) {
-               if (_selectedCategoryId == null && categories.isNotEmpty) {
+               final hasValidSelection = categories.any((c) => c.categoryId == _selectedCategoryId);
+               if ((_selectedCategoryId == null || !hasValidSelection) && categories.isNotEmpty) {
                     WidgetsBinding.instance.addPostFrameCallback((_) {
                        if(mounted) setState(() => _selectedCategoryId = categories.first.categoryId);
                     });
@@ -1880,6 +2034,7 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                     final isNonVegCat = cat.name.toLowerCase().contains('non veg');
                     return InkWell(
                       onTap: () {
+                          _searchController.clear();
                           ref.read(searchQueryProvider.notifier).state = ''; // Clear search when clicking category naturally
                           setState(() => _selectedCategoryId = cat.categoryId);
                       },
@@ -2135,6 +2290,8 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                           spacing: 6,
                           runSpacing: 2,
                           children: [
+                            if (_getDietaryType(i.item, i.categoryName) != 'veg')
+                              _buildSmallDietaryBadge(_getDietaryType(i.item, i.categoryName)),
                             Text(
                               i.item.name,
                               style: const TextStyle(

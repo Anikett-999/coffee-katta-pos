@@ -570,6 +570,42 @@ class AnalyticsService {
       await branchRef.collection('analytics_daily').doc(dateKey).set(analytics.toJson());
     }
   }
+
+  /// Query bills bounded by date range with safe parsing for invoice register
+  Future<List<BillModel>> getBillsForRange(String branchId, DateTime start, [DateTime? end, int limit = 150]) async {
+    final rangeStart = DateTime(start.year, start.month, start.day);
+    final rangeEnd = end != null 
+        ? DateTime(end.year, end.month, end.day, 23, 59, 59)
+        : DateTime(start.year, start.month, start.day, 23, 59, 59);
+
+    final branchRef = _getBranchRef(branchId);
+    try {
+      final snap = await branchRef
+          .collection('bills')
+          .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(rangeStart))
+          .where('createdAt', isLessThanOrEqualTo: Timestamp.fromDate(rangeEnd))
+          .orderBy('createdAt', descending: true)
+          .limit(limit)
+          .get();
+
+      final bills = snap.docs
+          .map((doc) => _safeParseBill(doc))
+          .whereType<BillModel>()
+          .toList();
+      return bills;
+    } catch (e) {
+      // Fallback in case composite index is building or for legacy string dates
+      final snap = await branchRef.collection('bills').limit(limit).get();
+      final bills = snap.docs
+          .map((doc) => _safeParseBill(doc))
+          .whereType<BillModel>()
+          .where((b) => b.createdAt.isAfter(rangeStart.subtract(const Duration(seconds: 1))) &&
+                        b.createdAt.isBefore(rangeEnd.add(const Duration(seconds: 1))))
+          .toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return bills;
+    }
+  }
 }
 
 

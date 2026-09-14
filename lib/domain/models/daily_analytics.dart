@@ -5,6 +5,8 @@ part 'daily_analytics.g.dart';
 
 @freezed
 class DailyAnalytics with _$DailyAnalytics {
+  const DailyAnalytics._();
+
   const factory DailyAnalytics({
     @Default(0.0) double totalSales,
     @Default(0) int totalBills,
@@ -17,6 +19,13 @@ class DailyAnalytics with _$DailyAnalytics {
     @Default({}) Map<String, double> deliveryMethodsStats,
     @Default({}) Map<String, double> userStats,
   }) = _DailyAnalytics;
+
+  // Financial accounting properties:
+  // totalSales represents the total net payable collected from customers (subtotal - discount + extraCharges)
+  double get grossSales => totalSales + totalDiscount - extraCharges;
+  double get netSales => grossSales - totalDiscount;
+  double get netRevenue => totalSales;
+  double get aov => totalBills > 0 ? totalSales / totalBills : 0.0;
 
   factory DailyAnalytics.fromJson(Map<String, dynamic> json) => _$DailyAnalyticsFromJson(json);
 

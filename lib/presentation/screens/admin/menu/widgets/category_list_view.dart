@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../../domain/models/category.dart';
 import '../../../../providers/menu_provider.dart';
 import '../../../../providers/auth_provider.dart';
-import '../../../../../core/app_theme.dart';
 import '../category_items_screen.dart';
 
 class CategoryListView extends ConsumerWidget {
@@ -13,17 +12,16 @@ class CategoryListView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final categoriesAsync = ref.watch(categoriesStreamProvider);
-    final allItemsAsync = ref.watch(allItemsStreamProvider);
+    final rankedCategoriesAsync = ref.watch(rankedCategoriesProvider);
     final userAsync = ref.watch(userModelProvider);
     final isAdmin = userAsync.asData?.value?.isAdmin ?? false;
 
-    return categoriesAsync.when(
-      data: (categories) {
-        final filteredCategories = categories.where((c) => 
-          c.name.toLowerCase().contains(searchQuery.toLowerCase())).toList();
+    return rankedCategoriesAsync.when(
+      data: (rankedMetrics) {
+        final filteredMetrics = rankedMetrics.where((m) => 
+          m.category.name.toLowerCase().contains(searchQuery.toLowerCase())).toList();
 
-        if (filteredCategories.isEmpty) {
+        if (filteredMetrics.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -57,8 +55,6 @@ class CategoryListView extends ConsumerWidget {
           );
         }
 
-        final allItems = allItemsAsync.value ?? [];
-
         return Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 1100),
@@ -70,18 +66,14 @@ class CategoryListView extends ConsumerWidget {
                 crossAxisSpacing: 14,
                 childAspectRatio: 1.15,
               ),
-              itemCount: filteredCategories.length,
+              itemCount: filteredMetrics.length,
               itemBuilder: (context, index) {
-                final category = filteredCategories[index];
-                final categoryItems = allItems.where((i) => i.categoryId == category.categoryId).toList();
-                final totalItems = categoryItems.length;
-                final unavailableItems = categoryItems.where((i) => !i.isAvailable).length;
-
+                final metrics = filteredMetrics[index];
                 return _CategoryCard(
-                  category: category,
+                  category: metrics.category,
                   isAdmin: isAdmin,
-                  totalItems: totalItems,
-                  unavailableItems: unavailableItems,
+                  totalItems: metrics.totalItems,
+                  unavailableItems: metrics.unavailableItems,
                 );
               },
             ),
