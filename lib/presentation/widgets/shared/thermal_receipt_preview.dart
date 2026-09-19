@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../../../core/app_theme.dart';
 import '../../../domain/models/printer_config.dart';
 
@@ -9,12 +10,16 @@ class ThermalReceiptPreview extends StatefulWidget {
   final PrinterPaperSize paperSize;
   final String branchName;
   final String branchAddress;
+  final String reviewQrUrl;
+  final String instagramId;
 
   const ThermalReceiptPreview({
     super.key,
     required this.paperSize,
     this.branchName = 'Coffee Katta',
     this.branchAddress = 'Near Rajiv Gandhi Chowk, Latur',
+    this.reviewQrUrl = 'https://maps.app.goo.gl/fYjhMFxgoKpHxr1z5',
+    this.instagramId = 'coffeekatta_official',
   });
 
   @override
@@ -222,7 +227,7 @@ class _ThermalReceiptPreviewState extends State<ThermalReceiptPreview> {
           'assets/branding/splash_logo.png',
           height: 30,
           fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+          errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
         ),
         const SizedBox(height: 4),
         Text(
@@ -248,7 +253,7 @@ class _ThermalReceiptPreviewState extends State<ThermalReceiptPreview> {
         ),
         const Text(
           'Phone: +91 98765 43210',
-          style: const TextStyle(fontFamily: 'monospace', fontSize: 9.5, color: _inkDark, fontWeight: FontWeight.w600),
+          style: TextStyle(fontFamily: 'monospace', fontSize: 9.5, color: _inkDark, fontWeight: FontWeight.w600),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 4),
@@ -284,24 +289,58 @@ class _ThermalReceiptPreviewState extends State<ThermalReceiptPreview> {
         _monoRow('  UPI / GPay:', 'Rs. 200.00'),
         divider,
         const SizedBox(height: 8),
-        Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            border: Border.all(color: _inkBlack, width: 2),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: const Center(
-            child: Icon(Icons.qr_code_2_rounded, size: 50, color: _inkBlack),
-          ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: _inkBlack, width: 1.2),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: QrImageView(
+                data: widget.reviewQrUrl.trim().isNotEmpty
+                    ? widget.reviewQrUrl.trim()
+                    : 'https://maps.app.goo.gl/fYjhMFxgoKpHxr1z5',
+                version: QrVersions.auto,
+                size: 56,
+                padding: const EdgeInsets.all(2),
+                backgroundColor: Colors.white,
+                errorCorrectionLevel: QrErrorCorrectLevel.M,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    'RATE YOUR EXPERIENCE',
+                    style: TextStyle(fontFamily: 'monospace', fontSize: 9, fontWeight: FontWeight.w900, color: _inkBlack),
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Scan to review us on Google',
+                    style: TextStyle(fontFamily: 'monospace', fontSize: 7.8, fontWeight: FontWeight.w600, color: _inkDark),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Instagram: @${widget.instagramId.isNotEmpty ? widget.instagramId.replaceAll('@', '') : 'coffeekatta.official'}',
+                    style: const TextStyle(fontFamily: 'monospace', fontSize: 8.5, fontWeight: FontWeight.w800, color: _inkBlack),
+                  ),
+                  const SizedBox(height: 1),
+                  const Text(
+                    'Tag us in your coffee moments!',
+                    style: TextStyle(fontFamily: 'monospace', fontSize: 7.2, fontWeight: FontWeight.w500, color: _inkNote),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 6),
-        const Text(
-          'SCAN TO REVIEW US ON GOOGLE',
-          style: TextStyle(fontFamily: 'monospace', fontSize: 8.5, fontWeight: FontWeight.w900, color: _inkBlack),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 2),
+        const SizedBox(height: 8),
         const Text(
           'Thank You! Visit Again :)',
           style: TextStyle(fontFamily: 'monospace', fontSize: 10, fontWeight: FontWeight.w700, color: _inkDark),

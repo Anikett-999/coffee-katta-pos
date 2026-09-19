@@ -6,6 +6,7 @@ class TimestampConverter implements JsonConverter<DateTime, dynamic> {
 
   @override
   DateTime fromJson(dynamic json) {
+    if (json is DateTime) return json;
     if (json is Timestamp) return json.toDate();
     if (json is String) return DateTime.parse(json);
     return DateTime.now(); // Fallback
@@ -21,6 +22,7 @@ class OptionalTimestampConverter implements JsonConverter<DateTime?, dynamic> {
   @override
   DateTime? fromJson(dynamic json) {
     if (json == null) return null;
+    if (json is DateTime) return json;
     if (json is Timestamp) return json.toDate();
     if (json is String) return DateTime.parse(json);
     return null; // Fallback

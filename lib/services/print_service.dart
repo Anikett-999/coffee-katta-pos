@@ -203,7 +203,12 @@ class PrintService {
       bytes += generator.text('Phone: ${branch.phone}', styles: const PosStyles(align: PosAlign.center));
     }
     bytes += generator.text('RETAIL INVOICE', styles: const PosStyles(align: PosAlign.center, bold: true));
-    if (bill.printCount > 1) {
+    if (bill.isVoided) {
+      bytes += generator.text('*** CANCELLED / VOIDED INVOICE ***', styles: const PosStyles(align: PosAlign.center, bold: true));
+      if (bill.voidReason != null && bill.voidReason!.isNotEmpty) {
+        bytes += generator.text('REASON: ${bill.voidReason!.toUpperCase()}', styles: const PosStyles(align: PosAlign.center));
+      }
+    } else if (bill.printCount > 1) {
       bytes += generator.text('*** DUPLICATE COPY (#${bill.printCount}) ***', styles: const PosStyles(align: PosAlign.center));
     }
     bytes += generator.feed(1);
@@ -519,23 +524,36 @@ class PrintService {
     // 1. Left Side: Framed QR Code
     const double qrLabelHeight = 24.0;
     const double qrBoxSize = 144.0;
-    const double qrBorderPadding = 8.0;
     final double qrX = 0.0;
     final double qrY = (height - (qrLabelHeight + qrBoxSize)) / 2;
     final double qrFrameHeight = qrLabelHeight + qrBoxSize;
 
-    if (branch.reviewQrUrl.isNotEmpty) {
-      // Draw bold frame
-      final framePaint = ui.Paint()
-        ..color = Colors.black
-        ..style = ui.PaintingStyle.stroke
-        ..strokeWidth = 2.4;
+    final effectiveQr = branch.reviewQrUrl.trim().isNotEmpty
+        ? branch.reviewQrUrl.trim()
+        : 'https://maps.app.goo.gl/fYjhMFxgoKpHxr1z5';
+
+    if (effectiveQr.isNotEmpty) {
+      // Solid white background for clear contrast
+      final fillPaint = ui.Paint()..color = const Color(0xFFFFFFFF);
       canvas.drawRRect(
         ui.RRect.fromRectAndRadius(
           ui.Rect.fromLTWH(qrX, qrY, qrBoxSize, qrFrameHeight),
-          const Radius.circular(10),
+          const Radius.circular(8),
         ),
-        framePaint
+        fillPaint,
+      );
+
+      // Draw neat outer frame
+      final framePaint = ui.Paint()
+        ..color = Colors.black
+        ..style = ui.PaintingStyle.stroke
+        ..strokeWidth = 1.8;
+      canvas.drawRRect(
+        ui.RRect.fromRectAndRadius(
+          ui.Rect.fromLTWH(qrX, qrY, qrBoxSize, qrFrameHeight),
+          const Radius.circular(8),
+        ),
+        framePaint,
       );
 
       // Label above QR
@@ -543,14 +561,14 @@ class PrintService {
         textDirection: ui.TextDirection.ltr,
         text: const TextSpan(
           text: 'REVIEW US',
-          style: TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.w900),
+          style: TextStyle(color: Colors.black, fontSize: 15, fontWeight: FontWeight.w900, letterSpacing: 0.5),
         ),
       )..layout();
-      textPainter.paint(canvas, ui.Offset(qrX + (qrBoxSize - textPainter.width) / 2, qrY + 2));
+      textPainter.paint(canvas, ui.Offset(qrX + (qrBoxSize - textPainter.width) / 2, qrY + 3));
 
-      // Draw QR Code
+      // Draw QR Code with Error Correction Level M for high scanning tolerance
       final qrValidationResult = QrValidator.validate(
-        data: branch.reviewQrUrl,
+        data: effectiveQr,
         version: QrVersions.auto,
         errorCorrectionLevel: QrErrorCorrectLevel.M,
       );
@@ -563,13 +581,15 @@ class PrintService {
           emptyColor: const Color(0xFFFFFFFF),
           gapless: true,
         );
-        
-        // Draw centered inside the box with tight padding so the block sits flush-left.
+
+        // Center QR inside box with solid quiet zone
+        const double qrInnerPadding = 10.0;
+        final double innerQrSize = qrBoxSize - (qrInnerPadding * 2);
         canvas.save();
-        canvas.translate(qrX + qrBorderPadding, qrY + qrLabelHeight + qrBorderPadding);
+        canvas.translate(qrX + qrInnerPadding, qrY + qrLabelHeight + 2);
         painter.paint(
           canvas,
-          const ui.Size(qrBoxSize - qrBorderPadding * 2, qrBoxSize - qrBorderPadding * 2),
+          ui.Size(innerQrSize, innerQrSize),
         );
         canvas.restore();
       }
@@ -601,13 +621,14 @@ class PrintService {
     messagePainter.paint(canvas, ui.Offset(textLeft, qrY + 8));
 
     // Instagram Handle
-    if (branch.instagramId.isNotEmpty) {
+    if (branch.instagramId.trim().isNotEmpty) {
+      final cleanIg = branch.instagramId.trim().replaceAll('@', '');
       final igPainter = TextPainter(
         textDirection: ui.TextDirection.ltr,
         text: TextSpan(
           children: [
             TextSpan(
-              text: '@${branch.instagramId}',
+              text: 'Instagram: @$cleanIg',
               style: const TextStyle(
                 color: Colors.black,
                 fontSize: 16,

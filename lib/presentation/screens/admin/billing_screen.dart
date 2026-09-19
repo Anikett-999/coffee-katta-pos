@@ -1177,8 +1177,8 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
               decoration: InputDecoration(
                 isDense: true,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-                labelText: _discountType == 'percent' ? 'Discount (%)' : 'Discount (₹)',
-                labelStyle: const TextStyle(fontSize: 10.5, color: Colors.grey),
+                hintText: '0',
+                hintStyle: const TextStyle(fontSize: 12, color: Colors.grey),
                 suffixText: _discountType == 'percent' ? '%' : '₹',
                 suffixStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5, color: AppTheme.primaryCoffee),
                 filled: true,
@@ -1238,8 +1238,8 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
               decoration: InputDecoration(
                 isDense: true,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-                labelText: 'Amount (₹)',
-                labelStyle: const TextStyle(fontSize: 10.5, color: Colors.grey),
+                hintText: '0',
+                hintStyle: const TextStyle(fontSize: 12, color: Colors.grey),
                 suffixText: '₹',
                 suffixStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5, color: AppTheme.primaryCoffee),
                 filled: true,

@@ -105,14 +105,19 @@ class CategoryAndStaffCard extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        cat.key,
-                        style: GoogleFonts.epilogue(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.textDark,
+                      Expanded(
+                        child: Text(
+                          cat.key,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.epilogue(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.textDark,
+                          ),
                         ),
                       ),
+                      const SizedBox(width: 8),
                       Text(
                         '₹${cat.value.toStringAsFixed(0)} (${(pct * 100).toStringAsFixed(1)}%)',
                         style: GoogleFonts.epilogue(

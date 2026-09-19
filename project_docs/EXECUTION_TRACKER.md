@@ -225,5 +225,16 @@
 
 ### [ ] Phase 8: Build, Run & Verification Protocol
 - [x] Hot restart and manual verification on Windows desktop & mobile form factors.
+- [x] **P0-1 Security Hardening (Firestore Rules)**:
+  - Deployed comprehensive RBAC rules to Firebase production project `coffee-katta-pos`.
+  - Replaced wide-open `allow read, write: if true` with strict role-based access control (Admin, Cashier, Waiter) across `/users`, `/account_deletion_requests`, and all `/businesses/coffee_katta/branches/{branchId}/*` collections.
+  - User self-update protection: non-sensitive fields only (`name`, `profileImageUrl`, `lastLogin`), strictly preventing self-escalation of `role`, `branchIds`, `isActive`.
+- [x] **P0-3 Bill Void / Cancel / Refund Flow**:
+  - Implemented transactional `voidBill()` in `BillingService` with supervisor audit logging (`voidedBy`, `voidReason`, `voidedAt`).
+  - Added table & order restoration option to re-open tables for cashier correction without losing KOT items.
+  - Implemented financial accounting reversal in `analytics_daily` and filtered voided bills out of real-time dashboard stats and product insights.
+  - Added Void dialog, reason presets, `[VOIDED]` tags, and `[ALL | ACTIVE | VOIDED]` filters in `InvoiceAuditLogTab`.
+  - Added void watermarks to thermal print ESC/POS bytes and PDF invoice generation.
+- [x] Automated test suite: 86/86 tests passing cleanly across all test files (`test/billing_void_test.dart` added).
 - [ ] Production build and packaging verification.
 

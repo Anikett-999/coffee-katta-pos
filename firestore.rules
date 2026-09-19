@@ -1,8 +1,245 @@
 rules_version = '2';
+
+// ═══════════════════════════════════════════════════════════════════════════
+// COFFEE KATTA POS — FIRESTORE SECURITY RULES
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// Role Hierarchy:
+//   admin   → Full read/write to ALL data across ALL branches
+//   cashier → Operational read/write to ASSIGNED branches (tables, orders,
+//             KOTs, bills, counters, analytics, shift closings)
+//   waiter  → Operational read/write to ASSIGNED branches (tables, orders,
+//             KOTs, counters, daily_stats). NO bill creation, NO reports.
+//
+// Data Model:
+//   /users/{userId}                                          — User profiles
+//   /account_deletion_requests/{userId}                      — Deletion requests
+//   /businesses/{businessId}/branches/{branchId}             — Branch document
+//   /businesses/{businessId}/branches/{branchId}/tables/...  — Tables
+//   /businesses/{businessId}/branches/{branchId}/kots/...    — Kitchen Order Tickets
+//   /businesses/{businessId}/branches/{branchId}/orders/...  — Orders
+//   /businesses/{businessId}/branches/{branchId}/bills/...   — Invoices
+//   /businesses/{businessId}/branches/{branchId}/menu_*/...  — Menu data
+//   /businesses/{businessId}/branches/{branchId}/counters/.. — Atomic counters
+//   /businesses/{businessId}/branches/{branchId}/daily_stats  — Daily KOT stats
+//   /businesses/{businessId}/branches/{branchId}/analytics_daily — Pre-aggregated analytics
+//   /businesses/{businessId}/branches/{branchId}/shift_closings — Z-Report audit records
+//
+// ═══════════════════════════════════════════════════════════════════════════
+
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // ─── HELPER FUNCTIONS ───────────────────────────────────────────────
+    // Firestore caches get() calls within a single request evaluation,
+    // so calling getUserData() multiple times does NOT multiply reads.
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isActive() {
+      return getUserData().isActive == true;
+    }
+
+    function getRole() {
+      return getUserData().role;
+    }
+
+    function isAdmin() {
+      return getRole() == 'admin';
+    }
+
+    function isCashierOrAdmin() {
+      return getRole() in ['admin', 'cashier'];
+    }
+
+    function hasBranchAccess(branchId) {
+      let userData = getUserData();
+      return userData.role == 'admin' || branchId in userData.branchIds;
+    }
+
+    // Combines authentication + active check + branch access into one guard
+    function canAccessBranch(branchId) {
+      return isAuthenticated() && isActive() && hasBranchAccess(branchId);
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════
+    // 1. USER PROFILES  (/users/{userId})
+    // ═════════════════════════════════════════════════════════════════════
+    match /users/{userId} {
+
+      // READ: Users can read their own profile.
+      //        Admins can read ALL profiles (for user management screen).
+      allow read: if isAuthenticated() &&
+        (request.auth.uid == userId || isAdmin());
+
+      // CREATE: Only admins can create new user profiles
+      //         (called by registerUser() which runs under admin's auth session).
+      allow create: if isAuthenticated() && isAdmin();
+
+      // UPDATE: Two paths:
+      //   a) Self-update: users can update their own non-sensitive fields
+      //      (name, lastLogin, profileImageUrl). They CANNOT change
+      //      role, branchIds, isActive, email, or userId.
+      //   b) Admin-update: admins can update any field on any user.
+      allow update: if isAuthenticated() && (
+        isAdmin() ||
+        (request.auth.uid == userId &&
+         !request.resource.data.diff(resource.data).affectedKeys()
+           .hasAny(['role', 'branchIds', 'isActive', 'userId', 'email']))
+      );
+
+      // DELETE: Only admins can delete user profiles.
+      allow delete: if isAuthenticated() && isAdmin();
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════
+    // 2. ACCOUNT DELETION REQUESTS  (/account_deletion_requests/{userId})
+    // ═════════════════════════════════════════════════════════════════════
+    match /account_deletion_requests/{requestUserId} {
+      // Users can submit their own deletion request.
+      allow create: if isAuthenticated() && request.auth.uid == requestUserId;
+
+      // Only admins can view and process deletion requests.
+      allow read, update, delete: if isAuthenticated() && isAdmin();
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════
+    // 3. BUSINESS & BRANCH DATA
+    // ═════════════════════════════════════════════════════════════════════
+    match /businesses/{businessId} {
+
+      // Business-level document (if it exists): admin-only
+      allow read:  if isAuthenticated() && isActive();
+      allow write: if isAuthenticated() && isActive() && isAdmin();
+
+      match /branches/{branchId} {
+
+        // ─── BRANCH DOCUMENT ───────────────────────────────────────────
+        // All branch users can read their branch config (name, address, phone, etc.)
+        // Only admins can modify branch settings.
+        allow read:  if canAccessBranch(branchId);
+        allow write: if canAccessBranch(branchId) && isAdmin();
+
+
+        // ─── TABLES ────────────────────────────────────────────────────
+        // All roles need read access (floor view).
+        // All roles need write access (waiter seats, cashier bills, admin manages).
+        // Only admins can delete tables.
+        match /tables/{tableId} {
+          allow read:          if canAccessBranch(branchId);
+          allow create, update: if canAccessBranch(branchId);
+          allow delete:        if canAccessBranch(branchId) && isAdmin();
+        }
+
+
+        // ─── ORDERS ────────────────────────────────────────────────────
+        // All roles create and update orders as part of the KOT/billing flow.
+        match /orders/{orderId} {
+          allow read, create, update: if canAccessBranch(branchId);
+          allow delete:               if canAccessBranch(branchId) && isAdmin();
+        }
+
+
+        // ─── KOTs (Kitchen Order Tickets) ──────────────────────────────
+        // All roles read KOTs (kitchen screen, waiter view).
+        // Waiters, cashiers, and admins can create/update KOTs.
+        // Deletion only via admin (or transactional cleanup during item removal).
+        match /kots/{kotId} {
+          allow read, create, update: if canAccessBranch(branchId);
+          allow delete:               if canAccessBranch(branchId);
+        }
+
+
+        // ─── BILLS (Invoices) ──────────────────────────────────────────
+        // All branch users can READ bills (for reprint, preview, etc.).
+        // Only cashiers and admins can CREATE or UPDATE bills.
+        // Only admins can delete bills (future void/cancel feature).
+        match /bills/{billId} {
+          allow read:           if canAccessBranch(branchId);
+          allow create, update: if canAccessBranch(branchId) && isCashierOrAdmin();
+          allow delete:         if canAccessBranch(branchId) && isAdmin();
+        }
+
+
+        // ─── MENU: CATEGORIES ──────────────────────────────────────────
+        // All branch users read menu data.
+        // Only admins can modify the menu catalog.
+        match /menu_categories/{categoryId} {
+          allow read:  if canAccessBranch(branchId);
+          allow write: if canAccessBranch(branchId) && isAdmin();
+        }
+
+
+        // ─── MENU: ITEMS ──────────────────────────────────────────────
+        match /menu_items/{itemId} {
+          allow read:  if canAccessBranch(branchId);
+          allow write: if canAccessBranch(branchId) && isAdmin();
+        }
+
+
+        // ─── MENU: ADD-ONS ────────────────────────────────────────────
+        match /menu_addons/{addonId} {
+          allow read:  if canAccessBranch(branchId);
+          allow write: if canAccessBranch(branchId) && isAdmin();
+        }
+
+
+        // ─── MENU: CUSTOMIZATION GROUPS ────────────────────────────────
+        match /menu_customizations/{groupId} {
+          allow read:  if canAccessBranch(branchId);
+          allow write: if canAccessBranch(branchId) && isAdmin();
+        }
+
+
+        // ─── COUNTERS (KOT & Bill number sequences) ───────────────────
+        // All roles need read/write for atomic counter increments
+        // inside KOT creation transactions (waiter) and bill generation (cashier).
+        match /counters/{counterId} {
+          allow read, write: if canAccessBranch(branchId);
+        }
+
+
+        // ─── DAILY STATS (KOT summary per day) ────────────────────────
+        // Written by KOT creation (waiter) and shift closing (cashier/admin).
+        // Readable by all branch users.
+        match /daily_stats/{dateStr} {
+          allow read, write: if canAccessBranch(branchId);
+        }
+
+
+        // ─── PRE-AGGREGATED ANALYTICS ──────────────────────────────────
+        // Written by billing service (cashier/admin).
+        // Readable by cashier/admin for reports dashboard.
+        match /analytics_daily/{dateKey} {
+          allow read:  if canAccessBranch(branchId) && isCashierOrAdmin();
+          allow write: if canAccessBranch(branchId) && isCashierOrAdmin();
+        }
+
+
+        // ─── SHIFT CLOSINGS (Z-Report Audit Records) ──────────────────
+        // Only cashiers and admins can view and create shift closing records.
+        match /shift_closings/{closingId} {
+          allow read, write: if canAccessBranch(branchId) && isCashierOrAdmin();
+        }
+      }
+    }
+
+
+    // ═════════════════════════════════════════════════════════════════════
+    // CATCH-ALL: Deny everything not explicitly matched above.
+    // Firestore denies by default, but this makes the intent explicit.
+    // ═════════════════════════════════════════════════════════════════════
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }

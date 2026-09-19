@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:rxdart/rxdart.dart';
 
@@ -24,26 +25,47 @@ class AnalyticsService {
 
   // --- Safe Parsing Helpers ---
 
-  BillModel? _safeParseBill(DocumentSnapshot doc) {
+  static BillModel? safeParseBillData(Map<dynamic, dynamic> rawData, [String? docId]) {
     try {
-      final data = doc.data() as Map<String, dynamic>?;
-      if (data == null) return null;
+      final data = Map<String, dynamic>.from(rawData);
 
-      final billId = data['billId'] ?? doc.id;
+      final billId = data['billId'] ?? docId;
+      if (billId == null) return null;
       // FILTER: Only process new format bills (starting with INV-)
       if (!billId.toString().startsWith('INV-')) {
         return null; 
       }
 
       // Inject IDs and provide structural fallbacks
-      data['billId'] = billId;
-      data['orderId'] = data['orderId'] ?? 'N/A';
-      data['tableId'] = data['tableId'] ?? 'N/A';
-      data['tableName'] = data['tableName'] ?? 'N/A';
-      data['userName'] = data['userName'] ?? 'N/A';
-      data['createdBy'] = data['createdBy'] ?? 'N/A';
-      data['items'] = data['items'] ?? [];
-      data['payments'] = data['payments'] ?? [];
+      data['billId'] = billId.toString();
+      data['orderId'] = data['orderId']?.toString() ?? 'N/A';
+      data['tableId'] = data['tableId']?.toString() ?? 'N/A';
+      data['tableName'] = data['tableName']?.toString() ?? 'N/A';
+      data['userName'] = data['userName']?.toString() ?? 'N/A';
+      data['createdBy'] = data['createdBy']?.toString() ?? 'N/A';
+
+      // Ensure nested maps are safely converted to Map<String, dynamic>
+      if (data['items'] is List) {
+        data['items'] = (data['items'] as List).map((item) {
+          if (item is Map) {
+            return Map<String, dynamic>.from(item);
+          }
+          return item;
+        }).toList();
+      } else {
+        data['items'] = [];
+      }
+
+      if (data['payments'] is List) {
+        data['payments'] = (data['payments'] as List).map((pay) {
+          if (pay is Map) {
+            return Map<String, dynamic>.from(pay);
+          }
+          return pay;
+        }).toList();
+      } else {
+        data['payments'] = [];
+      }
       
       // Ensure numeric fields are non-null and doubles
       data['subtotal'] = (data['subtotal'] ?? 0.0).toDouble();
@@ -51,6 +73,8 @@ class AnalyticsService {
       data['discountPercent'] = (data['discountPercent'] ?? 0.0).toDouble();
       data['discountAmount'] = (data['discountAmount'] ?? 0.0).toDouble();
       data['extraCharges'] = (data['extraCharges'] ?? 0.0).toDouble();
+      data['isVoided'] = data['isVoided'] ?? false;
+      data['tableRestored'] = data['tableRestored'] ?? false;
 
       // Ensure createdAt exists
       if (data['createdAt'] == null) return null;
@@ -59,6 +83,12 @@ class AnalyticsService {
     } catch (e) {
       return null;
     }
+  }
+
+  BillModel? _safeParseBill(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>?;
+    if (data == null) return null;
+    return safeParseBillData(data, doc.id);
   }
 
   TableModel? _safeParseTable(DocumentSnapshot doc) {
@@ -105,7 +135,7 @@ class AnalyticsService {
       final bills = billsSnap.docs
           .map((doc) => _safeParseBill(doc))
           .whereType<BillModel>()
-          .where((b) => b.createdAt.isAfter(startOfDay.subtract(const Duration(seconds: 1))))
+          .where((b) => !b.isVoided && b.createdAt.isAfter(startOfDay.subtract(const Duration(seconds: 1))))
           .toList();
       // For simplicity in this stream-based architecture, we'll keep the combine3 approach 
       // but the key fix is the bill filtering above.
@@ -211,7 +241,7 @@ class AnalyticsService {
       final bills = billsSnap.docs
           .map((doc) => _safeParseBill(doc))
           .whereType<BillModel>()
-          .where((b) => b.createdAt.isAfter(thirtyDaysAgo.subtract(const Duration(seconds: 1))))
+          .where((b) => !b.isVoided && b.createdAt.isAfter(thirtyDaysAgo.subtract(const Duration(seconds: 1))))
           .toList();
 
       Map<String, TopProduct> itemMap = {};
@@ -277,7 +307,8 @@ class AnalyticsService {
           .map((doc) => _safeParseBill(doc))
           .whereType<BillModel>()
           .where((b) {
-            return b.createdAt.isAfter(rangeStart.subtract(const Duration(seconds: 1))) && 
+            return !b.isVoided &&
+                   b.createdAt.isAfter(rangeStart.subtract(const Duration(seconds: 1))) && 
                    b.createdAt.isBefore(rangeEnd.add(const Duration(seconds: 1)));
           })
           .toList();
@@ -443,6 +474,58 @@ class AnalyticsService {
     }
   }
 
+  /// Reverses daily analytics for a voided bill by decrementing counters and totals
+  Future<void> reverseDailyAnalytics(BillModel bill, String branchId) async {
+    if (!bill.billId.startsWith('INV-')) return;
+
+    final dateKey = DateFormat('yyyy-MM-dd').format(bill.createdAt);
+    final hourKey = bill.createdAt.hour.toString();
+    final branchRef = _getBranchRef(branchId);
+    final dailyDoc = branchRef.collection('analytics_daily').doc(dateKey);
+
+    // Build the dot-notation map with negative increments
+    final Map<String, dynamic> updateData = {
+      'totalSales': FieldValue.increment(-bill.total),
+      'totalBills': FieldValue.increment(-1),
+      'totalDiscount': FieldValue.increment(-bill.discountAmount),
+      'extraCharges': FieldValue.increment(-bill.extraCharges),
+    };
+
+    // Decrement Payment Stats
+    for (final p in bill.payments) {
+      final mode = p.mode.toLowerCase();
+      updateData['paymentStats.$mode'] = FieldValue.increment(-p.amount);
+    }
+
+    // Decrement Hourly Stats
+    updateData['hourlyStats.$hourKey.sales'] = FieldValue.increment(-bill.total);
+    updateData['hourlyStats.$hourKey.orders'] = FieldValue.increment(-1);
+
+    // Decrement Item & Category Stats
+    for (final item in bill.items) {
+      final safeName = _sanitizeKey(item.name);
+      updateData['itemStats.$safeName.qty'] = FieldValue.increment(-item.qty);
+      updateData['itemStats.$safeName.revenue'] = FieldValue.increment(-(item.qty * item.price));
+
+      final safeCategory = _sanitizeKey(item.category.isEmpty ? 'Uncategorized' : item.category);
+      updateData['categoryStats.$safeCategory'] = FieldValue.increment(-(item.qty * item.price));
+    }
+
+    // Decrement User Stats
+    final safeUser = _sanitizeKey(bill.userName.isEmpty ? 'System' : bill.userName);
+    updateData['userStats.$safeUser'] = FieldValue.increment(-bill.total);
+
+    // Decrement Delivery/Table Stats
+    final safeTable = _sanitizeKey(bill.tableName.isEmpty ? 'Unknown' : bill.tableName);
+    updateData['deliveryMethodsStats.$safeTable'] = FieldValue.increment(-1);
+
+    try {
+      await dailyDoc.update(updateData);
+    } catch (e) {
+      debugPrint('Error reversing daily analytics for voided bill ${bill.billId}: $e');
+    }
+  }
+
   Stream<DailyAnalytics> watchDailyAnalytics(String branchId, DateTime date) {
     final dateKey = DateFormat('yyyy-MM-dd').format(date);
     return _getBranchRef(branchId)
@@ -496,7 +579,7 @@ class AnalyticsService {
     final Map<String, List<BillModel>> groupedBills = {};
     for (var doc in billsSnap.docs) {
       final bill = _safeParseBill(doc);
-      if (bill != null) {
+      if (bill != null && !bill.isVoided) {
         final dateKey = DateFormat('yyyy-MM-dd').format(bill.createdAt);
         groupedBills.putIfAbsent(dateKey, () => []).add(bill);
       }
@@ -606,7 +689,116 @@ class AnalyticsService {
       return bills;
     }
   }
+
+  /// Real-time stream of bills bounded by date range with safe parsing for invoice register
+  Stream<List<BillModel>> watchBillsForRange(String branchId, DateTime start, [DateTime? end, int limit = 150]) async* {
+    final rangeStart = DateTime(start.year, start.month, start.day);
+    final rangeEnd = end != null 
+        ? DateTime(end.year, end.month, end.day, 23, 59, 59)
+        : DateTime(start.year, start.month, start.day, 23, 59, 59);
+
+    final branchRef = _getBranchRef(branchId);
+    
+    try {
+      final stream = branchRef
+          .collection('bills')
+          .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(rangeStart))
+          .where('createdAt', isLessThanOrEqualTo: Timestamp.fromDate(rangeEnd))
+          .orderBy('createdAt', descending: true)
+          .limit(limit)
+          .snapshots();
+
+      await for (final snap in stream) {
+        final bills = snap.docs
+            .map((doc) => _safeParseBill(doc))
+            .whereType<BillModel>()
+            .toList();
+        yield bills;
+      }
+    } catch (_) {
+      // Fallback in case of index issues or legacy formats
+      final fallbackStream = branchRef.collection('bills').limit(limit).snapshots();
+      await for (final snap in fallbackStream) {
+        final bills = snap.docs
+            .map((doc) => _safeParseBill(doc))
+            .whereType<BillModel>()
+            .where((b) => b.createdAt.isAfter(rangeStart.subtract(const Duration(seconds: 1))) &&
+                          b.createdAt.isBefore(rangeEnd.add(const Duration(seconds: 1))))
+            .toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        yield bills;
+      }
+    }
+  }
+
+  /// Save shift cash drawer reconciliation & audit record to Firestore
+  Future<void> saveShiftClosing({
+    required String branchId,
+    required String dateStr,
+    required double openingFloat,
+    required double expectedCashSales,
+    required double totalExpectedDrawerCash,
+    required double physicalCashCounted,
+    required double cashVariance,
+    required String varianceStatus,
+    required String closedByUserId,
+    required String closedByUserName,
+    required double grossSales,
+    required double netRevenue,
+    required int totalBills,
+    required Map<String, double> paymentStats,
+  }) async {
+    final branchRef = _getBranchRef(branchId);
+    final now = DateTime.now();
+    final docId = 'shift_${dateStr.replaceAll(' ', '_')}_${now.millisecondsSinceEpoch}';
+
+    final data = {
+      'closingId': docId,
+      'branchId': branchId,
+      'date': dateStr,
+      'timestamp': FieldValue.serverTimestamp(),
+      'openingFloat': openingFloat,
+      'expectedCashSales': expectedCashSales,
+      'totalExpectedDrawerCash': totalExpectedDrawerCash,
+      'physicalCashCounted': physicalCashCounted,
+      'cashVariance': cashVariance,
+      'varianceStatus': varianceStatus,
+      'closedByUserId': closedByUserId,
+      'closedByUserName': closedByUserName,
+      'grossSales': grossSales,
+      'netRevenue': netRevenue,
+      'totalBills': totalBills,
+      'paymentStats': paymentStats,
+    };
+
+    // 1. Audit log in shift_closings collection
+    await branchRef.collection('shift_closings').doc(docId).set(data);
+
+    // 2. Also record latest reconciliation in daily_stats
+    final todayStr = DateFormat('yyyy-MM-dd').format(now);
+    await branchRef.collection('daily_stats').doc(todayStr).set({
+      'lastShiftClosing': data,
+      'lastUpdated': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  /// Get latest saved shift closing for a branch and date
+  Future<Map<String, dynamic>?> getLatestShiftClosing(String branchId, String dateStr) async {
+    try {
+      final branchRef = _getBranchRef(branchId);
+      final snap = await branchRef
+          .collection('shift_closings')
+          .where('date', isEqualTo: dateStr)
+          .orderBy('timestamp', descending: true)
+          .limit(1)
+          .get();
+      if (snap.docs.isNotEmpty) {
+        return snap.docs.first.data();
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error getting latest shift closing: $e');
+      return null;
+    }
+  }
 }
-
-
-

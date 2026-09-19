@@ -6,6 +6,8 @@ import 'package:pdf/pdf.dart';
 import '../../../../../core/app_theme.dart';
 import '../../../../../domain/models/daily_analytics.dart';
 import '../../../../../services/pdf_service.dart';
+import '../../../../../services/analytics_service.dart';
+import '../../../../providers/auth_provider.dart';
 import '../../../../providers/branch_provider.dart';
 import '../../../../providers/printer_provider.dart';
 
@@ -28,6 +30,8 @@ class _ZReportShiftTabState extends ConsumerState<ZReportShiftTab> {
   final _openingFloatController = TextEditingController(text: '0');
   double _physicalCashCounted = 0.0;
   double _openingFloat = 0.0;
+  bool _isSaving = false;
+  bool _isSaved = false;
 
   @override
   void initState() {
@@ -42,6 +46,33 @@ class _ZReportShiftTabState extends ConsumerState<ZReportShiftTab> {
         _openingFloat = double.tryParse(_openingFloatController.text) ?? 0.0;
       });
     });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadExistingShiftClosing();
+    });
+  }
+
+  Future<void> _loadExistingShiftClosing() async {
+    final branch = ref.read(branchProvider).value;
+    if (branch == null) return;
+    try {
+      final saved = await AnalyticsService().getLatestShiftClosing(branch.branchId, widget.dateRangeStr);
+      if (saved != null && mounted) {
+        final savedFloat = (saved['openingFloat'] as num?)?.toDouble() ?? 0.0;
+        final savedCount = (saved['physicalCashCounted'] as num?)?.toDouble();
+        setState(() {
+          _openingFloat = savedFloat;
+          _openingFloatController.text = savedFloat.toStringAsFixed(0);
+          if (savedCount != null) {
+            _physicalCashCounted = savedCount;
+            _cashCountController.text = savedCount.toStringAsFixed(0);
+          }
+          _isSaved = true;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading saved shift closing: $e');
+    }
   }
 
   @override
@@ -81,27 +112,104 @@ class _ZReportShiftTabState extends ConsumerState<ZReportShiftTab> {
               ),
             ],
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Row(
+          child: isDesktop
+              ? Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: Image.asset(
-                        'assets/branding/splash_logo.png',
-                        height: 48,
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) => const Icon(Icons.coffee_rounded, color: Colors.white, size: 36),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.asset(
+                              'assets/branding/splash_logo.png',
+                              height: 48,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) => const Icon(Icons.coffee_rounded, color: Colors.white, size: 36),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.accentCaramel,
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        'REGISTER CLOSE (Z-REPORT)',
+                                        style: GoogleFonts.epilogue(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w900,
+                                          color: Colors.white,
+                                          letterSpacing: 0.8,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      widget.dateRangeStr,
+                                      style: GoogleFonts.epilogue(fontSize: 12, color: Colors.white70, fontWeight: FontWeight.w600),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Daily Shift & Cash Drawer Reconciliation',
+                                  style: GoogleFonts.epilogue(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Verify physical drawer count against POS recorded tender totals before shift end',
+                                  style: GoogleFonts.epilogue(fontSize: 11, color: Colors.white60),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+                    const SizedBox(width: 12),
+                    ElevatedButton.icon(
+                      onPressed: branchAsync.hasValue ? () => _printZReport(branchAsync.value!) : null,
+                      icon: const Icon(Icons.print_rounded, size: 16, color: AppTheme.espressoBrown),
+                      label: Text(
+                        'PRINT Z-REPORT',
+                        style: GoogleFonts.epilogue(fontSize: 12, fontWeight: FontWeight.w900, color: AppTheme.espressoBrown),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                  ],
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.asset(
+                            'assets/branding/splash_logo.png',
+                            height: 36,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) => const Icon(Icons.coffee_rounded, color: Colors.white, size: 28),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -112,52 +220,51 @@ class _ZReportShiftTabState extends ConsumerState<ZReportShiftTab> {
                                 child: Text(
                                   'REGISTER CLOSE (Z-REPORT)',
                                   style: GoogleFonts.epilogue(
-                                    fontSize: 10,
+                                    fontSize: 9.5,
                                     fontWeight: FontWeight.w900,
                                     color: Colors.white,
                                     letterSpacing: 0.8,
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 8),
                               Text(
                                 widget.dateRangeStr,
-                                style: GoogleFonts.epilogue(fontSize: 12, color: Colors.white70, fontWeight: FontWeight.w600),
+                                style: GoogleFonts.epilogue(fontSize: 11.5, color: Colors.white70, fontWeight: FontWeight.w600),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Daily Shift & Cash Drawer Reconciliation',
-                            style: GoogleFonts.epilogue(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Verify physical drawer count against POS recorded tender totals before shift end',
-                            style: GoogleFonts.epilogue(fontSize: 11, color: Colors.white60),
-                          ),
-                        ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Daily Shift & Cash Drawer Reconciliation',
+                      style: GoogleFonts.epilogue(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Verify physical drawer count against POS recorded tender totals before shift end',
+                      style: GoogleFonts.epilogue(fontSize: 11, color: Colors.white60),
+                    ),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: branchAsync.hasValue ? () => _printZReport(branchAsync.value!) : null,
+                        icon: const Icon(Icons.print_rounded, size: 16, color: AppTheme.espressoBrown),
+                        label: Text(
+                          'PRINT Z-REPORT',
+                          style: GoogleFonts.epilogue(fontSize: 12, fontWeight: FontWeight.w900, color: AppTheme.espressoBrown),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
                       ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 12),
-              ElevatedButton.icon(
-                onPressed: branchAsync.hasValue ? () => _printZReport(branchAsync.value!) : null,
-                icon: const Icon(Icons.print_rounded, size: 16, color: AppTheme.espressoBrown),
-                label: Text(
-                  'PRINT Z-REPORT',
-                  style: GoogleFonts.epilogue(fontSize: 12, fontWeight: FontWeight.w900, color: AppTheme.espressoBrown),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-            ],
-          ),
         ),
 
         const SizedBox(height: 16),
@@ -278,6 +385,7 @@ class _ZReportShiftTabState extends ConsumerState<ZReportShiftTab> {
         varianceStatus = 'CASH SHORTAGE: -₹${cashVariance.abs().toStringAsFixed(0)}';
       }
     }
+    final isDesktop = MediaQuery.of(context).size.width >= 900;
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -289,26 +397,49 @@ class _ZReportShiftTabState extends ConsumerState<ZReportShiftTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '2. PHYSICAL CASH DRAWER RECONCILIATION',
-                style: GoogleFonts.epilogue(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.espressoBrown, letterSpacing: 0.8),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: varianceColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(6),
+          if (!isDesktop)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '2. PHYSICAL CASH DRAWER RECONCILIATION',
+                  style: GoogleFonts.epilogue(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.espressoBrown, letterSpacing: 0.8),
                 ),
-                child: Text(
-                  varianceStatus,
-                  style: GoogleFonts.epilogue(fontSize: 9.5, fontWeight: FontWeight.w900, color: varianceColor),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: varianceColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    varianceStatus,
+                    style: GoogleFonts.epilogue(fontSize: 9.5, fontWeight: FontWeight.w900, color: varianceColor),
+                  ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            )
+          else
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '2. PHYSICAL CASH DRAWER RECONCILIATION',
+                  style: GoogleFonts.epilogue(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.espressoBrown, letterSpacing: 0.8),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: varianceColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    varianceStatus,
+                    style: GoogleFonts.epilogue(fontSize: 9.5, fontWeight: FontWeight.w900, color: varianceColor),
+                  ),
+                ),
+              ],
+            ),
           const SizedBox(height: 14),
           Row(
             children: [
@@ -381,6 +512,46 @@ class _ZReportShiftTabState extends ConsumerState<ZReportShiftTab> {
               ],
             ),
           ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _isSaving ? null : _handleSaveAndCloseShift,
+                  icon: _isSaving
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : Icon(
+                          _isSaved ? Icons.check_circle_rounded : Icons.save_rounded,
+                          size: 16,
+                          color: Colors.white,
+                        ),
+                  label: Text(
+                    _isSaving
+                        ? 'SAVING RECONCILIATION...'
+                        : _isSaved
+                            ? 'SAVED TO AUDIT LOG (PRINT AGAIN)'
+                            : 'SAVE SHIFT CLOSING & PRINT',
+                    style: GoogleFonts.epilogue(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _isSaved ? AppTheme.successGreen : AppTheme.espressoBrown,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -399,14 +570,95 @@ class _ZReportShiftTabState extends ConsumerState<ZReportShiftTab> {
     );
   }
 
+  Future<void> _handleSaveAndCloseShift() async {
+    final branch = ref.read(branchProvider).value;
+    if (branch == null) return;
+    setState(() => _isSaving = true);
+
+    try {
+      final currentUser = ref.read(userModelProvider).value;
+      final expectedCashSales = widget.analytics.paymentStats['cash'] ?? 0.0;
+      final expectedTotalDrawerCash = _openingFloat + expectedCashSales;
+      final double cashVariance = _physicalCashCounted - expectedTotalDrawerCash;
+
+      String varianceStatus = 'BALANCED';
+      if (cashVariance.abs() < 1.0) {
+        varianceStatus = 'BALANCED';
+      } else if (cashVariance > 0) {
+        varianceStatus = 'CASH OVER: +₹${cashVariance.toStringAsFixed(0)}';
+      } else {
+        varianceStatus = 'CASH SHORTAGE: -₹${cashVariance.abs().toStringAsFixed(0)}';
+      }
+
+      final analyticsService = AnalyticsService();
+      await analyticsService.saveShiftClosing(
+        branchId: branch.branchId,
+        dateStr: widget.dateRangeStr,
+        openingFloat: _openingFloat,
+        expectedCashSales: expectedCashSales,
+        totalExpectedDrawerCash: expectedTotalDrawerCash,
+        physicalCashCounted: _physicalCashCounted,
+        cashVariance: cashVariance,
+        varianceStatus: varianceStatus,
+        closedByUserId: currentUser?.userId ?? '',
+        closedByUserName: currentUser?.name ?? 'Admin',
+        grossSales: widget.analytics.grossSales,
+        netRevenue: widget.analytics.netRevenue,
+        totalBills: widget.analytics.totalBills,
+        paymentStats: widget.analytics.paymentStats,
+      );
+
+      setState(() => _isSaved = true);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                SizedBox(width: 8),
+                Text('Shift Closing & Drawer Reconciliation Saved to Database!'),
+              ],
+            ),
+            backgroundColor: AppTheme.successGreen,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+
+      // Automatically print the Z-Report containing the reconciliation numbers
+      await _printZReport(branch);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save shift closing: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
   Future<void> _printZReport(dynamic branch) async {
     try {
       final config = ref.read(printerConfigProvider);
       final printService = ref.read(printServiceProvider);
+      final currentUser = ref.read(userModelProvider).value;
+
+      final expectedCashSales = widget.analytics.paymentStats['cash'] ?? 0.0;
+      final expectedTotalDrawerCash = _openingFloat + expectedCashSales;
+      final bool hasEnteredCount = _cashCountController.text.trim().isNotEmpty;
+      final double? physicalCount = hasEnteredCount ? _physicalCashCounted : null;
+      final double? cashVariance = hasEnteredCount ? (_physicalCashCounted - expectedTotalDrawerCash) : null;
+
       final pdfBytes = await PdfService.generateDailyAnalyticsPdf(
         analytics: widget.analytics,
         branch: branch,
         dateRangeStr: widget.dateRangeStr,
+        openingFloat: _openingFloat,
+        physicalCashCounted: physicalCount,
+        cashVariance: cashVariance,
+        closedByUserName: currentUser?.name ?? 'Admin',
       );
 
       if (config.address != null && config.address!.isNotEmpty) {
@@ -415,12 +667,27 @@ class _ZReportShiftTabState extends ConsumerState<ZReportShiftTab> {
             SnackBar(content: Text('Printing Z-Report to ${config.name}...')),
           );
         }
-        await printService.printPdfAsImage(pdfBytes, config);
+        final ok = await printService.printPdfAsImage(pdfBytes, config);
+        if (!ok) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Printer offline or unreachable. Opening print preview...'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+          await Printing.layoutPdf(
+            onLayout: (_) => pdfBytes,
+            name: 'Z_Report_${widget.dateRangeStr}',
+            format: const PdfPageFormat(72 * PdfPageFormat.mm, double.infinity),
+          );
+        }
       } else {
         await Printing.layoutPdf(
           onLayout: (_) => pdfBytes,
           name: 'Z_Report_${widget.dateRangeStr}',
-          format: PdfPageFormat(72 * PdfPageFormat.mm, double.infinity),
+          format: const PdfPageFormat(72 * PdfPageFormat.mm, double.infinity),
         );
       }
     } catch (e) {

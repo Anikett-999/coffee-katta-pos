@@ -40,21 +40,28 @@ class TopSellersPreviewCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  const Icon(Icons.star_rounded, size: 18, color: AppTheme.accentCaramel),
-                  const SizedBox(width: 8),
-                  Text(
-                    'STAR SELLERS PREVIEW',
-                    style: GoogleFonts.epilogue(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: AppTheme.espressoBrown,
-                      letterSpacing: 0.8,
+              Expanded(
+                child: Row(
+                  children: [
+                    const Icon(Icons.star_rounded, size: 18, color: AppTheme.accentCaramel),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'STAR SELLERS PREVIEW',
+                        style: GoogleFonts.epilogue(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.espressoBrown,
+                          letterSpacing: 0.8,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               InkWell(
                 onTap: onViewAll,
                 borderRadius: BorderRadius.circular(6),

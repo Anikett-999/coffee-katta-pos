@@ -29,7 +29,7 @@ class PdfService {
         ? branch.reviewQrUrl.trim()
         : 'https://g.page/r/coffeekatta/review';
     final effectiveInstagram = branch.instagramId.trim().isNotEmpty
-        ? branch.instagramId.trim()
+        ? branch.instagramId.trim().replaceAll('@', '')
         : 'coffeekatta.official';
 
     final totalQty = bill.items.fold<int>(0, (sum, item) => sum + item.qty);
@@ -48,7 +48,6 @@ class PdfService {
           final baseStyle = pw.TextStyle(font: courier, fontSize: 6.8);
           final boldStyle = pw.TextStyle(font: courierBold, fontSize: 6.8);
           final smBaseStyle = pw.TextStyle(font: courier, fontSize: 6);
-          final smBoldStyle = pw.TextStyle(font: courierBold, fontSize: 6);
           final discountLabel = bill.discountType == 'flat'
               ? 'Flat Discount'
               : 'Discount (${bill.discountPercent.toStringAsFixed(0)}%)';
@@ -95,7 +94,29 @@ class PdfService {
                       'RETAIL INVOICE',
                       style: pw.TextStyle(font: courierBold, fontSize: 8.5, letterSpacing: 0.6),
                     ),
-                    if (bill.printCount > 1) ...[
+                    if (bill.isVoided) ...[
+                      pw.SizedBox(height: 2),
+                      pw.Container(
+                        padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        decoration: pw.BoxDecoration(
+                          border: pw.Border.all(color: PdfColors.red800, width: 1),
+                        ),
+                        child: pw.Column(
+                          children: [
+                            pw.Text(
+                              '*** CANCELLED / VOIDED INVOICE ***',
+                              style: pw.TextStyle(font: courierBold, fontSize: 8.0, color: PdfColors.red800),
+                            ),
+                            if (bill.voidReason != null && bill.voidReason!.isNotEmpty)
+                              pw.Text(
+                                'REASON: ${bill.voidReason!.toUpperCase()}',
+                                style: pw.TextStyle(font: courier, fontSize: 6.0, color: PdfColors.red800),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    if (bill.printCount > 1 && !bill.isVoided) ...[
                       pw.SizedBox(height: 1),
                       pw.Text(
                         '*** DUPLICATE COPY / REPRINT (#${bill.printCount}) ***',
@@ -242,29 +263,56 @@ class PdfService {
               ],
               _buildDashedLine(verticalPadding: 2),
 
-              // 7. CUSTOMER FEEDBACK & DUMMY QR CODE (Guaranteed Rendering for Thermal Aesthetic)
-              pw.Center(
-                child: pw.Column(
+              // 7. CUSTOMER FEEDBACK & REVIEW QR CODE (QR Scanner on Left, Review & Instagram text on Right)
+              pw.Padding(
+                padding: const pw.EdgeInsets.symmetric(vertical: 2, horizontal: 2),
+                child: pw.Row(
+                  crossAxisAlignment: pw.CrossAxisAlignment.center,
                   children: [
-                    pw.Text('RATE YOUR EXPERIENCE', style: pw.TextStyle(font: courierBold, fontSize: 7.2)),
-                    pw.SizedBox(height: 2.5),
+                    // Left Corner: High-Contrast Scannable Review QR Code with Quiet Zone
                     pw.Container(
-                      padding: const pw.EdgeInsets.all(3),
+                      padding: const pw.EdgeInsets.all(3.5),
                       decoration: pw.BoxDecoration(
-                        border: pw.Border.all(color: PdfColors.black, width: 0.7),
+                        color: PdfColors.white,
+                        border: pw.Border.all(color: PdfColors.grey500, width: 0.6),
                         borderRadius: const pw.BorderRadius.all(pw.Radius.circular(3)),
                       ),
                       child: pw.BarcodeWidget(
                         barcode: pw.Barcode.qrCode(),
                         data: effectiveQrUrl,
-                        width: 44,
-                        height: 44,
+                        width: 52,
+                        height: 52,
                       ),
                     ),
-                    pw.SizedBox(height: 2.5),
-                    pw.Text('Scan to review us on Google', style: smBaseStyle),
-                    pw.SizedBox(height: 1),
-                    pw.Text('Instagram: @$effectiveInstagram', style: pw.TextStyle(font: courierBold, fontSize: 6.2)),
+                    pw.SizedBox(width: 7),
+                    // Right Side: Review Callout & Instagram Branding
+                    pw.Expanded(
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        mainAxisAlignment: pw.MainAxisAlignment.center,
+                        children: [
+                          pw.Text(
+                            'RATE YOUR EXPERIENCE',
+                            style: pw.TextStyle(font: courierBold, fontSize: 7.2),
+                          ),
+                          pw.SizedBox(height: 2),
+                          pw.Text(
+                            'Scan QR to review on Google',
+                            style: smBaseStyle,
+                          ),
+                          pw.SizedBox(height: 3),
+                          pw.Text(
+                            'Instagram: @$effectiveInstagram',
+                            style: pw.TextStyle(font: courierBold, fontSize: 6.6),
+                          ),
+                          pw.SizedBox(height: 1.5),
+                          pw.Text(
+                            'Tag us in your stories & posts!',
+                            style: pw.TextStyle(font: courier, fontSize: 5.4),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -1060,6 +1108,10 @@ class PdfService {
     required DailyAnalytics analytics,
     required String dateRangeStr,
     required BranchModel branch,
+    double? openingFloat,
+    double? physicalCashCounted,
+    double? cashVariance,
+    String? closedByUserName,
   }) async {
     final pdf = pw.Document();
     final courier = pw.Font.courier();
@@ -1102,18 +1154,18 @@ class PdfService {
                       child: pw.Image(logoImage, fit: pw.BoxFit.contain),
                     ),
                   ],
-                  pw.Text(branch.branchName.isNotEmpty ? branch.branchName.toUpperCase() : 'COFFEE KATTA', 
+                  pw.Text(_cleanAscii(branch.branchName.isNotEmpty ? branch.branchName.toUpperCase() : 'COFFEE KATTA'), 
                     style: pw.TextStyle(font: courierBold, fontSize: 10)),
-                  pw.Text(branch.location.toUpperCase(), 
+                  pw.Text(_cleanAscii(branch.location.toUpperCase()), 
                     style: pw.TextStyle(font: courierBold, fontSize: 8)),
-                  pw.Text(branch.address, 
+                  pw.Text(_cleanAscii(branch.address), 
                     textAlign: pw.TextAlign.center, style: pw.TextStyle(font: courier, fontSize: 6)),
                   if (branch.phone.isNotEmpty)
-                    pw.Text('Phone: ${branch.phone}', style: pw.TextStyle(font: courier, fontSize: 6)),
+                    pw.Text('Phone: ${_cleanAscii(branch.phone)}', style: pw.TextStyle(font: courier, fontSize: 6)),
                   pw.SizedBox(height: 2),
                   pw.Text('DAILY Z-REPORT / ANALYTICS', 
                     style: pw.TextStyle(font: courierBold, fontSize: 8)),
-                  pw.Text(dateRangeStr, style: baseStyle),
+                  pw.Text(_cleanAscii(dateRangeStr), style: baseStyle),
                   _buildDoubleLine(),
                 ],
               ),
@@ -1143,7 +1195,38 @@ class PdfService {
                return _buildReceiptRow(e.key.toUpperCase(), '${e.value.toStringAsFixed(0)} (${percent.toStringAsFixed(0)}%)', font: courier);
             }),
             _buildDashedLine(),
-            pw.SizedBox(height: 10),
+            pw.SizedBox(height: 8),
+
+            // Cash Drawer Reconciliation (Always printed on Z-Report for audit & accountability)
+            pw.Text('CASH DRAWER RECONCILIATION', style: boldStyle),
+            _buildDashedLine(),
+            _buildReceiptRow('OPENING CASH FLOAT', 'Rs. ${(openingFloat ?? 0.0).toStringAsFixed(2)}', font: courier),
+            _buildReceiptRow('EXPECTED CASH SALES', 'Rs. ${(analytics.paymentStats['cash'] ?? 0.0).toStringAsFixed(2)}', font: courier),
+            _buildReceiptRow('TOTAL EXPECTED DRAWER', 'Rs. ${((openingFloat ?? 0.0) + (analytics.paymentStats['cash'] ?? 0.0)).toStringAsFixed(2)}', font: courierBold),
+            _buildReceiptRow(
+              'PHYSICAL CASH COUNTED',
+              physicalCashCounted != null
+                  ? 'Rs. ${physicalCashCounted.toStringAsFixed(2)}'
+                  : 'NOT ENTERED',
+              font: courierBold,
+            ),
+            _buildDashedLine(),
+            _buildReceiptRow(
+              'CASH VARIANCE',
+              physicalCashCounted != null
+                  ? (((cashVariance ?? (physicalCashCounted - ((openingFloat ?? 0.0) + (analytics.paymentStats['cash'] ?? 0.0)))).abs() < 0.01)
+                      ? 'Rs. 0.00 (BALANCED)'
+                      : ((cashVariance ?? (physicalCashCounted - ((openingFloat ?? 0.0) + (analytics.paymentStats['cash'] ?? 0.0)))) > 0
+                          ? '+Rs. ${(cashVariance ?? (physicalCashCounted - ((openingFloat ?? 0.0) + (analytics.paymentStats['cash'] ?? 0.0)))).toStringAsFixed(2)} (OVER)'
+                          : '-Rs. ${((cashVariance ?? (physicalCashCounted - ((openingFloat ?? 0.0) + (analytics.paymentStats['cash'] ?? 0.0)))).abs()).toStringAsFixed(2)} (SHORT)'))
+                  : 'PENDING COUNT',
+              font: courierBold,
+              fontSize: 7.5,
+            ),
+            if (closedByUserName != null && closedByUserName.trim().isNotEmpty)
+              _buildReceiptRow('RECONCILED BY', _cleanAscii(closedByUserName.trim().toUpperCase()), font: courier),
+            _buildDashedLine(),
+            pw.SizedBox(height: 8),
 
             // Delivery Stats
             if (analytics.deliveryMethodsStats.isNotEmpty) ...[
@@ -1272,6 +1355,18 @@ class PdfService {
         ],
       ),
     );
+  }
+
+  static String _cleanAscii(String input) {
+    return input
+        .replaceAll('₹', 'Rs.')
+        .replaceAll('–', '-')
+        .replaceAll('—', '-')
+        .replaceAll('’', "'")
+        .replaceAll('‘', "'")
+        .replaceAll('“', '"')
+        .replaceAll('”', '"')
+        .replaceAll(RegExp(r'[^\x20-\x7E\n\r\t]'), '');
   }
 
   static Future<File?> savePdfToFile(Uint8List bytes, String fileName) async {

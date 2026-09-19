@@ -9,12 +9,15 @@ class TableService {
 
   TableService({required this.branchId});
 
-  CollectionReference get _tableCollection => _firestore
+  DocumentReference get _branchRef => _firestore
       .collection('businesses')
       .doc(businessId)
       .collection('branches')
-      .doc(branchId)
-      .collection('tables');
+      .doc(branchId);
+
+  CollectionReference get _tableCollection => _branchRef.collection('tables');
+  CollectionReference get _orderCollection => _branchRef.collection('orders');
+  CollectionReference get _kotCollection => _branchRef.collection('kots');
 
   // Stream of all tables for the current branch
   Stream<List<TableModel>> watchTables() {
@@ -134,9 +137,48 @@ class TableService {
     await docRef.delete();
   }
 
-  // Clear table after successful billing
+  // Clear table after successful billing or admin action
   Future<void> clearTable(String tableId) async {
-    await _tableCollection.doc(tableId).update({
+    final tableRef = _tableCollection.doc(tableId);
+    final tableSnap = await tableRef.get();
+
+    if (tableSnap.exists) {
+      final tableData = tableSnap.data() as Map<String, dynamic>?;
+      final activeOrderId = tableData?['activeOrderId'] as String?;
+
+      if (activeOrderId != null && activeOrderId.isNotEmpty) {
+        // Close the order
+        await _orderCollection.doc(activeOrderId).update({
+          'status': 'closed',
+          'closedAt': FieldValue.serverTimestamp(),
+        });
+
+        // Ensure all KOT items for this order are marked served
+        final kotSnaps = await _kotCollection.where('orderId', isEqualTo: activeOrderId).get();
+        if (kotSnaps.docs.isNotEmpty) {
+          final batch = _firestore.batch();
+          for (final doc in kotSnaps.docs) {
+            final kotData = doc.data() as Map<String, dynamic>;
+            final items = List<Map<String, dynamic>>.from(
+              (kotData['items'] as List<dynamic>? ?? []).map((i) => Map<String, dynamic>.from(i as Map)),
+            );
+            bool hasChanges = false;
+            for (var item in items) {
+              if (item['status'] != 'served') {
+                item['status'] = 'served';
+                hasChanges = true;
+              }
+            }
+            if (hasChanges) {
+              batch.update(doc.reference, {'items': items});
+            }
+          }
+          await batch.commit();
+        }
+      }
+    }
+
+    await tableRef.update({
       'status': 'available',
       'activeOrderId': null,
       'totalAmount': 0.0,

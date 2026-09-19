@@ -49,6 +49,11 @@ class BillModel with _$BillModel {
     @TimestampConverter() required DateTime createdAt,
     @OptionalTimestampConverter() DateTime? printedAt,
     String? lastPrintedBy,
+    @Default(false) bool isVoided,
+    @OptionalTimestampConverter() DateTime? voidedAt,
+    String? voidedBy,
+    String? voidReason,
+    @Default(false) bool tableRestored,
   }) = _BillModel;
 
   factory BillModel.fromJson(Map<String, dynamic> json) => _$BillModelFromJson(json);

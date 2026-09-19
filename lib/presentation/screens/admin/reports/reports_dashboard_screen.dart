@@ -16,6 +16,7 @@ import '../../../providers/analytics_provider.dart';
 import '../../../providers/active_branch_provider.dart';
 import '../../../providers/branch_provider.dart';
 import '../../../providers/printer_provider.dart';
+import '../../../providers/auth_provider.dart';
 import '../../../widgets/global/editorial_background.dart';
 import '../../../widgets/global/coffee_katta_brand_badge.dart';
 
@@ -87,44 +88,58 @@ class _ReportsDashboardScreenState extends ConsumerState<ReportsDashboardScreen>
           onExportExcel: () => _handleExportExcel(analyticsAsync, branchAsync, dateRangeStr),
         ),
 
-        // Tab Views
+        // Tab Views (TabBarView is hoisted so InvoiceAuditLogTab state, scroll, and search persist across reloads)
         Expanded(
-          child: analyticsAsync.when(
-            loading: () => const Center(
-              child: CircularProgressIndicator(color: AppTheme.espressoBrown),
-            ),
-            error: (err, _) => Center(
-              child: _buildErrorState(err.toString(), () => ref.invalidate(dailyAnalyticsProvider)),
-            ),
-            data: (analytics) {
-              return TabBarView(
-                controller: _tabController,
-                children: [
-                  // Tab 0: Executive Overview & KPIs
-                  ReportsOverviewTab(
-                    analytics: analytics,
-                    isRange: isRange,
-                    onSwitchTab: (index) => _tabController.animateTo(index),
-                  ),
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              // Tab 0: Executive Overview & KPIs
+              analyticsAsync.when(
+                loading: () => const Center(
+                  child: CircularProgressIndicator(color: AppTheme.espressoBrown),
+                ),
+                error: (err, _) => Center(
+                  child: _buildErrorState(err.toString(), () => ref.invalidate(dailyAnalyticsProvider)),
+                ),
+                data: (analytics) => ReportsOverviewTab(
+                  analytics: analytics,
+                  isRange: isRange,
+                  onSwitchTab: (index) => _tabController.animateTo(index),
+                ),
+              ),
 
-                  // Tab 1: Menu Engineering & Item Analytics
-                  MenuEngineeringTab(
-                    analytics: analytics,
-                  ),
+              // Tab 1: Menu Engineering & Item Analytics
+              analyticsAsync.when(
+                loading: () => const Center(
+                  child: CircularProgressIndicator(color: AppTheme.espressoBrown),
+                ),
+                error: (err, _) => Center(
+                  child: _buildErrorState(err.toString(), () => ref.invalidate(dailyAnalyticsProvider)),
+                ),
+                data: (analytics) => MenuEngineeringTab(
+                  analytics: analytics,
+                ),
+              ),
 
-                  // Tab 2: Invoice Register & Audit Log
-                  InvoiceAuditLogTab(
-                    branchId: branchId,
-                  ),
+              // Tab 2: Invoice Register & Audit Log (Self-contained real-time stream, never unmounted on analytics refresh)
+              InvoiceAuditLogTab(
+                branchId: branchId,
+              ),
 
-                  // Tab 3: Day Close & Z-Report
-                  ZReportShiftTab(
-                    analytics: analytics,
-                    dateRangeStr: dateRangeStr,
-                  ),
-                ],
-              );
-            },
+              // Tab 3: Day Close & Z-Report
+              analyticsAsync.when(
+                loading: () => const Center(
+                  child: CircularProgressIndicator(color: AppTheme.espressoBrown),
+                ),
+                error: (err, _) => Center(
+                  child: _buildErrorState(err.toString(), () => ref.invalidate(dailyAnalyticsProvider)),
+                ),
+                data: (analytics) => ZReportShiftTab(
+                  analytics: analytics,
+                  dateRangeStr: dateRangeStr,
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -202,7 +217,7 @@ class _ReportsDashboardScreenState extends ConsumerState<ReportsDashboardScreen>
     try {
       await AnalyticsService().syncHistoricalData(branchId);
       ref.invalidate(dailyAnalyticsProvider);
-      ref.invalidate(billsForPeriodProvider);
+      ref.invalidate(billsForPeriodProvider(branchId));
       _showFeedbackSnackBar('Analytics synchronized successfully!');
     } catch (e) {
       _showFeedbackSnackBar('Sync failed: $e', isError: true);
@@ -226,10 +241,20 @@ class _ReportsDashboardScreenState extends ConsumerState<ReportsDashboardScreen>
       final config = ref.read(printerConfigProvider);
       final printService = ref.read(printServiceProvider);
 
+      final currentUser = ref.read(userModelProvider).value;
+      final savedClosing = await AnalyticsService().getLatestShiftClosing(
+        branchAsync.value!.branchId,
+        dateRangeStr,
+      );
+
       final pdfBytes = await PdfService.generateDailyAnalyticsPdf(
         analytics: analyticsAsync.value!,
         branch: branchAsync.value!,
         dateRangeStr: dateRangeStr,
+        openingFloat: (savedClosing?['openingFloat'] as num?)?.toDouble() ?? 0.0,
+        physicalCashCounted: (savedClosing?['physicalCashCounted'] as num?)?.toDouble(),
+        cashVariance: (savedClosing?['cashVariance'] as num?)?.toDouble(),
+        closedByUserName: (savedClosing?['closedByUserName'] as String?) ?? currentUser?.name ?? 'Admin',
       );
 
       if (config.address != null && config.address!.isNotEmpty) {

@@ -61,12 +61,13 @@ Stream<DailyAnalytics> dailyAnalytics(DailyAnalyticsRef ref, {required String br
   }
 }
 
-/// Fetches individual bills for the active date selection (used by Invoice Register & CSV export)
-final billsForPeriodProvider = FutureProvider.family<List<BillModel>, String>((ref, branchId) async {
+/// Streams individual bills for the active date selection in real-time (used by Invoice Register & CSV export)
+final billsForPeriodProvider = StreamProvider.family<List<BillModel>, String>((ref, branchId) {
   final selection = ref.watch(analyticsDateSelectionProvider);
   final start = selection['start'] as DateTime;
   final end = selection['end'] as DateTime?;
   final service = AnalyticsService();
-  return service.getBillsForRange(branchId, start, end);
+  return service.watchBillsForRange(branchId, start, end);
 });
+
 

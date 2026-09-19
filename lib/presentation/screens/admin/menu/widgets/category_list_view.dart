@@ -55,16 +55,18 @@ class CategoryListView extends ConsumerWidget {
           );
         }
 
+        final bool isMobile = MediaQuery.of(context).size.width < 600;
+
         return Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 1100),
             child: GridView.builder(
-              padding: const EdgeInsets.all(16),
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              padding: EdgeInsets.all(isMobile ? 12 : 16),
+              gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
                 maxCrossAxisExtent: 320,
-                mainAxisSpacing: 14,
-                crossAxisSpacing: 14,
-                childAspectRatio: 1.15,
+                mainAxisSpacing: isMobile ? 10 : 14,
+                crossAxisSpacing: isMobile ? 10 : 14,
+                childAspectRatio: isMobile ? 1.05 : 1.15,
               ),
               itemCount: filteredMetrics.length,
               itemBuilder: (context, index) {
@@ -74,6 +76,7 @@ class CategoryListView extends ConsumerWidget {
                   isAdmin: isAdmin,
                   totalItems: metrics.totalItems,
                   unavailableItems: metrics.unavailableItems,
+                  isMobile: isMobile,
                 );
               },
             ),
@@ -95,12 +98,14 @@ class _CategoryCard extends ConsumerWidget {
   final bool isAdmin;
   final int totalItems;
   final int unavailableItems;
+  final bool isMobile;
 
   const _CategoryCard({
     required this.category,
     required this.isAdmin,
     required this.totalItems,
     required this.unavailableItems,
+    this.isMobile = false,
   });
 
   IconData _getCategoryIcon(String name) {
@@ -146,7 +151,7 @@ class _CategoryCard extends ConsumerWidget {
               ),
             ],
           ),
-          padding: const EdgeInsets.all(14),
+          padding: EdgeInsets.all(isMobile ? 11 : 14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -155,25 +160,25 @@ class _CategoryCard extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    width: 40,
-                    height: 40,
+                    width: isMobile ? 36 : 40,
+                    height: isMobile ? 36 : 40,
                     decoration: BoxDecoration(
                       color: const Color(0xFF382012).withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: const Color(0xFF382012).withValues(alpha: 0.14)),
                     ),
-                    child: Icon(iconData, color: const Color(0xFF382012), size: 22),
+                    child: Icon(iconData, color: const Color(0xFF382012), size: isMobile ? 19 : 22),
                   ),
-                  const SizedBox(width: 10),
+                  SizedBox(width: isMobile ? 8 : 10),
                   Expanded(
                     child: Text(
                       category.name,
-                      style: const TextStyle(
-                        fontSize: 15.5,
+                      style: TextStyle(
+                        fontSize: isMobile ? 14 : 15.5,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF29231F),
-                        height: 1.2,
-                        letterSpacing: 0.2,
+                        color: const Color(0xFF29231F),
+                        height: 1.15,
+                        letterSpacing: 0.1,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -181,11 +186,11 @@ class _CategoryCard extends ConsumerWidget {
                   ),
                   if (isAdmin)
                     SizedBox(
-                      width: 28,
-                      height: 28,
+                      width: isMobile ? 24 : 28,
+                      height: isMobile ? 24 : 28,
                       child: PopupMenuButton<String>(
                         padding: EdgeInsets.zero,
-                        icon: const Icon(Icons.more_vert_rounded, size: 20, color: Color(0xFF8C7B70)),
+                        icon: Icon(Icons.more_vert_rounded, size: isMobile ? 18 : 20, color: const Color(0xFF8C7B70)),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                           side: const BorderSide(color: Color(0xFFE8E1D8)),
@@ -224,12 +229,14 @@ class _CategoryCard extends ConsumerWidget {
                 ],
               ),
               const Spacer(),
-              // Operational Metrics Strip
-              Row(
+              // Operational Metrics Strip (Responsive Wrap prevents right overflow)
+              Wrap(
+                spacing: 4,
+                runSpacing: 4,
                 children: [
                   // Total Items Pill
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                    padding: EdgeInsets.symmetric(horizontal: isMobile ? 6 : 8, vertical: isMobile ? 2.5 : 3.5),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF7F4EF),
                       borderRadius: BorderRadius.circular(6),
@@ -238,25 +245,24 @@ class _CategoryCard extends ConsumerWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.inventory_2_outlined, size: 12, color: Color(0xFF5A3825)),
-                        const SizedBox(width: 4),
+                        Icon(Icons.inventory_2_outlined, size: isMobile ? 11 : 12, color: const Color(0xFF5A3825)),
+                        const SizedBox(width: 3),
                         Text(
                           '$totalItems ${totalItems == 1 ? 'ITEM' : 'ITEMS'}',
-                          style: const TextStyle(
-                            fontSize: 10.5,
+                          style: TextStyle(
+                            fontSize: isMobile ? 9.2 : 10.5,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF5A3825),
-                            letterSpacing: 0.4,
+                            color: const Color(0xFF5A3825),
+                            letterSpacing: 0.2,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 6),
                   // Availability Indicator
                   if (totalItems > 0 && unavailableItems > 0)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
+                      padding: EdgeInsets.symmetric(horizontal: isMobile ? 6 : 7, vertical: isMobile ? 2.5 : 3.5),
                       decoration: BoxDecoration(
                         color: const Color(0xFFFFF0ED),
                         borderRadius: BorderRadius.circular(6),
@@ -264,56 +270,56 @@ class _CategoryCard extends ConsumerWidget {
                       ),
                       child: Text(
                         '$unavailableItems OUT',
-                        style: const TextStyle(
-                          fontSize: 10,
+                        style: TextStyle(
+                          fontSize: isMobile ? 9.0 : 10,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFFC0392B),
-                          letterSpacing: 0.3,
+                          color: const Color(0xFFC0392B),
+                          letterSpacing: 0.2,
                         ),
                       ),
                     )
                   else if (totalItems > 0)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
+                      padding: EdgeInsets.symmetric(horizontal: isMobile ? 6 : 7, vertical: isMobile ? 2.5 : 3.5),
                       decoration: BoxDecoration(
                         color: const Color(0xFFEDF7F1),
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(color: const Color(0xFFCDE8DA)),
                       ),
-                      child: const Text(
+                      child: Text(
                         'ALL ACTIVE',
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: isMobile ? 9.0 : 10,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF287A55),
-                          letterSpacing: 0.3,
+                          color: const Color(0xFF287A55),
+                          letterSpacing: 0.2,
                         ),
                       ),
                     ),
                 ],
               ),
-              const SizedBox(height: 10),
+              SizedBox(height: isMobile ? 8 : 10),
               // Action Footer Bar
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+                padding: EdgeInsets.symmetric(vertical: isMobile ? 5 : 6, horizontal: isMobile ? 8 : 10),
                 decoration: BoxDecoration(
                   color: const Color(0xFF382012).withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
                       'MANAGE ITEMS',
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: isMobile ? 10 : 11,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF382012),
-                        letterSpacing: 0.5,
+                        color: const Color(0xFF382012),
+                        letterSpacing: 0.4,
                       ),
                     ),
-                    Icon(Icons.arrow_forward_rounded, size: 14, color: Color(0xFF382012)),
+                    Icon(Icons.arrow_forward_rounded, size: isMobile ? 13 : 14, color: const Color(0xFF382012)),
                   ],
                 ),
               ),

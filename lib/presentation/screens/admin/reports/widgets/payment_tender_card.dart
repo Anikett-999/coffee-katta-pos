@@ -73,21 +73,28 @@ class _PaymentTenderCardState extends State<PaymentTenderCard> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  const Icon(Icons.pie_chart_rounded, size: 18, color: AppTheme.espressoBrown),
-                  const SizedBox(width: 8),
-                  Text(
-                    'PAYMENT TENDER SPLIT',
-                    style: GoogleFonts.epilogue(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: AppTheme.espressoBrown,
-                      letterSpacing: 0.8,
+              Expanded(
+                child: Row(
+                  children: [
+                    const Icon(Icons.pie_chart_rounded, size: 18, color: AppTheme.espressoBrown),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'PAYMENT TENDER SPLIT',
+                        style: GoogleFonts.epilogue(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.espressoBrown,
+                          letterSpacing: 0.8,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(

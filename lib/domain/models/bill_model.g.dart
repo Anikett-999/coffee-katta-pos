@@ -58,6 +58,11 @@ _$BillModelImpl _$$BillModelImplFromJson(Map<String, dynamic> json) =>
       createdAt: const TimestampConverter().fromJson(json['createdAt']),
       printedAt: const OptionalTimestampConverter().fromJson(json['printedAt']),
       lastPrintedBy: json['lastPrintedBy'] as String?,
+      isVoided: json['isVoided'] as bool? ?? false,
+      voidedAt: const OptionalTimestampConverter().fromJson(json['voidedAt']),
+      voidedBy: json['voidedBy'] as String?,
+      voidReason: json['voidReason'] as String?,
+      tableRestored: json['tableRestored'] as bool? ?? false,
     );
 
 Map<String, dynamic> _$$BillModelImplToJson(
@@ -82,4 +87,9 @@ Map<String, dynamic> _$$BillModelImplToJson(
   'createdAt': const TimestampConverter().toJson(instance.createdAt),
   'printedAt': const OptionalTimestampConverter().toJson(instance.printedAt),
   'lastPrintedBy': instance.lastPrintedBy,
+  'isVoided': instance.isVoided,
+  'voidedAt': const OptionalTimestampConverter().toJson(instance.voidedAt),
+  'voidedBy': instance.voidedBy,
+  'voidReason': instance.voidReason,
+  'tableRestored': instance.tableRestored,
 };

@@ -18,7 +18,7 @@ class KpiCardsGrid extends StatelessWidget {
     final bool isTablet = width >= 600;
 
     int crossAxisCount = isDesktop ? 4 : (isTablet ? 2 : 2);
-    double childAspectRatio = isDesktop ? 2.1 : (isTablet ? 2.2 : 1.45);
+    double childAspectRatio = isDesktop ? 2.1 : (isTablet ? 2.2 : 1.38);
 
     return GridView.count(
       crossAxisCount: crossAxisCount,
@@ -36,6 +36,7 @@ class KpiCardsGrid extends StatelessWidget {
               : 'Before discounts & extra fees',
           icon: Icons.storefront_rounded,
           accentColor: AppTheme.espressoBrown,
+          isDesktop: isDesktop,
         ),
         _buildKpiCard(
           label: 'NET REVENUE COLLECTED',
@@ -44,6 +45,7 @@ class KpiCardsGrid extends StatelessWidget {
           icon: Icons.account_balance_wallet_rounded,
           accentColor: AppTheme.successGreenPrice,
           badgeText: 'SETTLED',
+          isDesktop: isDesktop,
         ),
         _buildKpiCard(
           label: 'ORDERS & AVG TICKET',
@@ -52,6 +54,7 @@ class KpiCardsGrid extends StatelessWidget {
           subtext: 'AOV: ₹${analytics.aov.toStringAsFixed(0)} / order',
           icon: Icons.receipt_long_rounded,
           accentColor: const Color(0xFF1E3A8A),
+          isDesktop: isDesktop,
         ),
         _buildKpiCard(
           label: 'DISCOUNTS & CHARGES',
@@ -62,6 +65,7 @@ class KpiCardsGrid extends StatelessWidget {
               : 'Zero extra packaging fees',
           icon: Icons.local_offer_rounded,
           accentColor: analytics.totalDiscount > 0 ? const Color(0xFFDC2626) : AppTheme.accentCaramel,
+          isDesktop: isDesktop,
         ),
       ],
     );
@@ -75,9 +79,10 @@ class KpiCardsGrid extends StatelessWidget {
     required IconData icon,
     required Color accentColor,
     String? badgeText,
+    required bool isDesktop,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: EdgeInsets.symmetric(horizontal: isDesktop ? 16 : 11, vertical: isDesktop ? 14 : 11),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -97,31 +102,38 @@ class KpiCardsGrid extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: accentColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(5),
+                      decoration: BoxDecoration(
+                        color: accentColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(icon, size: 14, color: accentColor),
                     ),
-                    child: Icon(icon, size: 14, color: accentColor),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    label,
-                    style: GoogleFonts.epilogue(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      color: AppTheme.textDark.withValues(alpha: 0.6),
-                      letterSpacing: 0.6,
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.epilogue(
+                          fontSize: isDesktop ? 10 : 9.5,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.textDark.withValues(alpha: 0.6),
+                          letterSpacing: 0.5,
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-              if (badgeText != null)
+              if (badgeText != null) ...[
+                const SizedBox(width: 4),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                   decoration: BoxDecoration(
                     color: accentColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(4),
@@ -129,12 +141,13 @@ class KpiCardsGrid extends StatelessWidget {
                   child: Text(
                     badgeText,
                     style: GoogleFonts.epilogue(
-                      fontSize: 8.5,
+                      fontSize: 8,
                       fontWeight: FontWeight.w900,
                       color: accentColor,
                     ),
                   ),
                 ),
+              ],
             ],
           ),
           Padding(
@@ -146,7 +159,7 @@ class KpiCardsGrid extends StatelessWidget {
                 Text(
                   value,
                   style: GoogleFonts.epilogue(
-                    fontSize: 22,
+                    fontSize: isDesktop ? 22 : 20,
                     fontWeight: FontWeight.w900,
                     color: AppTheme.textDark,
                     letterSpacing: -0.5,
@@ -157,7 +170,7 @@ class KpiCardsGrid extends StatelessWidget {
                   Text(
                     valueUnit,
                     style: GoogleFonts.epilogue(
-                      fontSize: 12,
+                      fontSize: isDesktop ? 12 : 11,
                       fontWeight: FontWeight.w700,
                       color: AppTheme.textDark.withValues(alpha: 0.5),
                     ),
@@ -169,7 +182,7 @@ class KpiCardsGrid extends StatelessWidget {
           Text(
             subtext,
             style: GoogleFonts.epilogue(
-              fontSize: 10.5,
+              fontSize: isDesktop ? 10.5 : 9.5,
               fontWeight: FontWeight.w500,
               color: AppTheme.textDark.withValues(alpha: 0.55),
             ),

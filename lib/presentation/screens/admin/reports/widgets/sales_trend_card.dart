@@ -56,17 +56,16 @@ class SalesTrendCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.show_chart_rounded, size: 18, color: AppTheme.espressoBrown),
-                      const SizedBox(width: 8),
-                      Text(
+          if (!isDesktop) ...[
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.show_chart_rounded, size: 18, color: AppTheme.espressoBrown),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
                         'SALES & TRAFFIC VELOCITY',
                         style: GoogleFonts.epilogue(
                           fontSize: 12,
@@ -75,45 +74,106 @@ class SalesTrendCard extends StatelessWidget {
                           letterSpacing: 0.8,
                         ),
                       ),
-                    ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  isRange ? 'Aggregated hourly sales across selected period' : 'Real-time 24-hour store sales distribution',
+                  style: GoogleFonts.epilogue(
+                    fontSize: 11,
+                    color: AppTheme.textDark.withValues(alpha: 0.55),
+                    fontWeight: FontWeight.w500,
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    isRange ? 'Aggregated hourly sales across selected period' : 'Real-time 24-hour store sales distribution',
-                    style: GoogleFonts.epilogue(
-                      fontSize: 11,
-                      color: AppTheme.textDark.withValues(alpha: 0.55),
-                      fontWeight: FontWeight.w500,
+                ),
+                if (peakHour >= 0) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: AppTheme.accentCaramel.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppTheme.accentCaramel.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.bolt_rounded, size: 14, color: AppTheme.accentCaramel),
+                        const SizedBox(width: 4),
+                        Text(
+                          'PEAK: $peakLabel',
+                          style: GoogleFonts.epilogue(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: AppTheme.espressoBrown,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
-              ),
-              if (peakHour >= 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: AppTheme.accentCaramel.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppTheme.accentCaramel.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.bolt_rounded, size: 14, color: AppTheme.accentCaramel),
-                      const SizedBox(width: 4),
-                      Text(
-                        'PEAK: $peakLabel',
-                        style: GoogleFonts.epilogue(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          color: AppTheme.espressoBrown,
+              ],
+            ),
+          ] else ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.show_chart_rounded, size: 18, color: AppTheme.espressoBrown),
+                        const SizedBox(width: 8),
+                        Text(
+                          'SALES & TRAFFIC VELOCITY',
+                          style: GoogleFonts.epilogue(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: AppTheme.espressoBrown,
+                            letterSpacing: 0.8,
+                          ),
                         ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isRange ? 'Aggregated hourly sales across selected period' : 'Real-time 24-hour store sales distribution',
+                      style: GoogleFonts.epilogue(
+                        fontSize: 11,
+                        color: AppTheme.textDark.withValues(alpha: 0.55),
+                        fontWeight: FontWeight.w500,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-            ],
-          ),
+                if (peakHour >= 0)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: AppTheme.accentCaramel.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppTheme.accentCaramel.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.bolt_rounded, size: 14, color: AppTheme.accentCaramel),
+                        const SizedBox(width: 4),
+                        Text(
+                          'PEAK: $peakLabel',
+                          style: GoogleFonts.epilogue(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: AppTheme.espressoBrown,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ],
           const SizedBox(height: 24),
           SizedBox(
             height: isDesktop ? 220 : 180,

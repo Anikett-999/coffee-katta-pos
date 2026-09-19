@@ -199,6 +199,28 @@ class KOTService {
     });
   }
 
+  // Atomically mark all items in a KOT as served
+  Future<void> markAllItemsServed({
+    required String kotId,
+  }) async {
+    final kotRef = _kotCollection.doc(kotId);
+    
+    await _firestore.runTransaction((transaction) async {
+      final snapshot = await transaction.get(kotRef);
+      if (!snapshot.exists) throw Exception('KOT not found');
+      
+      final kotData = snapshot.data() as Map<String, dynamic>;
+      final List<dynamic> items = List.from(kotData['items']);
+      
+      for (var item in items) {
+        if (item is Map) {
+          item['status'] = 'served';
+        }
+      }
+      transaction.update(kotRef, {'items': items});
+    });
+  }
+
   Future<void> deductKotItem({
     required String kotId,
     required String itemUniqueId,

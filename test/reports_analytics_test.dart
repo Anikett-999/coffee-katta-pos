@@ -4,6 +4,8 @@ import 'package:coffee_katta_pos/domain/models/daily_analytics.dart';
 import 'package:coffee_katta_pos/domain/models/branch_model.dart';
 import 'package:coffee_katta_pos/domain/models/bill_model.dart';
 import 'package:coffee_katta_pos/services/pdf_service.dart';
+import 'package:coffee_katta_pos/services/analytics_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 void main() {
   group('Reports & DailyAnalytics Financial Accounting Tests', () {
@@ -136,6 +138,41 @@ void main() {
       expect(String.fromCharCodes(pdfBytes.sublist(0, 5)), equals('%PDF-'));
     });
 
+    test('PdfService.generateDailyAnalyticsPdf with cash drawer reconciliation generates valid slip with audit details', () async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      const analytics = DailyAnalytics(
+        totalSales: 3400.0,
+        totalBills: 18,
+        totalDiscount: 150.0,
+        extraCharges: 20.0,
+        paymentStats: {'cash': 2000.0, 'upi': 1400.0},
+        itemStats: {
+          'Classic Cold Coffee': ItemStat(name: 'Classic Cold Coffee', qty: 15, revenue: 1200.0),
+        },
+      );
+      final branch = BranchModel(
+        branchId: 'latur_main',
+        branchName: 'Coffee Katta',
+        location: 'Latur Main',
+        address: 'Opp. Old Bus Stand, Latur',
+        phone: '+91 9876543210',
+      );
+
+      final pdfBytes = await PdfService.generateDailyAnalyticsPdf(
+        analytics: analytics,
+        dateRangeStr: '13 Sep 2026',
+        branch: branch,
+        openingFloat: 500.0,
+        physicalCashCounted: 2550.0,
+        cashVariance: 50.0,
+        closedByUserName: 'Manager Rohan',
+      );
+
+      expect(pdfBytes, isNotNull);
+      expect(pdfBytes.length, greaterThan(1000));
+      expect(String.fromCharCodes(pdfBytes.sublist(0, 5)), equals('%PDF-'));
+    });
+
     test('PdfService.generateBillPdf produces valid thermal receipt PDF with Courier monospace styling', () async {
       TestWidgetsFlutterBinding.ensureInitialized();
       final bill = BillModel(
@@ -182,6 +219,104 @@ void main() {
       expect(pdfBytes, isNotNull);
       expect(pdfBytes.length, greaterThan(1000));
       expect(String.fromCharCodes(pdfBytes.sublist(0, 5)), equals('%PDF-'));
+    });
+  });
+
+  group('Invoice Register & Safe Bill Deserialization Tests', () {
+    test('safeParseBillData parses valid INV- bills with loose untyped maps', () {
+      final rawData = <dynamic, dynamic>{
+        'billId': 'INV-260919-001',
+        'orderId': 'ORD-999',
+        'tableId': 'T1',
+        'tableName': 'Table 1',
+        'userName': 'Kiran Cashier',
+        'createdBy': 'user_1',
+        'items': <dynamic>[
+          <dynamic, dynamic>{'name': 'Cold Coffee', 'category': 'Beverages', 'qty': 2, 'price': 60.0},
+          <dynamic, dynamic>{'name': 'Bun Maska', 'category': 'Snacks', 'qty': 1, 'price': 40.0},
+        ],
+        'payments': <dynamic>[
+          <dynamic, dynamic>{'mode': 'upi', 'amount': 160.0},
+        ],
+        'subtotal': 160,
+        'total': 160,
+        'createdAt': Timestamp.now(),
+      };
+
+      final bill = AnalyticsService.safeParseBillData(rawData);
+      expect(bill, isNotNull);
+      expect(bill!.billId, equals('INV-260919-001'));
+      expect(bill.tableName, equals('Table 1'));
+      expect(bill.items.length, equals(2));
+      expect(bill.items.first.name, equals('Cold Coffee'));
+      expect(bill.payments.first.mode, equals('upi'));
+      expect(bill.payments.first.amount, equals(160.0));
+      expect(bill.isVoided, isFalse);
+    });
+
+    test('safeParseBillData rejects legacy or unnamed test bills without INV- prefix', () {
+      final legacyData = <dynamic, dynamic>{
+        'billId': 'OLD-BILL-001',
+        'tableName': 'Table 1',
+        'createdAt': Timestamp.now(),
+      };
+      final parsed = AnalyticsService.safeParseBillData(legacyData);
+      expect(parsed, isNull);
+    });
+
+    test('Multi-field search filter correctly matches items, table, and invoice number', () {
+      final bills = [
+        BillModel(
+          billId: 'INV-260912-001',
+          orderId: 'ORD-1',
+          tableId: 'T1',
+          tableName: 'Table 1',
+          userName: 'Ramesh',
+          items: const [BillItem(name: 'Hazelnut Cold Coffee', qty: 2, price: 90.0)],
+          subtotal: 180.0,
+          total: 180.0,
+          payments: const [Payment(mode: 'cash', amount: 180.0)],
+          createdBy: 'user_1',
+          createdAt: DateTime.now(),
+        ),
+        BillModel(
+          billId: 'INV-260914-002',
+          orderId: 'ORD-2',
+          tableId: 'T2',
+          tableName: 'Garden Table 4',
+          userName: 'Priya',
+          items: const [BillItem(name: 'Masala Chai', qty: 1, price: 30.0)],
+          subtotal: 30.0,
+          total: 30.0,
+          payments: const [Payment(mode: 'upi', amount: 30.0)],
+          createdBy: 'user_2',
+          createdAt: DateTime.now(),
+          isVoided: true,
+        ),
+      ];
+
+      // Match by item name
+      final itemMatches = bills.where((b) => b.items.any((i) => i.name.toLowerCase().contains('hazelnut'))).toList();
+      expect(itemMatches.length, equals(1));
+      expect(itemMatches.first.billId, equals('INV-260912-001'));
+
+      // Match by table name
+      final tableMatches = bills.where((b) => b.tableName.toLowerCase().contains('garden')).toList();
+      expect(tableMatches.length, equals(1));
+      expect(tableMatches.first.billId, equals('INV-260914-002'));
+
+      // Match by cashier
+      final cashierMatches = bills.where((b) => b.userName.toLowerCase().contains('ramesh')).toList();
+      expect(cashierMatches.length, equals(1));
+
+      // Calculate Summary KPIs
+      final activeCount = bills.where((b) => !b.isVoided).length;
+      final voidedCount = bills.where((b) => b.isVoided).length;
+      final netRevenue = bills.where((b) => !b.isVoided).fold(0.0, (acc, b) => acc + b.total);
+
+      expect(activeCount, equals(1));
+      expect(voidedCount, equals(1));
+      expect(netRevenue, equals(180.0));
     });
   });
 }

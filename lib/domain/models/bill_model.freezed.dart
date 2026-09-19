@@ -439,6 +439,12 @@ mixin _$BillModel {
   @OptionalTimestampConverter()
   DateTime? get printedAt => throw _privateConstructorUsedError;
   String? get lastPrintedBy => throw _privateConstructorUsedError;
+  bool get isVoided => throw _privateConstructorUsedError;
+  @OptionalTimestampConverter()
+  DateTime? get voidedAt => throw _privateConstructorUsedError;
+  String? get voidedBy => throw _privateConstructorUsedError;
+  String? get voidReason => throw _privateConstructorUsedError;
+  bool get tableRestored => throw _privateConstructorUsedError;
 
   /// Serializes this BillModel to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -475,6 +481,11 @@ abstract class $BillModelCopyWith<$Res> {
     @TimestampConverter() DateTime createdAt,
     @OptionalTimestampConverter() DateTime? printedAt,
     String? lastPrintedBy,
+    bool isVoided,
+    @OptionalTimestampConverter() DateTime? voidedAt,
+    String? voidedBy,
+    String? voidReason,
+    bool tableRestored,
   });
 }
 
@@ -512,6 +523,11 @@ class _$BillModelCopyWithImpl<$Res, $Val extends BillModel>
     Object? createdAt = null,
     Object? printedAt = freezed,
     Object? lastPrintedBy = freezed,
+    Object? isVoided = null,
+    Object? voidedAt = freezed,
+    Object? voidedBy = freezed,
+    Object? voidReason = freezed,
+    Object? tableRestored = null,
   }) {
     return _then(
       _value.copyWith(
@@ -591,6 +607,26 @@ class _$BillModelCopyWithImpl<$Res, $Val extends BillModel>
                 ? _value.lastPrintedBy
                 : lastPrintedBy // ignore: cast_nullable_to_non_nullable
                       as String?,
+            isVoided: null == isVoided
+                ? _value.isVoided
+                : isVoided // ignore: cast_nullable_to_non_nullable
+                      as bool,
+            voidedAt: freezed == voidedAt
+                ? _value.voidedAt
+                : voidedAt // ignore: cast_nullable_to_non_nullable
+                      as DateTime?,
+            voidedBy: freezed == voidedBy
+                ? _value.voidedBy
+                : voidedBy // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            voidReason: freezed == voidReason
+                ? _value.voidReason
+                : voidReason // ignore: cast_nullable_to_non_nullable
+                      as String?,
+            tableRestored: null == tableRestored
+                ? _value.tableRestored
+                : tableRestored // ignore: cast_nullable_to_non_nullable
+                      as bool,
           )
           as $Val,
     );
@@ -626,6 +662,11 @@ abstract class _$$BillModelImplCopyWith<$Res>
     @TimestampConverter() DateTime createdAt,
     @OptionalTimestampConverter() DateTime? printedAt,
     String? lastPrintedBy,
+    bool isVoided,
+    @OptionalTimestampConverter() DateTime? voidedAt,
+    String? voidedBy,
+    String? voidReason,
+    bool tableRestored,
   });
 }
 
@@ -662,6 +703,11 @@ class __$$BillModelImplCopyWithImpl<$Res>
     Object? createdAt = null,
     Object? printedAt = freezed,
     Object? lastPrintedBy = freezed,
+    Object? isVoided = null,
+    Object? voidedAt = freezed,
+    Object? voidedBy = freezed,
+    Object? voidReason = freezed,
+    Object? tableRestored = null,
   }) {
     return _then(
       _$BillModelImpl(
@@ -741,6 +787,26 @@ class __$$BillModelImplCopyWithImpl<$Res>
             ? _value.lastPrintedBy
             : lastPrintedBy // ignore: cast_nullable_to_non_nullable
                   as String?,
+        isVoided: null == isVoided
+            ? _value.isVoided
+            : isVoided // ignore: cast_nullable_to_non_nullable
+                  as bool,
+        voidedAt: freezed == voidedAt
+            ? _value.voidedAt
+            : voidedAt // ignore: cast_nullable_to_non_nullable
+                  as DateTime?,
+        voidedBy: freezed == voidedBy
+            ? _value.voidedBy
+            : voidedBy // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        voidReason: freezed == voidReason
+            ? _value.voidReason
+            : voidReason // ignore: cast_nullable_to_non_nullable
+                  as String?,
+        tableRestored: null == tableRestored
+            ? _value.tableRestored
+            : tableRestored // ignore: cast_nullable_to_non_nullable
+                  as bool,
       ),
     );
   }
@@ -769,6 +835,11 @@ class _$BillModelImpl implements _BillModel {
     @TimestampConverter() required this.createdAt,
     @OptionalTimestampConverter() this.printedAt,
     this.lastPrintedBy,
+    this.isVoided = false,
+    @OptionalTimestampConverter() this.voidedAt,
+    this.voidedBy,
+    this.voidReason,
+    this.tableRestored = false,
   }) : _items = items,
        _payments = payments;
 
@@ -833,10 +904,23 @@ class _$BillModelImpl implements _BillModel {
   final DateTime? printedAt;
   @override
   final String? lastPrintedBy;
+  @override
+  @JsonKey()
+  final bool isVoided;
+  @override
+  @OptionalTimestampConverter()
+  final DateTime? voidedAt;
+  @override
+  final String? voidedBy;
+  @override
+  final String? voidReason;
+  @override
+  @JsonKey()
+  final bool tableRestored;
 
   @override
   String toString() {
-    return 'BillModel(billId: $billId, orderId: $orderId, tableId: $tableId, tableName: $tableName, userName: $userName, items: $items, subtotal: $subtotal, discountPercent: $discountPercent, discountAmount: $discountAmount, discountType: $discountType, extraCharges: $extraCharges, total: $total, payments: $payments, printCount: $printCount, isSuspicious: $isSuspicious, createdBy: $createdBy, createdAt: $createdAt, printedAt: $printedAt, lastPrintedBy: $lastPrintedBy)';
+    return 'BillModel(billId: $billId, orderId: $orderId, tableId: $tableId, tableName: $tableName, userName: $userName, items: $items, subtotal: $subtotal, discountPercent: $discountPercent, discountAmount: $discountAmount, discountType: $discountType, extraCharges: $extraCharges, total: $total, payments: $payments, printCount: $printCount, isSuspicious: $isSuspicious, createdBy: $createdBy, createdAt: $createdAt, printedAt: $printedAt, lastPrintedBy: $lastPrintedBy, isVoided: $isVoided, voidedAt: $voidedAt, voidedBy: $voidedBy, voidReason: $voidReason, tableRestored: $tableRestored)';
   }
 
   @override
@@ -875,7 +959,17 @@ class _$BillModelImpl implements _BillModel {
             (identical(other.printedAt, printedAt) ||
                 other.printedAt == printedAt) &&
             (identical(other.lastPrintedBy, lastPrintedBy) ||
-                other.lastPrintedBy == lastPrintedBy));
+                other.lastPrintedBy == lastPrintedBy) &&
+            (identical(other.isVoided, isVoided) ||
+                other.isVoided == isVoided) &&
+            (identical(other.voidedAt, voidedAt) ||
+                other.voidedAt == voidedAt) &&
+            (identical(other.voidedBy, voidedBy) ||
+                other.voidedBy == voidedBy) &&
+            (identical(other.voidReason, voidReason) ||
+                other.voidReason == voidReason) &&
+            (identical(other.tableRestored, tableRestored) ||
+                other.tableRestored == tableRestored));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -901,6 +995,11 @@ class _$BillModelImpl implements _BillModel {
     createdAt,
     printedAt,
     lastPrintedBy,
+    isVoided,
+    voidedAt,
+    voidedBy,
+    voidReason,
+    tableRestored,
   ]);
 
   /// Create a copy of BillModel
@@ -938,6 +1037,11 @@ abstract class _BillModel implements BillModel {
     @TimestampConverter() required final DateTime createdAt,
     @OptionalTimestampConverter() final DateTime? printedAt,
     final String? lastPrintedBy,
+    final bool isVoided,
+    @OptionalTimestampConverter() final DateTime? voidedAt,
+    final String? voidedBy,
+    final String? voidReason,
+    final bool tableRestored,
   }) = _$BillModelImpl;
 
   factory _BillModel.fromJson(Map<String, dynamic> json) =
@@ -983,6 +1087,17 @@ abstract class _BillModel implements BillModel {
   DateTime? get printedAt;
   @override
   String? get lastPrintedBy;
+  @override
+  bool get isVoided;
+  @override
+  @OptionalTimestampConverter()
+  DateTime? get voidedAt;
+  @override
+  String? get voidedBy;
+  @override
+  String? get voidReason;
+  @override
+  bool get tableRestored;
 
   /// Create a copy of BillModel
   /// with the given fields replaced by the non-null parameter values.
