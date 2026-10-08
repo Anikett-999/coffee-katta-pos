@@ -1,6 +1,6 @@
-# shreerajmandir_pos
+# Coffee Katta POS
 
-A new Flutter project.
+Specialty Cafe POS & Kitchen Management System (Flutter Desktop, Mobile & Web).
 
 ## Getting Started
 

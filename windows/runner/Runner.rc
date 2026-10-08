@@ -94,7 +94,7 @@ BEGIN
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "coffee_katta_pos" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 Coffee Katta. All rights reserved." "\0"
-            VALUE "OriginalFilename", "shreerajmandir_pos.exe" "\0"
+            VALUE "OriginalFilename", "coffee_katta_pos.exe" "\0"
             VALUE "ProductName", "Coffee Katta POS" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
