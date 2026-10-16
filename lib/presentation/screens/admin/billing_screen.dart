@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
@@ -148,7 +149,7 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
     return false;
   }
 
-  Future<void> _handleShareDigitalBill(BillModel bill) async {
+  Future<bool> _handleShareDigitalBill(BillModel bill) async {
     try {
       final branchAsync = ref.read(branchProvider);
       final branch = branchAsync.value;
@@ -157,14 +158,17 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
       final pdfBytes = await PdfService.generateBillPdf(bill, branch);
       final fileName = 'Bill_${bill.tableName}_${DateFormat('ddMMyy_HHmm').format(bill.createdAt)}.pdf';
 
-      await Share.shareXFiles(
+      final result = await Share.shareXFiles(
         [XFile.fromData(pdfBytes, name: fileName, mimeType: 'application/pdf')],
         text: 'E-Bill for Table ${bill.tableName} at Coffee Katta',
       );
+
+      return result.status == ShareResultStatus.success;
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to share bill: $e')));
       }
+      return false;
     }
   }
 
@@ -254,6 +258,8 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
 
         if (printSuccess || !mounted) break;
 
+        final isMobile = !kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS);
+
         final userChoice = await showDialog<String>(
           context: context,
           barrierDismissible: false,
@@ -285,46 +291,99 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context, 'retry'),
-                child: const Text('RETRY PRINT', style: TextStyle(fontWeight: FontWeight.bold)),
+                onPressed: () => Navigator.pop(context, 'keep_open'),
+                child: const Text('KEEP TABLE OPEN', style: TextStyle(color: Color(0xFF6B5E55))),
               ),
               TextButton(
-                onPressed: () => Navigator.pop(context, 'continue'),
-                child: const Text('CONTINUE WITHOUT PRINT', style: TextStyle(color: Color(0xFF5A3825), fontWeight: FontWeight.bold)),
+                onPressed: () => Navigator.pop(context, 'clear_table'),
+                child: const Text('CLEAR TABLE (NO PRINT)', style: TextStyle(color: Color(0xFF5A3825), fontWeight: FontWeight.bold)),
               ),
-              ElevatedButton.icon(
-                onPressed: () async {
-                  await _handleShareDigitalBill(bill);
-                  if (context.mounted) Navigator.pop(context, 'continue');
-                },
+              if (isMobile)
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    final didShare = await _handleShareDigitalBill(bill);
+                    if (didShare) {
+                      if (context.mounted) Navigator.pop(context, 'shared_success');
+                    } else {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('⚠️ WhatsApp share was not completed. Table remains open.'),
+                            backgroundColor: Colors.orange,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF287A55),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  icon: const Icon(Icons.share, size: 16),
+                  label: const Text('SHARE WHATSAPP'),
+                ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, 'retry'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF287A55),
+                  backgroundColor: const Color(0xFF382012),
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
-                icon: const Icon(Icons.share, size: 16),
-                label: const Text('SHARE WHATSAPP'),
+                child: const Text('RETRY PRINT', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ],
           ),
         );
 
-        if (userChoice != 'retry') {
-          // Cashier chose to continue without printing or shared via WhatsApp
-          break;
+        if (userChoice == 'retry') {
+          continue;
+        } else if (userChoice == 'clear_table') {
+          await billingService.finalizeAndClearTable(widget.table.tableId, widget.table.activeOrderId!);
+          if (mounted) {
+            if (Navigator.canPop(context)) Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('✅ Table Cleared (No Print)')),
+            );
+          }
+          return;
+        } else if (userChoice == 'shared_success') {
+          await billingService.finalizeAndClearTable(widget.table.tableId, widget.table.activeOrderId!);
+          if (mounted) {
+            if (Navigator.canPop(context)) Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('✅ Receipt Shared via WhatsApp & Table Cleared!')),
+            );
+          }
+          return;
+        } else {
+          // 'keep_open' or dismissed: do NOT clear the table!
+          if (mounted) {
+            if (Navigator.canPop(context)) Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Bill #${bill.billId} saved in records. Table ${widget.table.name} remains open.'),
+                backgroundColor: const Color(0xFF5A3825),
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
+          return;
         }
       }
 
-      // Finalize and Clear Table
-      await billingService.finalizeAndClearTable(widget.table.tableId, widget.table.activeOrderId!);
+      // Normal flow when printing succeeds
+      if (printSuccess) {
+        await billingService.finalizeAndClearTable(widget.table.tableId, widget.table.activeOrderId!);
 
-      if (mounted) {
-        if (Navigator.canPop(context)) {
-          Navigator.pop(context);
+        if (mounted) {
+          if (Navigator.canPop(context)) {
+            Navigator.pop(context);
+          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('✅ Bill Generated & Table Cleared!')),
+          );
         }
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ Bill Generated & Table Cleared!')),
-        );
       }
     } catch (e) {
       if (mounted) {
