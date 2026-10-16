@@ -95,21 +95,19 @@ class TableService {
 
   // Lock table for billing
   Future<void> lockForBilling(String tableId) async {
-    await _firestore.runTransaction((transaction) async {
-      final docRef = _tableCollection.doc(tableId);
-      final snapshot = await transaction.get(docRef);
+    final docRef = _tableCollection.doc(tableId);
+    final snapshot = await docRef.get();
 
-      if (!snapshot.exists) throw Exception('Table not found');
-      
-      final data = snapshot.data() as Map<String, dynamic>;
-      if (data['status'] != 'occupied') {
-        throw Exception('Table must be occupied to start billing');
-      }
+    if (!snapshot.exists) throw Exception('Table not found');
+    
+    final data = snapshot.data() as Map<String, dynamic>;
+    if (data['status'] != 'occupied') {
+      throw Exception('Table must be occupied to start billing');
+    }
 
-      transaction.update(docRef, {
-        'status': 'billing',
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+    await docRef.update({
+      'status': 'billing',
+      'updatedAt': Timestamp.now(),
     });
   }
 

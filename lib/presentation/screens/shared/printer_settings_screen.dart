@@ -1,11 +1,12 @@
 import 'dart:async';
+import 'dart:io';
+import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_pos_printer_platform_image_3/flutter_pos_printer_platform_image_3.dart';
 import 'package:printing/printing.dart' as printing;
 
-import '../../../core/app_theme.dart';
 import '../../../domain/models/printer_config.dart';
 import '../../../domain/models/user_model.dart';
 import '../../providers/auth_provider.dart';
@@ -31,6 +32,8 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
   StreamSubscription? _scanSubscription;
   bool _isScanning = false;
   bool _isTesting = false;
+  bool _isTestingIp = false;
+  String? _ipTestResult;
   String? _lastTestStatus; // 'success' | 'failed' | null
   String? _lastTestError;
 
@@ -44,6 +47,7 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
       if (config.address != null) {
         _ipController.text = config.address!;
       }
+      _autoDetectOrScanPrinters();
     });
   }
 
@@ -54,7 +58,47 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
     super.dispose();
   }
 
-  void _startScan() {
+  /// Automatically discovers connected physical thermal printers (e.g. POS-80C) on Windows
+  Future<void> _autoDetectOrScanPrinters() async {
+    final config = ref.read(printerConfigProvider);
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
+      try {
+        final sysPrinters = await printing.Printing.listPrinters();
+        if (config.address == null || config.address!.isEmpty || config.address == 'null:null') {
+          printing.Printer? matchedThermal;
+          for (final p in sysPrinters) {
+            final upper = p.name.toUpperCase();
+            if (upper.contains('POS-80') || upper.contains('POS80') || upper.contains('THERMAL') || upper.contains('RECEIPT')) {
+              matchedThermal = p;
+              break;
+            }
+          }
+          matchedThermal ??= sysPrinters.firstWhereOrNull((p) => p.isDefault);
+
+          if (matchedThermal != null && mounted) {
+            ref.read(printerConfigProvider.notifier).updateAddress(matchedThermal.name);
+            ref.read(printerConfigProvider.notifier).updateName(matchedThermal.name);
+            ref.read(printerConfigProvider.notifier).updateConnectionType(PrinterConnectionType.usb);
+            if (matchedThermal.name.toUpperCase().contains('80')) {
+              ref.read(printerConfigProvider.notifier).updatePaperSize(PrinterPaperSize.mm80);
+            }
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Auto-connected hardware printer: ${matchedThermal.name} (USB/Spooler)'),
+                  backgroundColor: const Color(0xFF287A55),
+                  duration: const Duration(seconds: 3),
+                ),
+              );
+            }
+          }
+        }
+      } catch (_) {}
+    }
+    _startScan();
+  }
+
+  Future<void> _startScan() async {
     final config = ref.read(printerConfigProvider);
     _stopScan();
 
@@ -69,43 +113,161 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
 
     switch (config.connectionType) {
       case PrinterConnectionType.bluetooth:
-        _scanSubscription = printerManager.discovery(type: PrinterType.bluetooth, isBle: config.isBle).listen((device) {
-          if (!_bluetoothDevices.any((d) => d.address == device.address)) {
-            setState(() {
-              _bluetoothDevices.add(device);
-            });
-          }
-        });
+        if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
+          setState(() => _isScanning = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('On Windows, pair your Bluetooth printer in Windows Settings; it will then appear under Direct USB / Windows Printers.'),
+              backgroundColor: Color(0xFF5A3825),
+              duration: Duration(seconds: 4),
+            ),
+          );
+          return;
+        }
+        try {
+          _scanSubscription = printerManager
+              .discovery(type: PrinterType.bluetooth, isBle: config.isBle)
+              .listen((device) {
+            if (!_bluetoothDevices.any((d) => d.address == device.address)) {
+              if (mounted) {
+                setState(() {
+                  _bluetoothDevices.add(device);
+                });
+              }
+            }
+          }, onDone: () {
+            if (mounted) setState(() => _isScanning = false);
+          }, onError: (_) {
+            if (mounted) setState(() => _isScanning = false);
+          });
+        } catch (_) {
+          if (mounted) setState(() => _isScanning = false);
+        }
         break;
+
       case PrinterConnectionType.usb:
-        _scanSubscription = printerManager.discovery(type: PrinterType.usb).listen((device) {
-          if (!_usbDevices.any((d) => d.vendorId == device.vendorId && d.productId == device.productId)) {
-            setState(() {
-              _usbDevices.add(device);
+        // On Windows Desktop, query installed Windows Spooler printers
+        if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
+          try {
+            final sysPrinters = await printing.Printing.listPrinters();
+            for (final p in sysPrinters) {
+              final name = p.name.trim();
+              if (!_usbDevices.any((d) => d.name.toLowerCase() == name.toLowerCase())) {
+                _usbDevices.add(PrinterDevice(
+                  name: name,
+                  address: name,
+                ));
+              }
+            }
+          } catch (_) {}
+          if (mounted) setState(() => _isScanning = false);
+          return;
+        }
+
+        try {
+          _scanSubscription = printerManager.discovery(type: PrinterType.usb).listen((device) {
+            final devName = device.name.trim();
+            final devAddress = (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows)
+                ? devName
+                : (device.address ?? (device.vendorId != null ? '${device.vendorId}:${device.productId}' : devName));
+
+            final alreadyExists = _usbDevices.any((d) {
+              if (d.name.toLowerCase() == devName.toLowerCase()) return true;
+              if (d.vendorId != null && d.vendorId == device.vendorId && d.productId == device.productId) return true;
+              return false;
             });
-          }
-        });
+
+            if (!alreadyExists && mounted) {
+              setState(() {
+                _usbDevices.add(PrinterDevice(
+                  name: devName,
+                  address: devAddress,
+                  vendorId: device.vendorId,
+                  productId: device.productId,
+                ));
+              });
+            }
+          }, onDone: () {
+            if (mounted) setState(() => _isScanning = false);
+          }, onError: (_) {
+            if (mounted) setState(() => _isScanning = false);
+          });
+        } catch (_) {
+          if (mounted) setState(() => _isScanning = false);
+        }
         break;
+
       case PrinterConnectionType.network:
-        _scanSubscription = printerManager.discovery(type: PrinterType.network).listen((device) {
-          if (!_networkDevices.any((d) => d.address == device.address)) {
-            setState(() {
-              _networkDevices.add(device);
-            });
-          }
-        });
+        if (_ipController.text.trim().isNotEmpty && _isValidIp(_ipController.text)) {
+          final targetIp = _ipController.text.trim();
+          try {
+            final socket = await Socket.connect(targetIp, config.port, timeout: const Duration(seconds: 2));
+            await socket.close();
+            if (mounted) {
+              setState(() {
+                _networkDevices.add(PrinterDevice(name: 'Thermal Network Printer ($targetIp)', address: targetIp));
+              });
+            }
+          } catch (_) {}
+        }
+
+        try {
+          _scanSubscription = printerManager.discovery(type: PrinterType.network).listen((device) {
+            if (!_networkDevices.any((d) => d.address == device.address)) {
+              if (mounted) {
+                setState(() {
+                  _networkDevices.add(device);
+                });
+              }
+            }
+          }, onDone: () {
+            if (mounted) setState(() => _isScanning = false);
+          }, onError: (_) {
+            if (mounted) setState(() => _isScanning = false);
+          });
+        } catch (_) {
+          if (mounted) setState(() => _isScanning = false);
+        }
         break;
+
       case PrinterConnectionType.rawbt:
-        setState(() => _isScanning = false);
+        if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
+          ref.invalidate(systemPrintersProvider);
+        }
+        if (mounted) setState(() => _isScanning = false);
         return;
     }
 
-    // Auto-timeout scan after 10 seconds
-    Future.delayed(const Duration(seconds: 10), () {
+    // Auto-timeout fallback
+    Future.delayed(const Duration(seconds: 5), () {
       if (mounted && _isScanning) {
         _stopScan();
       }
     });
+  }
+
+  Future<void> _testNetworkIp(String ip, int port) async {
+    setState(() {
+      _isTestingIp = true;
+      _ipTestResult = null;
+    });
+    try {
+      final socket = await Socket.connect(ip.trim(), port, timeout: const Duration(seconds: 2));
+      await socket.close();
+      if (mounted) {
+        setState(() {
+          _isTestingIp = false;
+          _ipTestResult = 'online';
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isTestingIp = false;
+          _ipTestResult = 'offline';
+        });
+      }
+    }
   }
 
   void _stopScan() {
@@ -572,6 +734,45 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
               ),
             ],
           ),
+          if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows && config.name != 'POS-80C') ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+              decoration: BoxDecoration(
+                color: const Color(0xFF287A55).withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFF287A55).withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.bolt_rounded, color: Color(0xFF287A55), size: 20),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Detected USB Thermal: POS-80C',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF1E5B3F)),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      ref.read(printerConfigProvider.notifier).updateAddress('POS-80C');
+                      ref.read(printerConfigProvider.notifier).updateName('POS-80C');
+                      ref.read(printerConfigProvider.notifier).updateConnectionType(PrinterConnectionType.usb);
+                      ref.read(printerConfigProvider.notifier).updatePaperSize(PrinterPaperSize.mm80);
+                      setState(() => _lastTestStatus = null);
+                    },
+                    style: TextButton.styleFrom(
+                      backgroundColor: const Color(0xFF287A55),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      minimumSize: Size.zero,
+                    ),
+                    child: const Text('USE POS-80C', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           // Instant Test Print Button
           SizedBox(
@@ -858,6 +1059,43 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
           ],
         ),
         const SizedBox(height: 10),
+        Row(
+          children: [
+            ElevatedButton.icon(
+              onPressed: (_isTestingIp || !_isValidIp(_ipController.text))
+                  ? null
+                  : () => _testNetworkIp(_ipController.text, config.port),
+              icon: _isTestingIp
+                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.network_check_rounded, size: 16),
+              label: Text(_isTestingIp ? 'PINGING...' : 'VERIFY PORT 9100'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF5A3825),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+            const SizedBox(width: 12),
+            if (_ipTestResult == 'online')
+              const Row(
+                children: [
+                  Icon(Icons.check_circle_rounded, color: Color(0xFF287A55), size: 18),
+                  SizedBox(width: 6),
+                  Text('Port 9100 Reachable', style: TextStyle(color: Color(0xFF287A55), fontWeight: FontWeight.bold, fontSize: 12)),
+                ],
+              )
+            else if (_ipTestResult == 'offline')
+              const Row(
+                children: [
+                  Icon(Icons.cancel_rounded, color: Color(0xFFDC2626), size: 18),
+                  SizedBox(width: 6),
+                  Text('Unreachable (Check WiFi/IP)', style: TextStyle(color: Color(0xFFDC2626), fontWeight: FontWeight.bold, fontSize: 12)),
+                ],
+              ),
+          ],
+        ),
+        const SizedBox(height: 10),
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
@@ -925,10 +1163,16 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
         final name = device.name.isNotEmpty ? device.name : 'Unknown Hardware';
 
         String address;
-        if (config.connectionType == PrinterConnectionType.bluetooth) {
-          address = device.address ?? '';
+        if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
+          address = device.name;
+        } else if (config.connectionType == PrinterConnectionType.bluetooth) {
+          address = device.address ?? device.name;
         } else {
-          address = '${device.vendorId}:${device.productId}';
+          if (device.vendorId != null && device.productId != null) {
+            address = '${device.vendorId}:${device.productId}';
+          } else {
+            address = device.address ?? device.name;
+          }
         }
 
         final isSelected = config.address == address;
@@ -952,13 +1196,21 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
             ),
           ),
           title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF29231F))),
-          subtitle: Text(address, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500, color: Color(0xFF6B5E55))),
+          subtitle: Text(
+            (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows)
+                ? 'Windows Spooler Device • $address'
+                : address,
+            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500, color: Color(0xFF6B5E55)),
+          ),
           trailing: isSelected
               ? const Icon(Icons.check_circle_rounded, color: Color(0xFF287A55), size: 22)
               : OutlinedButton(
                   onPressed: () {
                     ref.read(printerConfigProvider.notifier).updateAddress(address);
                     ref.read(printerConfigProvider.notifier).updateName(name);
+                    if (name.toUpperCase().contains('80')) {
+                      ref.read(printerConfigProvider.notifier).updatePaperSize(PrinterPaperSize.mm80);
+                    }
                     setState(() => _lastTestStatus = null);
                   },
                   style: OutlinedButton.styleFrom(
@@ -1043,6 +1295,11 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
                             onPressed: () {
                               ref.read(printerConfigProvider.notifier).updateAddress(p.name);
                               ref.read(printerConfigProvider.notifier).updateName(p.name);
+                              ref.read(printerConfigProvider.notifier).updateConnectionType(PrinterConnectionType.usb);
+                              if (p.name.toUpperCase().contains('80')) {
+                                ref.read(printerConfigProvider.notifier).updatePaperSize(PrinterPaperSize.mm80);
+                              }
+                              setState(() => _lastTestStatus = null);
                             },
                             child: const Text('SELECT', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF382012))),
                           ),

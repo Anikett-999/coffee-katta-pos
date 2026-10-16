@@ -312,13 +312,21 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
 
       bool printSuccess = true;
 
-      if (shouldPrint || existingKOT != null) {
+      final shouldActuallyPrint = shouldPrint || existingKOT != null || config.autoPrintKOT;
+
+      if (shouldActuallyPrint) {
         setState(() => _processingStatus = "Sending to printer...");
-        final bytes = await printService.generateKOTBytes(kot, config.paperSize);
-        printSuccess = await printService.printReceipt(bytes, config);
-        
-        if (printSuccess) {
-          await kotService.markAsPrinted(kot.kotId, widget.table.tableId);
+        try {
+          final bytes = await printService.generateKOTBytes(kot, config.paperSize);
+          printSuccess = await printService.printReceipt(bytes, config);
+          
+          if (printSuccess) {
+            try {
+              await kotService.markAsPrinted(kot.kotId, widget.table.tableId);
+            } catch (_) {}
+          }
+        } catch (_) {
+          printSuccess = false;
         }
       }
 
@@ -350,24 +358,28 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
             actions: [
               TextButton(
                 onPressed: () {
-                  Navigator.pop(context);
+                  if (Navigator.canPop(context)) Navigator.pop(context);
                   _sendToKitchen(existingKOT: kot);
                 },
                 child: const Text('RETRY PRINT'),
               ),
               TextButton(
                 onPressed: () {
-                  Navigator.pop(context);
+                  if (Navigator.canPop(context)) Navigator.pop(context);
                   if (existingKOT == null) {
                     ref.read(cartProvider(widget.table.tableId).notifier).clear();
                   }
-                  Navigator.pop(context); // Exit Order Screen
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (context.mounted && Navigator.canPop(context)) {
+                      Navigator.pop(context); // Exit Order Screen safely
+                    }
+                  });
                 },
                 child: const Text('FINISH (MANUAL)', style: TextStyle(color: AppTheme.maroon)),
               ),
               TextButton(
                 onPressed: () {
-                  Navigator.pop(context);
+                  if (Navigator.canPop(context)) Navigator.pop(context);
                   if (existingKOT == null) {
                     ref.read(cartProvider(widget.table.tableId).notifier).clear();
                   }
@@ -391,7 +403,9 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
           content: Text(printSuccess ? '✅ KOT Sent and Printed!' : '✅ KOT Saved Successfully!'),
           backgroundColor: AppTheme.deepGreen,
         ));
-        if (existingKOT == null) Navigator.pop(context);
+        if (existingKOT == null && Navigator.canPop(context)) {
+          Navigator.pop(context);
+        }
       }
     } catch (e) {
       setState(() => _isProcessing = false);
@@ -692,9 +706,9 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
             if (!context.mounted) return;
             if (action == 'discard') {
               ref.read(cartProvider(widget.table.tableId).notifier).clear();
-              Navigator.of(context).pop();
+              if (Navigator.canPop(context)) Navigator.of(context).pop();
             } else if (action == 'keep') {
-              Navigator.of(context).pop();
+              if (Navigator.canPop(context)) Navigator.of(context).pop();
             }
           },
           child: EditorialBackground(
@@ -1950,7 +1964,7 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                 height: 48,
                 child: Consumer(builder: (c, ref, _) {
                    final cart = ref.watch(cartProvider(widget.table.tableId));
-                   final isDisabled = cart.isEmpty;
+                   final isDisabled = _isProcessing || cart.isEmpty;
                    return Row(
                      children: [
                        Expanded(
@@ -1959,11 +1973,13 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                            height: 48,
                            child: ElevatedButton.icon(
                              onPressed: isDisabled ? null : () {
-                               Navigator.pop(ctx);
+                               if (Navigator.canPop(ctx)) Navigator.pop(ctx);
                                _sendToKitchen();
                              },
-                             icon: const Icon(Icons.send_rounded, size: 16),
-                             label: const Text('SEND', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                             icon: _isProcessing
+                                 ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                 : const Icon(Icons.send_rounded, size: 16),
+                             label: Text(_isProcessing ? 'SENDING...' : 'SEND', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                              style: ElevatedButton.styleFrom(
                                backgroundColor: AppTheme.primaryCoffee,
                                foregroundColor: Colors.white,
@@ -1979,11 +1995,13 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                            height: 48,
                            child: ElevatedButton.icon(
                              onPressed: isDisabled ? null : () {
-                               Navigator.pop(ctx);
+                               if (Navigator.canPop(ctx)) Navigator.pop(ctx);
                                _sendToKitchen(shouldPrint: true);
                              },
-                             icon: const Icon(Icons.print, size: 16),
-                             label: const Text('SEND & PRINT', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                             icon: _isProcessing
+                                 ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                 : const Icon(Icons.print, size: 16),
+                             label: Text(_isProcessing ? 'PRINTING...' : 'SEND & PRINT', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                              style: ElevatedButton.styleFrom(
                                backgroundColor: AppTheme.primaryCoffee,
                                foregroundColor: Colors.white,
@@ -2190,9 +2208,13 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                           child: SizedBox(
                             height: 46,
                             child: ElevatedButton.icon(
-                              onPressed: ref.watch(cartProvider(widget.table.tableId)).isEmpty ? null : () => _sendToKitchen(),
-                              icon: const Icon(Icons.send_rounded, size: 16),
-                              label: const Text('SEND', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                              onPressed: (_isProcessing || ref.watch(cartProvider(widget.table.tableId)).isEmpty)
+                                  ? null
+                                  : () => _sendToKitchen(),
+                              icon: _isProcessing
+                                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                  : const Icon(Icons.send_rounded, size: 16),
+                              label: Text(_isProcessing ? 'SENDING...' : 'SEND', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppTheme.primaryCoffee,
                                 foregroundColor: Colors.white,
@@ -2207,9 +2229,13 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                           child: SizedBox(
                             height: 46,
                             child: ElevatedButton.icon(
-                              onPressed: ref.watch(cartProvider(widget.table.tableId)).isEmpty ? null : () => _sendToKitchen(shouldPrint: true),
-                              icon: const Icon(Icons.print, size: 16),
-                              label: const Text('SEND & PRINT', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              onPressed: (_isProcessing || ref.watch(cartProvider(widget.table.tableId)).isEmpty)
+                                  ? null
+                                  : () => _sendToKitchen(shouldPrint: true),
+                              icon: _isProcessing
+                                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                  : const Icon(Icons.print, size: 16),
+                              label: Text(_isProcessing ? 'PRINTING...' : 'SEND & PRINT', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppTheme.primaryCoffee,
                                 foregroundColor: Colors.white,

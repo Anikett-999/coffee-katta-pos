@@ -88,162 +88,177 @@ class BillingService {
       return BillModel.fromJson(data);
     }
 
-    return await _firestore.runTransaction((transaction) async {
-      // 1. Lock table for billing
-      final tableRef = _tableCollection.doc(tableId);
-      final tableSnap = await transaction.get(tableRef);
-      if (!tableSnap.exists) throw Exception('Table not found');
+    final tableRef = _tableCollection.doc(tableId);
+    final kotQuery = _kotCollection.where('orderId', isEqualTo: orderId);
+
+    // 1. Parallel Pre-Reads (Zero-wait roundtrip, avoiding Windows C++ transaction deadlock)
+    final results = await Future.wait([
+      tableRef.get(),
+      kotQuery.get(),
+      _counterDoc.get(),
+    ]);
+
+    final tableSnap = results[0] as DocumentSnapshot;
+    final kotSnapshots = results[1] as QuerySnapshot;
+    final counterSnap = results[2] as DocumentSnapshot;
+
+    if (!tableSnap.exists) throw Exception('Table not found');
+    
+    final tableData = TableModel.fromJson(tableSnap.data() as Map<String, dynamic>);
+    if (tableData.status != 'occupied' && tableData.status != 'billing') {
+      throw Exception('Invalid table status for billing');
+    }
+
+    // 2. Aggregate items
+    final kots = kotSnapshots.docs.map((doc) => KOTModel.fromJson(doc.data() as Map<String, dynamic>)).toList();
+
+    final billItems = _aggregateKOTItems(kots);
+    double subtotal = 0.0;
+    for (var item in billItems) {
+      subtotal += (item.price * item.qty);
+    }
+
+    // 3. Validate & Apply calculations
+    // Guard: reject negative inputs
+    if (discountValue < 0) throw Exception('Discount value cannot be negative');
+    if (extraCharges < 0) throw Exception('Extra charges cannot be negative');
+
+    double discountAmount;
+    double discountPercent;
+    if (discountType == 'flat') {
+      // Clamp flat discount: cannot exceed subtotal
+      discountAmount = discountValue.clamp(0, subtotal);
+      discountPercent = 0.0;
+    } else {
+      // Clamp percentage: 0-100%
+      discountPercent = discountValue.clamp(0, 100);
+      discountAmount = (subtotal * discountPercent) / 100;
+    }
+    double total = (subtotal - discountAmount) + extraCharges;
+    // Final safety net: total must never be negative
+    if (total < 0) total = 0;
+
+    // 4. Fetch/Calculate Bill ID with Daily Reset (Start from 1001)
+    final now = DateTime.now();
+    final String todayStr = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+    
+    int billNumber = 1001;
+    if (counterSnap.exists) {
+      final counterData = counterSnap.data() as Map<String, dynamic>;
+      final String lastReset = counterData['lastBillResetDate'] ?? '';
       
-      final tableData = TableModel.fromJson(tableSnap.data() as Map<String, dynamic>);
-      if (tableData.status != 'occupied' && tableData.status != 'billing') {
-        throw Exception('Invalid table status for billing');
+      if (lastReset == todayStr) {
+        billNumber = (counterData['billCounter'] ?? 1000) + 1;
       }
+    }
 
-      // 2. Aggregate items
-      final kotSnapshots = await _kotCollection.where('orderId', isEqualTo: orderId).get();
-      final kots = kotSnapshots.docs.map((doc) => KOTModel.fromJson(doc.data() as Map<String, dynamic>)).toList();
+    final String billId = "INV-${now.year.toString().substring(2)}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${billNumber.toString().substring(1)}";
+    
+    final bill = BillModel(
+      billId: billId,
+      orderId: orderId,
+      tableId: tableId,
+      tableName: tableName,
+      userName: userName,
+      items: billItems,
+      subtotal: subtotal,
+      discountPercent: discountPercent,
+      discountAmount: discountAmount,
+      discountType: discountType,
+      extraCharges: extraCharges,
+      total: total,
+      payments: payments,
+      createdAt: now,
+      createdBy: userId,
+    );
 
-      final billItems = _aggregateKOTItems(kots);
-      double subtotal = 0.0;
-      for (var item in billItems) {
-        subtotal += (item.price * item.qty);
-      }
+    // 5. Atomic Batch Write (instant, 100% crash-proof on Windows desktop)
+    final batch = _firestore.batch();
 
-      // 3. Validate & Apply calculations
-      // Guard: reject negative inputs
-      if (discountValue < 0) throw Exception('Discount value cannot be negative');
-      if (extraCharges < 0) throw Exception('Extra charges cannot be negative');
+    // Update counters (Global)
+    batch.set(_counterDoc, {
+      'billCounter': billNumber,
+      'lastBillResetDate': todayStr,
+    }, SetOptions(merge: true));
 
-      double discountAmount;
-      double discountPercent;
-      if (discountType == 'flat') {
-        // Clamp flat discount: cannot exceed subtotal
-        discountAmount = discountValue.clamp(0, subtotal);
-        discountPercent = 0.0;
-      } else {
-        // Clamp percentage: 0-100%
-        discountPercent = discountValue.clamp(0, 100);
-        discountAmount = (subtotal * discountPercent) / 100;
-      }
-      double total = (subtotal - discountAmount) + extraCharges;
-      // Final safety net: total must never be negative
-      if (total < 0) total = 0;
+    batch.set(_billCollection.doc(billId), bill.toJson());
 
-      // 4. Fetch/Calculate Bill ID with Daily Reset (Start from 1001)
-      final now = DateTime.now();
-      final String todayStr = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
-      
-      final counterSnap = await transaction.get(_counterDoc);
-      int billNumber = 1001;
-      
-      if (counterSnap.exists) {
-        final counterData = counterSnap.data() as Map<String, dynamic>;
-        final String lastReset = counterData['lastBillResetDate'] ?? '';
-        
-        if (lastReset == todayStr) {
-          billNumber = (counterData['billCounter'] ?? 1000) + 1;
-        }
-      }
-
-      // Update counters (Global)
-      transaction.set(_counterDoc, {
-        'billCounter': billNumber,
-        'lastBillResetDate': todayStr,
-      }, SetOptions(merge: true));
-
-      final String billId = "INV-${now.year.toString().substring(2)}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${billNumber.toString().substring(1)}";
-      
-      final bill = BillModel(
-        billId: billId,
-        orderId: orderId,
-        tableId: tableId,
-        tableName: tableName,
-        userName: userName,
-        items: billItems,
-        subtotal: subtotal,
-        discountPercent: discountPercent,
-        discountAmount: discountAmount,
-        discountType: discountType,
-        extraCharges: extraCharges,
-        total: total,
-        payments: payments,
-        createdAt: DateTime.now(),
-        createdBy: userId,
-      );
-
-      transaction.set(_billCollection.doc(billId), bill.toJson());
-
-      transaction.update(tableRef, {
-        'status': 'billing',
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      // Automatically assume all KOT items as served once invoice/bill is generated
-      for (final kotDoc in kotSnapshots.docs) {
-        final kotData = kotDoc.data() as Map<String, dynamic>;
-        final items = List<Map<String, dynamic>>.from(
-          (kotData['items'] as List<dynamic>? ?? []).map((i) => Map<String, dynamic>.from(i as Map)),
-        );
-        bool hasChanges = false;
-        for (var item in items) {
-          if (item['status'] != 'served') {
-            item['status'] = 'served';
-            hasChanges = true;
-          }
-        }
-        if (hasChanges) {
-          transaction.update(kotDoc.reference, {'items': items});
-        }
-      }
-
-      // Update Analytics (Async Fire-and-Forget for performance)
-      _analyticsService.updateDailyAnalytics(bill, branchId);
-
-      return bill;
+    batch.update(tableRef, {
+      'status': 'billing',
+      'updatedAt': Timestamp.fromDate(now),
     });
+
+    // Automatically assume all KOT items as served once invoice/bill is generated
+    for (final kotDoc in kotSnapshots.docs) {
+      final kotData = kotDoc.data() as Map<String, dynamic>;
+      final items = List<Map<String, dynamic>>.from(
+        (kotData['items'] as List<dynamic>? ?? []).map((i) => Map<String, dynamic>.from(i as Map)),
+      );
+      bool hasChanges = false;
+      for (var item in items) {
+        if (item['status'] != 'served') {
+          item['status'] = 'served';
+          hasChanges = true;
+        }
+      }
+      if (hasChanges) {
+        batch.update(kotDoc.reference, {'items': items});
+      }
+    }
+
+    await batch.commit();
+
+    // Update Analytics (Async Fire-and-Forget for performance)
+    _analyticsService.updateDailyAnalytics(bill, branchId);
+
+    return bill;
   }
 
   // Finalize and Clear Table
   Future<void> finalizeAndClearTable(String tableId, String orderId) async {
+    final now = DateTime.now();
     // 1. Fetch any KOTs for this order to ensure all items are marked served
     final kotSnapshots = await _kotCollection.where('orderId', isEqualTo: orderId).get();
 
-    await _firestore.runTransaction((transaction) async {
-      // 2. Close Order
-      transaction.update(_orderCollection.doc(orderId), {
-        'status': 'closed',
-        'closedAt': FieldValue.serverTimestamp(),
-      });
+    // 2. Atomic Batch Write (instant, 100% crash-proof on Windows desktop)
+    final batch = _firestore.batch();
 
-      // 3. Clear Table
-      transaction.update(_tableCollection.doc(tableId), {
-        'status': 'available',
-        'activeOrderId': null,
-        'totalAmount': 0.0,
-        'itemCount': 0,
-        'kotCount': 0,
-        'unprintedKotCount': 0,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+    // Close Order
+    batch.update(_orderCollection.doc(orderId), {
+      'status': 'closed',
+      'closedAt': Timestamp.fromDate(now),
+    });
 
-      // 4. Mark any remaining KOT items as served
-      for (final doc in kotSnapshots.docs) {
-        final kotData = doc.data() as Map<String, dynamic>;
-        final items = List<Map<String, dynamic>>.from(
-          (kotData['items'] as List<dynamic>? ?? []).map((item) => Map<String, dynamic>.from(item as Map)),
-        );
-        bool hasChanges = false;
-        for (var item in items) {
-          if (item['status'] != 'served') {
-            item['status'] = 'served';
-            hasChanges = true;
-          }
-        }
-        if (hasChanges) {
-          transaction.update(doc.reference, {'items': items});
+    // Clear Table
+    batch.update(_tableCollection.doc(tableId), {
+      'status': 'available',
+      'activeOrderId': null,
+      'totalAmount': 0.0,
+      'itemCount': 0,
+      'kotCount': 0,
+      'unprintedKotCount': 0,
+      'updatedAt': Timestamp.fromDate(now),
+    });
+
+    // Mark any remaining KOT items as served
+    for (final doc in kotSnapshots.docs) {
+      final kotData = doc.data() as Map<String, dynamic>;
+      final items = List<Map<String, dynamic>>.from(
+        (kotData['items'] as List<dynamic>? ?? []).map((item) => Map<String, dynamic>.from(item as Map)),
+      );
+      bool hasChanges = false;
+      for (var item in items) {
+        if (item['status'] != 'served') {
+          item['status'] = 'served';
+          hasChanges = true;
         }
       }
-    });
+      if (hasChanges) {
+        batch.update(doc.reference, {'items': items});
+      }
+    }
+
+    await batch.commit();
   }
 
   // Void an existing bill with audit logging, optional table restoration, and analytics reversal
@@ -259,109 +274,109 @@ class BillingService {
 
     final billDocRef = _billCollection.doc(billId);
 
-    final updatedBill = await _firestore.runTransaction((transaction) async {
-      // ═════════════════════════════════════════════════════════════════════
-      // PHASE 1: ALL READS FIRST (Strict Firestore Transaction Invariant)
-      // ═════════════════════════════════════════════════════════════════════
-      final billSnap = await transaction.get(billDocRef);
-      if (!billSnap.exists) {
-        throw Exception('Bill $billId does not exist.');
-      }
+    final billSnap = await billDocRef.get();
+    if (!billSnap.exists) {
+      throw Exception('Bill $billId does not exist.');
+    }
 
-      final billData = Map<String, dynamic>.from(billSnap.data() as Map);
-      if (billData['isVoided'] == true) {
-        throw Exception('Bill $billId is already voided.');
-      }
+    final billData = Map<String, dynamic>.from(billSnap.data() as Map);
+    if (billData['isVoided'] == true) {
+      throw Exception('Bill $billId is already voided.');
+    }
 
-      final tableId = billData['tableId'] as String?;
-      final orderId = billData['orderId'] as String?;
+    final tableId = billData['tableId'] as String?;
+    final orderId = billData['orderId'] as String?;
 
-      final now = DateTime.now();
+    final now = DateTime.now();
 
-      // Guard: Only allow table restoration if the bill was created TODAY and within the last 3 hours
-      DateTime billCreatedAt = now;
-      final rawCreatedAt = billData['createdAt'];
-      if (rawCreatedAt is Timestamp) {
-        billCreatedAt = rawCreatedAt.toDate();
-      } else if (rawCreatedAt is DateTime) {
-        billCreatedAt = rawCreatedAt;
-      } else if (rawCreatedAt is String) {
-        billCreatedAt = DateTime.tryParse(rawCreatedAt) ?? now;
-      }
+    // Guard: Only allow table restoration if the bill was created TODAY and within the last 3 hours
+    DateTime billCreatedAt = now;
+    final rawCreatedAt = billData['createdAt'];
+    if (rawCreatedAt is Timestamp) {
+      billCreatedAt = rawCreatedAt.toDate();
+    } else if (rawCreatedAt is DateTime) {
+      billCreatedAt = rawCreatedAt;
+    } else if (rawCreatedAt is String) {
+      billCreatedAt = DateTime.tryParse(rawCreatedAt) ?? now;
+    }
 
-      final isSameDay = billCreatedAt.year == now.year &&
-          billCreatedAt.month == now.month &&
-          billCreatedAt.day == now.day;
-      final isRecent = now.difference(billCreatedAt).inHours < 3;
-      final shouldRestoreTable = restoreTable && isSameDay && isRecent;
+    final isSameDay = billCreatedAt.year == now.year &&
+        billCreatedAt.month == now.month &&
+        billCreatedAt.day == now.day;
+    final isRecent = now.difference(billCreatedAt).inHours < 3;
+    final shouldRestoreTable = restoreTable && isSameDay && isRecent;
 
-      DocumentReference? tableRef;
-      DocumentSnapshot? tableSnap;
-      DocumentReference? orderRef;
-      DocumentSnapshot? orderSnap;
+    DocumentReference? tableRef;
+    DocumentSnapshot? tableSnap;
+    DocumentReference? orderRef;
+    DocumentSnapshot? orderSnap;
 
-      // Read table and order BEFORE ANY WRITES are executed
-      if (shouldRestoreTable && tableId != null && orderId != null) {
-        tableRef = _tableCollection.doc(tableId);
-        tableSnap = await transaction.get(tableRef);
+    // Read table and order BEFORE ANY WRITES are executed
+    if (shouldRestoreTable && tableId != null && orderId != null) {
+      tableRef = _tableCollection.doc(tableId);
+      orderRef = _orderCollection.doc(orderId);
 
-        orderRef = _orderCollection.doc(orderId);
-        orderSnap = await transaction.get(orderRef);
-      }
+      final restoreResults = await Future.wait([
+        tableRef.get(),
+        orderRef.get(),
+      ]);
+      tableSnap = restoreResults[0];
+      orderSnap = restoreResults[1];
+    }
 
-      // ═════════════════════════════════════════════════════════════════════
-      // PHASE 2: ALL WRITES AFTER ALL READS
-      // ═════════════════════════════════════════════════════════════════════
+    // Atomic Batch Write
+    final batch = _firestore.batch();
 
-      // 1. Mark bill as voided
-      transaction.update(billDocRef, {
-        'isVoided': true,
-        'voidedAt': FieldValue.serverTimestamp(),
-        'voidedBy': voidedBy,
-        'voidReason': voidReason.trim(),
-        'tableRestored': shouldRestoreTable,
-      });
+    // 1. Mark bill as voided
+    batch.update(billDocRef, {
+      'isVoided': true,
+      'voidedAt': Timestamp.fromDate(now),
+      'voidedBy': voidedBy,
+      'voidReason': voidReason.trim(),
+      'tableRestored': shouldRestoreTable,
+    });
 
-      // 2. Optionally restore table and order so staff can re-bill / fix mistakes
-      if (shouldRestoreTable && tableRef != null && tableSnap != null && tableSnap.exists) {
-        final tableData = tableSnap.data() as Map<String, dynamic>? ?? {};
-        final currentStatus = tableData['status'] as String? ?? 'available';
+    // 2. Optionally restore table and order so staff can re-bill / fix mistakes
+    if (shouldRestoreTable && tableRef != null && tableSnap != null && tableSnap.exists) {
+      final tableData = tableSnap.data() as Map<String, dynamic>? ?? {};
+      final currentStatus = tableData['status'] as String? ?? 'available';
 
-        // If table is available or billing, restore it to occupied
-        if (currentStatus == 'available' || currentStatus == 'billing') {
-          final billTotal = (billData['total'] as num?)?.toDouble() ?? 0.0;
-          final itemsList = billData['items'] as List<dynamic>? ?? [];
-          final totalItemQty = itemsList.fold<int>(
-            0,
-            (totalQty, i) => totalQty + ((i['qty'] as num?)?.toInt() ?? 1),
-          );
+      // If table is available or billing, restore it to occupied
+      if (currentStatus == 'available' || currentStatus == 'billing') {
+        final billTotal = (billData['total'] as num?)?.toDouble() ?? 0.0;
+        final itemsList = billData['items'] as List<dynamic>? ?? [];
+        final totalItemQty = itemsList.fold<int>(
+          0,
+          (totalQty, i) => totalQty + ((i['qty'] as num?)?.toInt() ?? 1),
+        );
 
-          transaction.update(tableRef, {
-            'status': 'occupied',
-            'activeOrderId': orderId,
-            'totalAmount': billTotal,
-            'itemCount': totalItemQty,
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
-        }
-      }
-
-      // Re-open order
-      if (shouldRestoreTable && orderRef != null && orderSnap != null && orderSnap.exists) {
-        transaction.update(orderRef, {
-          'status': 'active',
-          'updatedAt': FieldValue.serverTimestamp(),
+        batch.update(tableRef, {
+          'status': 'occupied',
+          'activeOrderId': orderId,
+          'totalAmount': billTotal,
+          'itemCount': totalItemQty,
+          'updatedAt': Timestamp.fromDate(now),
         });
       }
+    }
 
-      billData['isVoided'] = true;
-      billData['voidedAt'] = now;
-      billData['voidedBy'] = voidedBy;
-      billData['voidReason'] = voidReason.trim();
-      billData['tableRestored'] = shouldRestoreTable;
+    // Re-open order
+    if (shouldRestoreTable && orderRef != null && orderSnap != null && orderSnap.exists) {
+      batch.update(orderRef, {
+        'status': 'active',
+        'updatedAt': Timestamp.fromDate(now),
+      });
+    }
 
-      return BillModel.fromJson(billData);
-    });
+    await batch.commit();
+
+    billData['isVoided'] = true;
+    billData['voidedAt'] = now;
+    billData['voidedBy'] = voidedBy;
+    billData['voidReason'] = voidReason.trim();
+    billData['tableRestored'] = shouldRestoreTable;
+
+    final updatedBill = BillModel.fromJson(billData);
 
     // 3. Reverse Analytics
     await _analyticsService.reverseDailyAnalytics(updatedBill, branchId);

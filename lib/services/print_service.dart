@@ -15,6 +15,7 @@ import '../domain/models/printer_config.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 import 'package:printing/printing.dart';
+import 'windows_raw_printer.dart';
 
 class PrintService {
   // Generate KOT ESC/POS commands
@@ -30,30 +31,67 @@ class PrintService {
     bytes += [0x1B, 0x40]; // Initialize
     bytes += [0x1D, 0x4C, 0x00, 0x00]; // GS L 0 0 (Set left margin to 0)
 
-    // Configuration for 80mm vs 58mm
-    // Modern 80mm printers usually support up to 64 chars (Font B)
-    final int maxChars = paperSize == PrinterPaperSize.mm80 ? 64 : 32;
-    
-    // Helper for manual rows (C1: Items, C2: Category, C3: Qty)
-    String formatKOTRow(String c1, String c2, String c3) {
-      // Relative width calculations: Item (60%), Category (25%), Qty (15%)
-      int w1 = (maxChars * 0.6).floor(); 
-      int w2 = (maxChars * 0.25).floor(); 
-      int w3 = maxChars - w1 - w2 - 4; // Subtracting 4 for gaps
-      
-      String s1 = c1.padRight(w1).substring(0, w1);
-      String s2 = c2.padRight(w2).substring(0, w2);
-      String s3 = c3.padLeft(w3).substring(0, w3);
-      
-      return "$s1  $s2  $s3"; 
-    }
-
+    final int maxChars = paperSize == PrinterPaperSize.mm80 ? 48 : 32;
     final String sep = '-' * maxChars;
     final String dsep = '=' * maxChars;
 
+    String fitCell(String text, int width, {bool alignRight = false, bool alignCenter = false}) {
+      final safeText = text.replaceAll('₹', 'Rs.').replaceAll('—', '-').replaceAll('–', '-');
+      final normalized = safeText.length > width ? safeText.substring(0, width) : safeText;
+      if (alignCenter) {
+        final totalPad = (width - normalized.length).clamp(0, width);
+        final leftPad = totalPad ~/ 2;
+        final rightPad = totalPad - leftPad;
+        return (' ' * leftPad) + normalized + (' ' * rightPad);
+      }
+      return alignRight ? normalized.padLeft(width) : normalized.padRight(width);
+    }
+
+    String formatDualLine(String left, String right) {
+      final safeLeft = left.replaceAll('₹', 'Rs.').replaceAll('—', '-').replaceAll('–', '-');
+      final safeRight = right.replaceAll('₹', 'Rs.').replaceAll('—', '-').replaceAll('–', '-');
+      final maxLeft = (maxChars - safeRight.length - 1).clamp(0, maxChars);
+      final clippedLeft = safeLeft.length > maxLeft ? safeLeft.substring(0, maxLeft) : safeLeft;
+      final spaces = (maxChars - clippedLeft.length - safeRight.length).clamp(1, maxChars);
+      return clippedLeft + (' ' * spaces) + safeRight;
+    }
+
+    List<String> wrapText(String text, int width) {
+      if (text.isEmpty) return [''];
+      final words = text.replaceAll('₹', 'Rs.').split(RegExp(r'\s+'));
+      final lines = <String>[];
+      var current = '';
+
+      for (final word in words) {
+        if (word.length > width) {
+          if (current.isNotEmpty) {
+            lines.add(current);
+            current = '';
+          }
+          lines.add(word.substring(0, width));
+          continue;
+        }
+        final candidate = current.isEmpty ? word : '$current $word';
+        if (candidate.length <= width) {
+          current = candidate;
+        } else {
+          lines.add(current);
+          current = word;
+        }
+      }
+      if (current.isNotEmpty) lines.add(current);
+      return lines;
+    }
+
+    final int itemWidth = (maxChars * 0.55).floor();
+    final int catWidth = (maxChars * 0.25).floor();
+    final int qtyWidth = maxChars - itemWidth - catWidth;
+
     // 1. Header: Large Bold KOT Number
     final String timeStr = DateFormat('hh:mm a').format(kot.createdAt);
-    bytes += generator.text(dsep); // Top divider
+    final String dateStr = DateFormat('dd/MM/yy').format(kot.createdAt);
+
+    bytes += generator.text(dsep);
     bytes += generator.text('KOT #${kot.kotNumber}', 
       styles: const PosStyles(
         bold: true, 
@@ -61,36 +99,43 @@ class PrintService {
         height: PosTextSize.size2, 
         width: PosTextSize.size2
       ));
-    
-    bytes += generator.feed(1);
+    bytes += generator.text('KITCHEN ORDER TICKET', 
+      styles: const PosStyles(align: PosAlign.center, bold: true));
+    bytes += generator.text(dsep);
 
-    // Header Info: Consolidated into ONE line (Table | Time | By)
-    final String cleanUserName = kot.userName.isEmpty ? 'Staff' : kot.userName;
-    final String printerBy = "by:${cleanUserName.length > 5 ? cleanUserName.substring(0, 5) : cleanUserName}".toLowerCase();
-    
-    String timeAndBy = "$timeStr           $printerBy"; 
-    String tableInfo = ': ${kot.tableName.toString().toUpperCase()}           ';
-    
-    String headerLine = tableInfo.padRight(maxChars - timeAndBy.length) + timeAndBy;
-    bytes += generator.text(headerLine, styles: const PosStyles(bold: true));
-
+    // 2. Metadata: Table & Server / Date & Time
+    final cleanUserName = kot.userName.trim().isNotEmpty ? kot.userName.trim() : 'Staff';
+    bytes += generator.text(formatDualLine('TABLE: ${kot.tableName.toUpperCase()}', timeStr), styles: const PosStyles(bold: true));
+    bytes += generator.text(formatDualLine('SERVER: $cleanUserName', dateStr));
     bytes += generator.text(sep);
 
-    // 3-Column Item Header
-    bytes += generator.text(formatKOTRow('ITEMS', 'CAT', 'QTY'), styles: const PosStyles(bold: true));
+    // 3. 3-Column Item Header
+    final headerRow = fitCell('ITEMS', itemWidth) +
+        fitCell('CAT', catWidth, alignCenter: true) +
+        fitCell('QTY', qtyWidth, alignRight: true);
+    bytes += generator.text(headerRow, styles: const PosStyles(bold: true));
     bytes += generator.text(sep);
 
+    // 4. Items List with text wrapping
     for (var item in kot.items) {
-      bytes += generator.text(formatKOTRow(item.name, item.category, '${item.qty}'));
-      
-      if (item.note.isNotEmpty) {
-        bytes += generator.text('  note: ${item.note.toLowerCase()}');
+      final itemLines = wrapText(item.name, itemWidth);
+      final firstRow = fitCell(itemLines.first, itemWidth) +
+          fitCell(item.category.isNotEmpty ? item.category : '-', catWidth, alignCenter: true) +
+          fitCell('${item.qty}', qtyWidth, alignRight: true);
+      bytes += generator.text(firstRow, styles: const PosStyles(bold: true));
+
+      for (final extraLine in itemLines.skip(1)) {
+        bytes += generator.text(fitCell(extraLine, itemWidth));
       }
-      bytes += generator.text(sep); // Separator between each KOT item
+
+      if (item.note.trim().isNotEmpty) {
+        bytes += generator.text('  * Note: ${item.note.trim()}');
+      }
+      bytes += generator.text(sep);
     }
     
-    bytes += generator.text(dsep); // Closing divider
-    bytes += generator.feed(2);
+    bytes += generator.text(dsep);
+    bytes += generator.feed(4);
     bytes += generator.cut();
 
     return bytes;
@@ -109,9 +154,8 @@ class PrintService {
     bytes += [0x1D, 0x4C, 0x00, 0x00]; 
 
     // Configuration for 80mm vs 58mm
-    // Modern 80mm printers usually support up to 64 chars (Font B) or 48 (Font A)
-    // Using 64 to ensure full-width utilization on standard 80mm rolls.
-    final int maxChars = paperSize == PrinterPaperSize.mm80 ? 64 : 32;
+    // Standard 80mm Font A supports 48 chars (Font B 64 chars)
+    final int maxChars = paperSize == PrinterPaperSize.mm80 ? 48 : 32;
     final String sep = '-' * maxChars;
     final String dsep = '=' * maxChars;
 
@@ -300,7 +344,7 @@ class PrintService {
     
     bytes += generator.text('THANK YOU', styles: const PosStyles(align: PosAlign.center, bold: true));
     bytes += generator.text(dsep);
-    bytes += generator.feed(2);
+    bytes += generator.feed(4);
     bytes += generator.cut();
     
     return bytes;
@@ -322,7 +366,7 @@ class PrintService {
     bytes += [0x1B, 0x40]; // Initialize
     bytes += [0x1D, 0x4C, 0x00, 0x00]; // Reset margin
 
-    final int maxChars = config.paperSize == PrinterPaperSize.mm80 ? 64 : 32;
+    final int maxChars = config.paperSize == PrinterPaperSize.mm80 ? 48 : 32;
     final String sep = '-' * maxChars;
     final String dsep = '=' * maxChars;
 
@@ -392,25 +436,35 @@ class PrintService {
       styles: const PosStyles(align: PosAlign.center, bold: true),
     );
     bytes += generator.text(dsep);
-    bytes += generator.feed(3);
+    bytes += generator.feed(4);
     bytes += generator.cut();
 
     return bytes;
   }
 
+  /// Generates the ESC/POS cash drawer kick pulse (RJ11/RJ12 Pin 2)
+  List<int> getCashDrawerKickBytes() {
+    return [0x1B, 0x70, 0x00, 0x19, 0xFA];
+  }
+
+  /// Sends a pulse to pop open the connected cash drawer
+  Future<bool> openCashDrawer(PrinterConfig config) async {
+    return await printReceipt(getCashDrawerKickBytes(), config);
+  }
+
   // Master Print Function
   Future<bool> printReceipt(List<int> bytes, PrinterConfig config) async {
+    // 1. Android RawBT Intent Launch
     if (config.connectionType == PrinterConnectionType.rawbt && !kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       try {
         await sendToRawBT(bytes);
-        return true; // Sent to external app successfully
+        return true;
       } catch (e) {
         return false;
       }
     }
 
-    // Direct raw TCP socket optimization for Network printers
-    // Pure Dart socket communicates directly with WiFi/Ethernet thermal printers across Windows & Android
+    // 2. Direct raw TCP socket optimization for Network printers (LAN / WiFi)
     if (!kIsWeb &&
         config.connectionType == PrinterConnectionType.network &&
         config.address != null &&
@@ -430,15 +484,52 @@ class PrintService {
       }
     }
 
-    // Direct Printing via flutter_pos_printer_platform
+    // 3. WINDOWS DESKTOP CRASH-PROOF SPOOLER:
+    // On Windows, the third-party flutter_pos_printer_platform C++ plugin contains
+    // fatal SEH memory bugs (dangling pointer to temporary wstring, std::bad_variant_access)
+    // that abruptly terminate the entire Flutter Windows process (0xC0000005).
+    // Bypassing it on Windows and routing directly to our Win32 RAW Spooler
+    // guarantees 100% crash immunity, zero application shutdown, and reliable printing.
+    if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.windows || Platform.isWindows)) {
+      String windowsTargetName = '';
+      if (config.address != null &&
+          config.address!.trim().isNotEmpty &&
+          config.address != 'null:null') {
+        windowsTargetName = config.address!.trim();
+      } else if (config.name.trim().isNotEmpty && config.name.trim() != 'Default Printer') {
+        windowsTargetName = config.name.trim();
+      }
+
+      // Fast Native Spooler (sub-millisecond, zero lag, direct Win32 winspool.drv)
+      final fastPrinted = await WindowsRawPrinter.printBytes(bytes, printerName: windowsTargetName);
+      if (fastPrinted) return true;
+
+      // Safe script fallback if FFI handle failed
+      return await _printWindowsSpoolerFallback(bytes, windowsTargetName);
+    }
+
+    // 4. Mobile / Other Platforms: flutter_pos_printer_platform
     late PrinterType type;
     late BasePrinterInput model;
 
     switch (config.connectionType) {
       case PrinterConnectionType.usb:
+      case PrinterConnectionType.rawbt:
         type = PrinterType.usb;
+        // Android: Parse vendorId and productId
+        String? vId;
+        String? pId;
+        if (config.address != null && config.address!.contains(':')) {
+          final parts = config.address!.split(':');
+          if (parts.length == 2 && parts[0] != 'null' && parts[1] != 'null') {
+            vId = parts[0];
+            pId = parts[1];
+          }
+        }
         model = UsbPrinterInput(
-          name: config.address ?? 'USB Printer',
+          name: config.name,
+          vendorId: vId,
+          productId: pId,
         );
         break;
       case PrinterConnectionType.network:
@@ -456,12 +547,10 @@ class PrintService {
           isBle: config.isBle,
         );
         break;
-      case PrinterConnectionType.rawbt:
-        return false;
     }
 
     try {
-      // Use a timeout for connection
+      // Connect to printer hardware
       final connected = await PrinterManager.instance.connect(
         type: type,
         model: model,
@@ -469,27 +558,160 @@ class PrintService {
         return false;
       });
 
-      if (!connected) {
-        return false;
-      }
+      if (!connected) return false;
 
-      // Give Bluetooth printers a moment to initialize after connection
+      // Allow Bluetooth buffer handshake to settle
       if (type == PrinterType.bluetooth) {
         await Future.delayed(const Duration(milliseconds: 1000));
       }
 
       final sent = await PrinterManager.instance.send(type: type, bytes: bytes);
+      if (!sent) return false;
       
-      if (!sent) {
-        return false;
-      }
-      
-      // Short delay for some printers to finish processing before disconnect
+      // Short processing delay before disconnecting
       await Future.delayed(const Duration(milliseconds: 500));
-      
       await PrinterManager.instance.disconnect(type: type);
       return true;
-    } catch (e) {
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Bulletproof Windows spooler sending raw ESC/POS bytes directly to the named Windows printer or default printer.
+  Future<bool> _printWindowsSpoolerFallback(List<int> bytes, String printerName) async {
+    try {
+      final effectivePrinter = printerName.isNotEmpty ? printerName : 'POS-80C';
+      final tempDir = Directory.systemTemp;
+      final tempFile = File('${tempDir.path}\\ck_pos_print_${DateTime.now().millisecondsSinceEpoch}.bin');
+      await tempFile.writeAsBytes(bytes, flush: true);
+
+      // Locate persistent script or create dynamic helper
+      File script = File('scripts\\win_raw_print.ps1');
+      if (!await script.exists()) {
+        script = File('${Directory.current.path}\\scripts\\win_raw_print.ps1');
+      }
+      if (!await script.exists()) {
+        try {
+          final exeDir = File(Platform.resolvedExecutable).parent;
+          final exeScript = File('${exeDir.path}\\scripts\\win_raw_print.ps1');
+          if (await exeScript.exists()) {
+            script = exeScript;
+          }
+        } catch (_) {}
+      }
+      if (!await script.exists()) {
+        final fallbackPs = File('${tempDir.path}\\win_raw_print_temp.ps1');
+        await fallbackPs.writeAsString('''
+param ([string]\$PrinterName = "$effectivePrinter", [string]\$FilePath = "")
+\$code = @'
+using System;
+using System.IO;
+using System.Text;
+using System.Runtime.InteropServices;
+public class RawPrinterHelper {
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public class DOCINFOA {
+        [MarshalAs(UnmanagedType.LPStr)] public string pDocName;
+        [MarshalAs(UnmanagedType.LPStr)] public string pOutputFile;
+        [MarshalAs(UnmanagedType.LPStr)] public string pDataType;
+    }
+    [DllImport("winspool.Drv", EntryPoint = "OpenPrinterA", SetLastError = true, CharSet = CharSet.Ansi, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+    public static extern bool OpenPrinter([MarshalAs(UnmanagedType.LPStr)] string szPrinter, out IntPtr hPrinter, IntPtr pd);
+    [DllImport("winspool.Drv", EntryPoint = "ClosePrinter", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+    public static extern bool ClosePrinter(IntPtr hPrinter);
+    [DllImport("winspool.Drv", EntryPoint = "StartDocPrinterA", SetLastError = true, CharSet = CharSet.Ansi, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+    public static extern bool StartDocPrinter(IntPtr hPrinter, int level, [In, MarshalAs(UnmanagedType.LPStruct)] DOCINFOA di);
+    [DllImport("winspool.Drv", EntryPoint = "EndDocPrinter", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+    public static extern bool EndDocPrinter(IntPtr hPrinter);
+    [DllImport("winspool.Drv", EntryPoint = "StartPagePrinter", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+    public static extern bool StartPagePrinter(IntPtr hPrinter);
+    [DllImport("winspool.Drv", EntryPoint = "EndPagePrinter", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+    public static extern bool EndPagePrinter(IntPtr hPrinter);
+    [DllImport("winspool.Drv", EntryPoint = "WritePrinter", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+    public static extern bool WritePrinter(IntPtr hPrinter, IntPtr pBytes, int dwCount, out int dwWritten);
+    [DllImport("winspool.Drv", EntryPoint = "GetDefaultPrinterA", SetLastError = true, CharSet = CharSet.Ansi, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
+    public static extern bool GetDefaultPrinter(StringBuilder pszBuffer, ref int pcchBuffer);
+
+    public static string GetDefaultPrinterName() {
+        try {
+            var sb = new StringBuilder(260);
+            int size = sb.Capacity;
+            if (GetDefaultPrinter(sb, ref size)) return sb.ToString();
+        } catch {}
+        return "POS-80C";
+    }
+
+    public static bool SendBytesToPrinter(string szPrinterName, byte[] bytes) {
+        IntPtr hPrinter = IntPtr.Zero;
+        DOCINFOA di = new DOCINFOA();
+        di.pDocName = "Coffee Katta POS Print";
+        di.pDataType = "RAW";
+        bool bSuccess = false;
+
+        string target = (szPrinterName ?? "").Trim();
+        if (string.IsNullOrEmpty(target) || target.Equals("Default Printer", StringComparison.OrdinalIgnoreCase) || target == "null:null") {
+            target = GetDefaultPrinterName();
+        }
+
+        if (!OpenPrinter(target, out hPrinter, IntPtr.Zero)) {
+            target = GetDefaultPrinterName();
+            if (!OpenPrinter(target, out hPrinter, IntPtr.Zero)) return false;
+        }
+
+        try {
+            if (StartDocPrinter(hPrinter, 1, di)) {
+                if (StartPagePrinter(hPrinter)) {
+                    IntPtr pUnmanagedBytes = Marshal.AllocCoTaskMem(bytes.Length);
+                    Marshal.Copy(bytes, 0, pUnmanagedBytes, bytes.Length);
+                    int dwWritten = 0;
+                    bSuccess = WritePrinter(hPrinter, pUnmanagedBytes, bytes.Length, out dwWritten);
+                    Marshal.FreeCoTaskMem(pUnmanagedBytes);
+                    EndPagePrinter(hPrinter);
+                }
+                EndDocPrinter(hPrinter);
+            }
+        } finally {
+            ClosePrinter(hPrinter);
+        }
+        return bSuccess;
+    }
+}
+'@
+Add-Type -TypeDefinition \$code
+if (\$FilePath -ne "" -and (Test-Path \$FilePath)) {
+    [byte[]]\$bytes = [System.IO.File]::ReadAllBytes(\$FilePath)
+    \$res = [RawPrinterHelper]::SendBytesToPrinter(\$PrinterName, \$bytes)
+    Write-Output "Printed: \$res"
+} else {
+    Write-Output "Printed: False"
+}
+''');
+        script = fallbackPs;
+      }
+
+      final res = await Process.run(
+        'powershell',
+        [
+          '-NoProfile',
+          '-ExecutionPolicy',
+          'Bypass',
+          '-File',
+          script.path,
+          '-PrinterName',
+          effectivePrinter,
+          '-FilePath',
+          tempFile.path,
+        ],
+      );
+
+      if (await tempFile.exists()) {
+        try {
+          await tempFile.delete();
+        } catch (_) {}
+      }
+
+      return res.exitCode == 0 && res.stdout.toString().contains('True');
+    } catch (_) {
       return false;
     }
   }

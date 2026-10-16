@@ -38,16 +38,20 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function hasUserData() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
     function getUserData() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
     function isActive() {
-      return getUserData().isActive == true;
+      return hasUserData() && getUserData().get('isActive', false) == true;
     }
 
     function getRole() {
-      return getUserData().role;
+      return hasUserData() ? getUserData().get('role', '') : '';
     }
 
     function isAdmin() {
@@ -59,8 +63,11 @@ service cloud.firestore {
     }
 
     function hasBranchAccess(branchId) {
-      let userData = getUserData();
-      return userData.role == 'admin' || branchId in userData.branchIds;
+      return isAdmin() || (
+        hasUserData() &&
+        getUserData().get('branchIds', []) != null &&
+        branchId in getUserData().get('branchIds', [])
+      );
     }
 
     // Combines authentication + active check + branch access into one guard
@@ -124,10 +131,11 @@ service cloud.firestore {
       match /branches/{branchId} {
 
         // ─── BRANCH DOCUMENT ───────────────────────────────────────────
-        // All branch users can read their branch config (name, address, phone, etc.)
+        // All active staff can read branch metadata (needed for branch list & selection).
         // Only admins can modify branch settings.
-        allow read:  if canAccessBranch(branchId);
-        allow write: if canAccessBranch(branchId) && isAdmin();
+        // Operational subcollections (tables, orders, bills, kots, analytics) are strictly guarded by canAccessBranch(branchId).
+        allow read:  if isAuthenticated() && isActive();
+        allow write: if isAuthenticated() && isActive() && isAdmin();
 
 
         // ─── TABLES ────────────────────────────────────────────────────

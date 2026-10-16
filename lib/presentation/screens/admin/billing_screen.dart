@@ -305,7 +305,9 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
       await billingService.finalizeAndClearTable(widget.table.tableId, widget.table.activeOrderId!);
 
       if (mounted) {
-        Navigator.pop(context);
+        if (Navigator.canPop(context)) {
+          Navigator.pop(context);
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('✅ Bill Generated & Table Cleared!')),
         );

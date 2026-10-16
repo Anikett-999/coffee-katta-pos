@@ -1,7 +1,14 @@
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../domain/models/kot_model.dart';
 import '../domain/models/order_model.dart';
 import 'package:uuid/uuid.dart';
+
+void _logDiagnostic(String message) {
+  if (kDebugMode) {
+    debugPrint('[KOTService] $message');
+  }
+}
 
 class KOTService {
   final FirebaseFirestore _firestore;
@@ -32,23 +39,49 @@ class KOTService {
     required String userId,
     required String userName,
   }) async {
-    return await _firestore.runTransaction((transaction) async {
-      // --- READS (All reads MUST happen before any writes) ---
-      // 1. Get active order for table
-      final tableSnapshot = await transaction.get(_tableCollection.doc(tableId));
-      if (!tableSnapshot.exists) throw Exception('Table not found');
+    _logDiagnostic('[DART ENTRY] KOTService.createKOT initiated: tableId=$tableId, items=${items.length}');
+    try {
+      final now = DateTime.now();
+      final currentTimestamp = Timestamp.fromDate(now);
+      final String todayStr =
+          "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
 
-      // 2. Get global KOT counter
-      final counterSnapshot = await transaction.get(_counterDoc);
-      
-      // --- WRITES ---
+      final dailyStatRef = _branchRef.collection('daily_stats').doc(todayStr);
+
+      // Parallelize initial reads to minimize pre-write latency
+      final initialReads = await Future.wait([
+        _tableCollection.doc(tableId).get(),
+        _counterDoc.get(),
+        dailyStatRef.get(),
+      ]);
+
+      final tableSnapshot = initialReads[0];
+      final counterSnapshot = initialReads[1];
+      final dailyStatSnapshot = initialReads[2];
+
+      if (!tableSnapshot.exists) throw Exception('Table not found');
+      _logDiagnostic('[READ PARALLEL] table, counter, and daily_stats obtained');
+
       final tableData = tableSnapshot.data() as Map<String, dynamic>;
       String? orderId = tableData['activeOrderId'];
 
+      // Read existing order document if table has an active order
+      DocumentSnapshot? orderSnapshot;
+      if (orderId != null) {
+        orderSnapshot = await _orderCollection.doc(orderId).get();
+        if (!orderSnapshot.exists) {
+          orderId = null;
+        }
+      }
+      _logDiagnostic('[READ ORDER] orderSnapshot obtained (orderId=$orderId, exists=${orderSnapshot?.exists})');
+
+      // --- ATOMIC BATCH WRITES ---
+      final batch = _firestore.batch();
       final Map<String, dynamic> tableUpdates = {};
 
       final kotId = const Uuid().v4();
-      final double kotTotal = items.fold(0.0, (total, i) => total + (i.price * i.qty));
+      final double kotTotal =
+          items.fold(0.0, (total, i) => total + (i.price * i.qty));
 
       if (orderId == null) {
         final newOrderRef = _orderCollection.doc();
@@ -58,28 +91,38 @@ class KOTService {
           orderId: orderId,
           tableId: tableId,
           kotIds: [kotId],
-          createdAt: DateTime.now(),
+          createdAt: now,
         );
 
-        transaction.set(newOrderRef, newOrder.toJson());
-        
+        final Map<String, dynamic> orderPayload =
+            Map<String, dynamic>.from(newOrder.toJson());
+        orderPayload.remove('closedAt');
+
+        _logDiagnostic('[BATCH SET 1] Staging newOrder (orderId=$orderId, closedAt omitted)');
+        batch.set(newOrderRef, orderPayload);
+
         tableUpdates['activeOrderId'] = orderId;
         tableUpdates['status'] = 'occupied';
       } else {
-        transaction.update(_orderCollection.doc(orderId), {
-          'kotIds': FieldValue.arrayUnion([kotId]),
+        final orderData =
+            orderSnapshot!.data() as Map<String, dynamic>? ?? {};
+        final List<String> currentKotIds = List<String>.from(
+            orderData['kotIds'] as List<dynamic>? ?? []);
+        if (!currentKotIds.contains(kotId)) {
+          currentKotIds.add(kotId);
+        }
+        _logDiagnostic('[BATCH UPDATE 1] Staging update order kotIds: $currentKotIds');
+        batch.update(_orderCollection.doc(orderId), {
+          'kotIds': currentKotIds,
         });
       }
 
       // 2. Fetch/Calculate KOT number with Daily Reset (Start from 1001)
-      final now = DateTime.now();
-      final String todayStr = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
-      
       int kotNumber = 1001;
       if (counterSnapshot.exists) {
         final counterData = counterSnapshot.data() as Map<String, dynamic>;
         final String lastReset = counterData['lastResetDate'] ?? '';
-        
+
         if (lastReset == todayStr) {
           kotNumber = (counterData['kotCounter'] ?? 1000) + 1;
         } else {
@@ -89,19 +132,38 @@ class KOTService {
       }
 
       // Update counters (Global)
-      transaction.set(_counterDoc, {
+      _logDiagnostic('[BATCH SET 2] Staging counter write (kotCounter=$kotNumber, lastResetDate=$todayStr)');
+      batch.set(_counterDoc, {
         'kotCounter': kotNumber,
         'lastResetDate': todayStr,
       });
 
-      // Update Daily Stats summary
-      final dailyStatRef = _branchRef.collection('daily_stats').doc(todayStr);
-      transaction.set(dailyStatRef, {
-        'totalKots': kotNumber - 1000, // actual count of the day
+      // Update Daily Stats summary using concrete client timestamp
+      final Map<String, dynamic> dailyStatData = {
+        'totalKots': kotNumber - 1000,
         'lastKotNumber': kotNumber,
         'date': todayStr,
-        'lastUpdated': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+        'lastUpdated': currentTimestamp,
+      };
+
+      _logDiagnostic('[BATCH SET 3] Staging dailyStat write');
+      if (dailyStatSnapshot.exists) {
+        final existingStats =
+            dailyStatSnapshot.data() as Map<String, dynamic>? ?? {};
+        batch.set(
+          dailyStatRef,
+          <String, dynamic>{
+            ...existingStats,
+            ...dailyStatData,
+          },
+          SetOptions(merge: true),
+        );
+      } else {
+        batch.set(
+          dailyStatRef,
+          dailyStatData,
+        );
+      }
 
       // 3. Create KOT document
       final kot = KOTModel(
@@ -117,7 +179,8 @@ class KOTService {
         createdAt: now,
       );
 
-      transaction.set(_kotCollection.doc(kotId), kot.toJson());
+      _logDiagnostic('[BATCH SET 4] Staging kot write (kotId=$kotId, kotNumber=$kotNumber)');
+      batch.set(_kotCollection.doc(kotId), kot.toJson());
 
       // 4. Update Table denormalized counts/totals
       final double currentTotal = (tableData['totalAmount'] ?? 0.0) + kotTotal;
@@ -127,13 +190,22 @@ class KOTService {
       tableUpdates['totalAmount'] = currentTotal;
       tableUpdates['itemCount'] = currentItemCount;
       tableUpdates['kotCount'] = currentKotCount;
-      tableUpdates['unprintedKotCount'] = (tableData['unprintedKotCount'] ?? 0) + 1;
-      tableUpdates['updatedAt'] = FieldValue.serverTimestamp();
+      tableUpdates['unprintedKotCount'] =
+          (tableData['unprintedKotCount'] ?? 0) + 1;
+      tableUpdates['updatedAt'] = currentTimestamp;
 
-      transaction.update(_tableCollection.doc(tableId), tableUpdates);
+      _logDiagnostic('[BATCH UPDATE 5] Staging table update ($tableId)');
+      batch.update(_tableCollection.doc(tableId), tableUpdates);
 
+      _logDiagnostic('[BATCH COMMIT] Committing atomic batch to Firestore...');
+      await batch.commit();
+
+      _logDiagnostic('[DART SUCCESS] batch.commit() completed successfully, returning KOT #${kot.kotNumber}');
       return kot;
-    });
+    } catch (e, st) {
+      _logDiagnostic('[DART ERROR] createKOT caught exception: $e\n$st');
+      rethrow;
+    }
   }
 
   // Watch KOTs for a specific order
@@ -341,24 +413,33 @@ class KOTService {
     final kotRef = _kotCollection.doc(kotId);
     final tableRef = _tableCollection.doc(tableId);
 
-    await _firestore.runTransaction((transaction) async {
-      final kotSnap = await transaction.get(kotRef);
-      final tableSnap = await transaction.get(tableRef);
+    try {
+      final results = await Future.wait([
+        kotRef.get(),
+        tableRef.get(),
+      ]);
+
+      final kotSnap = results[0];
+      final tableSnap = results[1];
 
       if (kotSnap.exists && tableSnap.exists) {
         final kotData = kotSnap.data() as Map<String, dynamic>;
         // Only decrement if it wasn't already printed
         if (kotData['isPrinted'] != true) {
-          transaction.update(kotRef, {'isPrinted': true});
-          
+          final batch = _firestore.batch();
+          batch.update(kotRef, {'isPrinted': true});
+
           final tableData = tableSnap.data() as Map<String, dynamic>;
           final int count = tableData['unprintedKotCount'] ?? 0;
           if (count > 0) {
-            transaction.update(tableRef, {'unprintedKotCount': count - 1});
+            batch.update(tableRef, {'unprintedKotCount': count - 1});
           }
+          await batch.commit();
         }
       }
-    });
+    } catch (e) {
+      debugPrint('Error marking KOT as printed: $e');
+    }
   }
 }
 

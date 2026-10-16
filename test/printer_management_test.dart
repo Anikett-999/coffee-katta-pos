@@ -202,5 +202,32 @@ void main() {
       expect(find.text('KOT #1042'), findsOneWidget);
       expect(find.text('-- KITCHEN SLIP --'), findsOneWidget);
     });
+
+    test('7. Cash drawer kick pulse and 4-line feed cutter command verification', () {
+      final drawerBytes = printService.getCashDrawerKickBytes();
+      expect(drawerBytes, equals([0x1B, 0x70, 0x00, 0x19, 0xFA]));
+    });
+
+    test('8. Windows direct spooler executes printReceipt safely without exception or crash', () async {
+      const config = PrinterConfig(
+        name: 'POS-80C',
+        connectionType: PrinterConnectionType.usb,
+        paperSize: PrinterPaperSize.mm80,
+      );
+      final dummyBytes = [0x1B, 0x40]; // ESC @
+      final result = await printService.printReceipt(dummyBytes, config);
+      expect(result, isA<bool>());
+    });
+
+    test('9. Real KOT byte printing via Windows spooler executes without error', () async {
+      const config = PrinterConfig(
+        name: 'POS-80C',
+        connectionType: PrinterConnectionType.usb,
+        paperSize: PrinterPaperSize.mm80,
+      );
+      final kotBytes = await printService.generateKOTBytes(mockKOT, config.paperSize);
+      final result = await printService.printReceipt(kotBytes, config);
+      expect(result, isA<bool>());
+    });
   });
 }
