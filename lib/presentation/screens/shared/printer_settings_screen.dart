@@ -16,6 +16,7 @@ import '../../widgets/global/confirmation_dialog.dart';
 import '../../widgets/global/editorial_background.dart';
 import '../../widgets/global/coffee_katta_brand_badge.dart';
 import '../../widgets/shared/thermal_receipt_preview.dart';
+import '../../../services/windows_raw_printer.dart';
 
 class PrinterSettingsScreen extends ConsumerStatefulWidget {
   const PrinterSettingsScreen({super.key});
@@ -76,6 +77,7 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
           matchedThermal ??= sysPrinters.firstWhereOrNull((p) => p.isDefault);
 
           if (matchedThermal != null && mounted) {
+            final isPhysicallyPresent = WindowsRawPrinter.isPrinterPhysicallyConnected(printerName: matchedThermal.name);
             ref.read(printerConfigProvider.notifier).updateAddress(matchedThermal.name);
             ref.read(printerConfigProvider.notifier).updateName(matchedThermal.name);
             ref.read(printerConfigProvider.notifier).updateConnectionType(PrinterConnectionType.usb);
@@ -83,13 +85,23 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
               ref.read(printerConfigProvider.notifier).updatePaperSize(PrinterPaperSize.mm80);
             }
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Auto-connected hardware printer: ${matchedThermal.name} (USB/Spooler)'),
-                  backgroundColor: const Color(0xFF287A55),
-                  duration: const Duration(seconds: 3),
-                ),
-              );
+              if (isPhysicallyPresent) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Connected hardware printer: ${matchedThermal.name} (USB Online)'),
+                    backgroundColor: const Color(0xFF287A55),
+                    duration: const Duration(seconds: 3),
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Selected queue: ${matchedThermal.name} (Hardware Offline / Cable Disconnected)'),
+                    backgroundColor: const Color(0xFFDC2626),
+                    duration: const Duration(seconds: 4),
+                  ),
+                );
+              }
             }
           }
         }
@@ -295,6 +307,22 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
       _lastTestStatus = null;
       _lastTestError = null;
     });
+
+    // Immediate physical hardware pre-check on Windows
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
+      final isHardwareOnline = WindowsRawPrinter.isPrinterPhysicallyConnected(
+        printerName: config.name.isNotEmpty ? config.name : config.address,
+      );
+      if (!isHardwareOnline) {
+        setState(() {
+          _isTesting = false;
+          _lastTestStatus = 'failed';
+          _lastTestError = 'Hardware connection failed: "${config.name.isNotEmpty ? config.name : "POS-80C"}" is physically disconnected or powered off.\n\nPlease plug in the USB cable and verify the printer power switch is ON.';
+        });
+        _showErrorDialog(_lastTestError!);
+        return;
+      }
+    }
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -607,17 +635,27 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
     final isConfigured = config.address != null && config.address!.trim().isNotEmpty;
     final isVerified = _lastTestStatus == 'success';
 
+    bool isHardwareConnected = true;
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows && isConfigured) {
+      isHardwareConnected = WindowsRawPrinter.isPrinterPhysicallyConnected(
+        printerName: config.name.isNotEmpty ? config.name : config.address,
+      );
+    }
+
     Color statusColor;
     String statusText;
-    if (isVerified) {
-      statusColor = const Color(0xFF287A55);
-      statusText = 'ONLINE & VERIFIED';
-    } else if (isConfigured) {
-      statusColor = const Color(0xFFB77945);
-      statusText = 'CONFIGURED (NOT VERIFIED)';
-    } else {
+    if (!isConfigured) {
       statusColor = const Color(0xFFDC2626);
       statusText = 'NOT CONFIGURED';
+    } else if (!isHardwareConnected) {
+      statusColor = const Color(0xFFDC2626);
+      statusText = 'DISCONNECTED / POWER OFF';
+    } else if (isVerified) {
+      statusColor = const Color(0xFF287A55);
+      statusText = 'ONLINE & VERIFIED';
+    } else {
+      statusColor = const Color(0xFFB77945);
+      statusText = 'CONNECTED & READY (TEST RECOMMENDED)';
     }
 
     return Container(
@@ -1177,6 +1215,10 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
 
         final isSelected = config.address == address;
 
+        final isPhysicallyOnline = (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows)
+            ? WindowsRawPrinter.isPrinterPhysicallyConnected(printerName: device.name)
+            : null;
+
         return ListTile(
           dense: true,
           contentPadding: EdgeInsets.zero,
@@ -1196,11 +1238,38 @@ class _PrinterSettingsScreenState extends ConsumerState<PrinterSettingsScreen> {
             ),
           ),
           title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF29231F))),
-          subtitle: Text(
-            (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows)
-                ? 'Windows Spooler Device • $address'
-                : address,
-            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500, color: Color(0xFF6B5E55)),
+          subtitle: Row(
+            children: [
+              if (isPhysicallyOnline != null) ...[
+                Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    color: isPhysicallyOnline ? const Color(0xFF287A55) : const Color(0xFFDC2626),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 5),
+                Text(
+                  isPhysicallyOnline ? 'Online' : 'Offline / Unplugged',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: isPhysicallyOnline ? const Color(0xFF287A55) : const Color(0xFFDC2626),
+                  ),
+                ),
+                const Text(' • ', style: TextStyle(color: Color(0xFF8C7B70), fontSize: 11)),
+              ],
+              Expanded(
+                child: Text(
+                  (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows)
+                      ? 'Queue • $address'
+                      : address,
+                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500, color: Color(0xFF6B5E55)),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
           trailing: isSelected
               ? const Icon(Icons.check_circle_rounded, color: Color(0xFF287A55), size: 22)

@@ -235,27 +235,30 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
         userId: currentUser?.uid ?? 'admin',
       );
 
-      // Print Bill Integration
-      bool printSuccess = true;
+      // Print Bill Integration with interactive retry / continue flow
+      bool printSuccess = false;
       String? printError;
 
-      try {
-        final branchAsync = ref.read(branchProvider);
-        final branch = branchAsync.value;
-        if (branch == null) throw Exception('Branch data not available for printing');
+      while (!printSuccess && mounted) {
+        try {
+          final branchAsync = ref.read(branchProvider);
+          final branch = branchAsync.value;
+          if (branch == null) throw Exception('Branch data not available for printing');
 
-        final bytes = await printService.generateBillBytes(bill, branch, config.paperSize);
-        printSuccess = await printService.printReceipt(bytes, config);
-      } catch (printErr) {
-        printSuccess = false;
-        printError = printErr.toString();
-      }
+          final bytes = await printService.generateBillBytes(bill, branch, config.paperSize);
+          printSuccess = await printService.printReceipt(bytes, config);
+        } catch (printErr) {
+          printSuccess = false;
+          printError = printErr.toString();
+        }
 
-      if (!printSuccess && mounted) {
-        final finishAnyway = await showDialog<bool>(
+        if (printSuccess || !mounted) break;
+
+        final userChoice = await showDialog<String>(
           context: context,
           barrierDismissible: false,
           builder: (context) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             title: const Row(
               children: [
                 Icon(Icons.print_disabled, color: Colors.orange),
@@ -267,37 +270,48 @@ class _BillingScreenState extends ConsumerState<BillingScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('The bill was saved to the system, but the thermal printer is unreachable.'),
-                if (printError != null)
-                  Text('\nError: $printError', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                const SizedBox(height: 20),
-                const Text('Would you like to share a digital copy via WhatsApp or finish anyway?'),
+                const Text(
+                  'The bill was saved to the system 🟢, but the thermal printer is unreachable or powered off 🔴.',
+                  style: TextStyle(fontWeight: FontWeight.w600, height: 1.4),
+                ),
+                if (printError != null && printError.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text('Detail: $printError', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  ),
+                const SizedBox(height: 18),
+                const Text('What would you like to do?'),
               ],
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context, false), // Retry
-                child: const Text('RETRY PRINT'),
+                onPressed: () => Navigator.pop(context, 'retry'),
+                child: const Text('RETRY PRINT', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, 'continue'),
+                child: const Text('CONTINUE WITHOUT PRINT', style: TextStyle(color: Color(0xFF5A3825), fontWeight: FontWeight.bold)),
               ),
               ElevatedButton.icon(
                 onPressed: () async {
                   await _handleShareDigitalBill(bill);
-                  if (context.mounted) Navigator.pop(context, true);
+                  if (context.mounted) Navigator.pop(context, 'continue');
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF287A55),
                   foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
-                icon: const Icon(Icons.share),
+                icon: const Icon(Icons.share, size: 16),
                 label: const Text('SHARE WHATSAPP'),
               ),
             ],
           ),
         );
 
-        if (finishAnyway != true) {
-          setState(() => _isLoading = false);
-          return _handleGenerateBill();
+        if (userChoice != 'retry') {
+          // Cashier chose to continue without printing or shared via WhatsApp
+          break;
         }
       }
 

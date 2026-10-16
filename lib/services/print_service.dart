@@ -277,9 +277,9 @@ class PrintService {
     );
     bytes += generator.text(sep);
 
-    // 3. Items List (with Category prefix)
+    // 3. Items List
     for (var item in bill.items) {
-      String itemName = item.category.isNotEmpty ? "[${item.category.toUpperCase()}] ${item.name}" : item.name;
+      String itemName = item.name;
       for (final rowLine in formatBillRow(itemName, '${item.qty}', 'Rs ${ (item.price * item.qty).toStringAsFixed(0)}')) {
         bytes += generator.text(rowLine);
       }
@@ -500,12 +500,8 @@ class PrintService {
         windowsTargetName = config.name.trim();
       }
 
-      // Fast Native Spooler (sub-millisecond, zero lag, direct Win32 winspool.drv)
-      final fastPrinted = await WindowsRawPrinter.printBytes(bytes, printerName: windowsTargetName);
-      if (fastPrinted) return true;
-
-      // Safe script fallback if FFI handle failed
-      return await _printWindowsSpoolerFallback(bytes, windowsTargetName);
+      // Fast Native Spooler (sub-millisecond, zero lag, direct Win32 winspool.drv with PnP hardware verification)
+      return await WindowsRawPrinter.printBytes(bytes, printerName: windowsTargetName);
     }
 
     // 4. Mobile / Other Platforms: flutter_pos_printer_platform
@@ -572,145 +568,6 @@ class PrintService {
       await Future.delayed(const Duration(milliseconds: 500));
       await PrinterManager.instance.disconnect(type: type);
       return true;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  /// Bulletproof Windows spooler sending raw ESC/POS bytes directly to the named Windows printer or default printer.
-  Future<bool> _printWindowsSpoolerFallback(List<int> bytes, String printerName) async {
-    try {
-      final effectivePrinter = printerName.isNotEmpty ? printerName : 'POS-80C';
-      final tempDir = Directory.systemTemp;
-      final tempFile = File('${tempDir.path}\\ck_pos_print_${DateTime.now().millisecondsSinceEpoch}.bin');
-      await tempFile.writeAsBytes(bytes, flush: true);
-
-      // Locate persistent script or create dynamic helper
-      File script = File('scripts\\win_raw_print.ps1');
-      if (!await script.exists()) {
-        script = File('${Directory.current.path}\\scripts\\win_raw_print.ps1');
-      }
-      if (!await script.exists()) {
-        try {
-          final exeDir = File(Platform.resolvedExecutable).parent;
-          final exeScript = File('${exeDir.path}\\scripts\\win_raw_print.ps1');
-          if (await exeScript.exists()) {
-            script = exeScript;
-          }
-        } catch (_) {}
-      }
-      if (!await script.exists()) {
-        final fallbackPs = File('${tempDir.path}\\win_raw_print_temp.ps1');
-        await fallbackPs.writeAsString('''
-param ([string]\$PrinterName = "$effectivePrinter", [string]\$FilePath = "")
-\$code = @'
-using System;
-using System.IO;
-using System.Text;
-using System.Runtime.InteropServices;
-public class RawPrinterHelper {
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-    public class DOCINFOA {
-        [MarshalAs(UnmanagedType.LPStr)] public string pDocName;
-        [MarshalAs(UnmanagedType.LPStr)] public string pOutputFile;
-        [MarshalAs(UnmanagedType.LPStr)] public string pDataType;
-    }
-    [DllImport("winspool.Drv", EntryPoint = "OpenPrinterA", SetLastError = true, CharSet = CharSet.Ansi, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
-    public static extern bool OpenPrinter([MarshalAs(UnmanagedType.LPStr)] string szPrinter, out IntPtr hPrinter, IntPtr pd);
-    [DllImport("winspool.Drv", EntryPoint = "ClosePrinter", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
-    public static extern bool ClosePrinter(IntPtr hPrinter);
-    [DllImport("winspool.Drv", EntryPoint = "StartDocPrinterA", SetLastError = true, CharSet = CharSet.Ansi, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
-    public static extern bool StartDocPrinter(IntPtr hPrinter, int level, [In, MarshalAs(UnmanagedType.LPStruct)] DOCINFOA di);
-    [DllImport("winspool.Drv", EntryPoint = "EndDocPrinter", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
-    public static extern bool EndDocPrinter(IntPtr hPrinter);
-    [DllImport("winspool.Drv", EntryPoint = "StartPagePrinter", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
-    public static extern bool StartPagePrinter(IntPtr hPrinter);
-    [DllImport("winspool.Drv", EntryPoint = "EndPagePrinter", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
-    public static extern bool EndPagePrinter(IntPtr hPrinter);
-    [DllImport("winspool.Drv", EntryPoint = "WritePrinter", SetLastError = true, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
-    public static extern bool WritePrinter(IntPtr hPrinter, IntPtr pBytes, int dwCount, out int dwWritten);
-    [DllImport("winspool.Drv", EntryPoint = "GetDefaultPrinterA", SetLastError = true, CharSet = CharSet.Ansi, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
-    public static extern bool GetDefaultPrinter(StringBuilder pszBuffer, ref int pcchBuffer);
-
-    public static string GetDefaultPrinterName() {
-        try {
-            var sb = new StringBuilder(260);
-            int size = sb.Capacity;
-            if (GetDefaultPrinter(sb, ref size)) return sb.ToString();
-        } catch {}
-        return "POS-80C";
-    }
-
-    public static bool SendBytesToPrinter(string szPrinterName, byte[] bytes) {
-        IntPtr hPrinter = IntPtr.Zero;
-        DOCINFOA di = new DOCINFOA();
-        di.pDocName = "Coffee Katta POS Print";
-        di.pDataType = "RAW";
-        bool bSuccess = false;
-
-        string target = (szPrinterName ?? "").Trim();
-        if (string.IsNullOrEmpty(target) || target.Equals("Default Printer", StringComparison.OrdinalIgnoreCase) || target == "null:null") {
-            target = GetDefaultPrinterName();
-        }
-
-        if (!OpenPrinter(target, out hPrinter, IntPtr.Zero)) {
-            target = GetDefaultPrinterName();
-            if (!OpenPrinter(target, out hPrinter, IntPtr.Zero)) return false;
-        }
-
-        try {
-            if (StartDocPrinter(hPrinter, 1, di)) {
-                if (StartPagePrinter(hPrinter)) {
-                    IntPtr pUnmanagedBytes = Marshal.AllocCoTaskMem(bytes.Length);
-                    Marshal.Copy(bytes, 0, pUnmanagedBytes, bytes.Length);
-                    int dwWritten = 0;
-                    bSuccess = WritePrinter(hPrinter, pUnmanagedBytes, bytes.Length, out dwWritten);
-                    Marshal.FreeCoTaskMem(pUnmanagedBytes);
-                    EndPagePrinter(hPrinter);
-                }
-                EndDocPrinter(hPrinter);
-            }
-        } finally {
-            ClosePrinter(hPrinter);
-        }
-        return bSuccess;
-    }
-}
-'@
-Add-Type -TypeDefinition \$code
-if (\$FilePath -ne "" -and (Test-Path \$FilePath)) {
-    [byte[]]\$bytes = [System.IO.File]::ReadAllBytes(\$FilePath)
-    \$res = [RawPrinterHelper]::SendBytesToPrinter(\$PrinterName, \$bytes)
-    Write-Output "Printed: \$res"
-} else {
-    Write-Output "Printed: False"
-}
-''');
-        script = fallbackPs;
-      }
-
-      final res = await Process.run(
-        'powershell',
-        [
-          '-NoProfile',
-          '-ExecutionPolicy',
-          'Bypass',
-          '-File',
-          script.path,
-          '-PrinterName',
-          effectivePrinter,
-          '-FilePath',
-          tempFile.path,
-        ],
-      );
-
-      if (await tempFile.exists()) {
-        try {
-          await tempFile.delete();
-        } catch (_) {}
-      }
-
-      return res.exitCode == 0 && res.stdout.toString().contains('True');
     } catch (_) {
       return false;
     }
