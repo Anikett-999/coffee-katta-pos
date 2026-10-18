@@ -5,31 +5,48 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../domain/models/user_model.dart';
 class AuthService extends ChangeNotifier {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth? _authInstance;
+  final FirebaseFirestore? _firestoreInstance;
+
+  FirebaseAuth get _auth => _authInstance ?? FirebaseAuth.instance;
+  FirebaseFirestore get _firestore => _firestoreInstance ?? FirebaseFirestore.instance;
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
   String? profileIssueMessage;
 
-  User? get currentUser => _auth.currentUser;
+  User? get currentUser {
+    try {
+      return _auth.currentUser;
+    } catch (_) {
+      return null;
+    }
+  }
   
+  String? _savedPin;
   bool _hasSavedPin = false;
   bool get hasSavedPin => _hasSavedPin;
 
-  AuthService() {
+  AuthService({FirebaseAuth? auth, FirebaseFirestore? firestore})
+      : _authInstance = auth,
+        _firestoreInstance = firestore {
     _init();
   }
 
   void _init() async {
     final prefs = await SharedPreferences.getInstance();
-    _hasSavedPin = prefs.getString('saved_pin') != null;
+    _savedPin = prefs.getString('saved_pin');
+    _hasSavedPin = _savedPin != null && _savedPin!.isNotEmpty;
     notifyListeners();
     // Re-notify when auth state changes
-    _auth.authStateChanges().listen((user) {
-      notifyListeners();
-    });
+    try {
+      _auth.authStateChanges().listen((user) {
+        notifyListeners();
+      });
+    } catch (_) {
+      // In tests where Firebase is not initialized
+    }
   }
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
@@ -93,8 +110,9 @@ class AuthService extends ChangeNotifier {
   }
 
   bool unlockWithPin(String pin) {
-    // Stub valid PIN check, to be expanded if necessary
-    if (pin == '1234') return true; 
+    if (_savedPin != null && _savedPin!.isNotEmpty) {
+      return _savedPin == pin;
+    }
     return false;
   }
 

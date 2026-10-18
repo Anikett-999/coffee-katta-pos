@@ -168,5 +168,54 @@ void main() {
       expect(tableData['unprintedKotCount'], equals(2));
       expect(tableData['updatedAt'], isNotNull);
     });
+
+    test('CONCURRENCY: Simultaneous KOT dispatches produce unique incremented numbers without collision', () async {
+      // Seed a second table T4
+      await fakeFirestore
+          .collection('businesses')
+          .doc('coffee_katta')
+          .collection('branches')
+          .doc('latur_main')
+          .collection('tables')
+          .doc('T4')
+          .set({
+             'tableId': 'T4',
+             'name': 'Table 4',
+             'status': 'available',
+             'capacity': 2,
+             'activeOrderId': null
+          });
+
+      // Fire 2 KOT creations simultaneously using Future.wait
+      final results = await Future.wait([
+        kotService.createKOT(
+          tableId: 'T3',
+          tableName: 'Table 3',
+          items: [
+            const KOTItem(uniqueId: 'item_c1', itemId: 'I1', name: 'Coffee', category: 'C1', qty: 1, price: 100),
+          ],
+          userId: 'waiter_1',
+          userName: 'Waiter 1',
+        ),
+        kotService.createKOT(
+          tableId: 'T4',
+          tableName: 'Table 4',
+          items: [
+            const KOTItem(uniqueId: 'item_c2', itemId: 'I2', name: 'Tea', category: 'C1', qty: 1, price: 50),
+          ],
+          userId: 'waiter_2',
+          userName: 'Waiter 2',
+        ),
+      ]);
+
+      final kotA = results[0];
+      final kotB = results[1];
+
+      // Verify ZERO collision
+      expect(kotA.kotNumber, isNot(equals(kotB.kotNumber)));
+      final numbers = [kotA.kotNumber, kotB.kotNumber]..sort();
+      expect(numbers[0], equals(1001));
+      expect(numbers[1], equals(1002));
+    });
   });
 }

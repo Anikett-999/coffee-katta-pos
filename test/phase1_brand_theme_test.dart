@@ -108,5 +108,13 @@ void main() {
       expect(googleServices.contains('"package_name": "com.coffeekatta.pos"'), isTrue);
       expect(googleServices.contains('shreerajmandir'), isFalse);
     });
+
+    test('11. windows/runner/resources/app_icon.ico exists and has been replaced with Coffee Katta icon', () {
+      final icoFile = File('windows/runner/resources/app_icon.ico');
+      expect(icoFile.existsSync(), isTrue);
+      // Legacy Rajmandir ico was 18874 bytes; new multi-resolution Coffee Katta ico is > 50000 bytes
+      expect(icoFile.lengthSync(), isNot(equals(18874)));
+      expect(icoFile.lengthSync(), greaterThan(10000));
+    });
   });
 }

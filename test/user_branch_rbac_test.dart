@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:coffee_katta_pos/services/auth_service.dart';
 import 'package:coffee_katta_pos/domain/models/user_model.dart';
 
 void main() {
@@ -130,6 +132,14 @@ void main() {
       expect(reconstructed.role, equals('waiter'));
       expect(reconstructed.branchIds, equals(['branch_latur_main']));
       expect(reconstructed.isWaiter, isTrue);
+    });
+
+    test('Security Check: Hardcoded PIN 1234 is strictly rejected', () async {
+      SharedPreferences.setMockInitialValues({});
+      final authService = AuthService();
+      // Verify hardcoded bypass is eliminated
+      expect(authService.unlockWithPin('1234'), isFalse);
+      expect(authService.unlockWithPin('0000'), isFalse);
     });
   });
 }

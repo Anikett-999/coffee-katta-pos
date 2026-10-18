@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../domain/models/bill_model.dart';
 import '../domain/models/kot_model.dart';
@@ -23,6 +24,8 @@ class BillingService {
   CollectionReference get _orderCollection => _branchRef.collection('orders');
   CollectionReference get _tableCollection => _branchRef.collection('tables');
   DocumentReference get _counterDoc => _branchRef.collection('counters').doc('global');
+
+  static Future<void> _billLock = Future.value();
 
   List<BillItem> _aggregateKOTItems(List<KOTModel> kots) {
     Map<String, BillItem> aggregatedMap = {};
@@ -69,6 +72,46 @@ class BillingService {
     };
   }
 
+  /// Atomically allocates the next sequential invoice number using a FIFO async queue
+  /// combined with an isolated single-document Firestore transaction.
+  /// Prevents concurrency collisions when multiple cashiers generate bills simultaneously.
+  Future<int> _allocateNextBillNumber(String todayStr) async {
+    final previousLock = _billLock;
+    final completer = Completer<void>();
+    _billLock = completer.future;
+
+    try {
+      await previousLock;
+      return await _firestore.runTransaction<int>((transaction) async {
+        final counterSnap = await transaction.get(_counterDoc);
+        int billNumber = 1001;
+        if (counterSnap.exists) {
+          final counterData = counterSnap.data() as Map<String, dynamic>;
+          final String lastReset = counterData['lastBillResetDate'] ?? '';
+
+          if (lastReset == todayStr) {
+            billNumber = (counterData['billCounter'] ?? 1000) + 1;
+          } else {
+            billNumber = 1001;
+          }
+        }
+
+        transaction.set(
+          _counterDoc,
+          {
+            'billCounter': billNumber,
+            'lastBillResetDate': todayStr,
+          },
+          SetOptions(merge: true),
+        );
+
+        return billNumber;
+      });
+    } finally {
+      completer.complete();
+    }
+  }
+
   // Generate Final Bill
   Future<BillModel> generateBill({
     required String orderId,
@@ -95,12 +138,10 @@ class BillingService {
     final results = await Future.wait([
       tableRef.get(),
       kotQuery.get(),
-      _counterDoc.get(),
     ]);
 
     final tableSnap = results[0] as DocumentSnapshot;
     final kotSnapshots = results[1] as QuerySnapshot;
-    final counterSnap = results[2] as DocumentSnapshot;
 
     if (!tableSnap.exists) throw Exception('Table not found');
     
@@ -138,19 +179,11 @@ class BillingService {
     // Final safety net: total must never be negative
     if (total < 0) total = 0;
 
-    // 4. Fetch/Calculate Bill ID with Daily Reset (Start from 1001)
+    // 4. Fetch/Calculate Bill ID with Atomic Daily Reset (Guaranteed unique across parallel checkouts)
     final now = DateTime.now();
     final String todayStr = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
     
-    int billNumber = 1001;
-    if (counterSnap.exists) {
-      final counterData = counterSnap.data() as Map<String, dynamic>;
-      final String lastReset = counterData['lastBillResetDate'] ?? '';
-      
-      if (lastReset == todayStr) {
-        billNumber = (counterData['billCounter'] ?? 1000) + 1;
-      }
-    }
+    final int billNumber = await _allocateNextBillNumber(todayStr);
 
     final String billId = "INV-${now.year.toString().substring(2)}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${billNumber.toString().substring(1)}";
     
@@ -174,12 +207,6 @@ class BillingService {
 
     // 5. Atomic Batch Write (instant, 100% crash-proof on Windows desktop)
     final batch = _firestore.batch();
-
-    // Update counters (Global)
-    batch.set(_counterDoc, {
-      'billCounter': billNumber,
-      'lastBillResetDate': todayStr,
-    }, SetOptions(merge: true));
 
     batch.set(_billCollection.doc(billId), bill.toJson());
 
@@ -208,8 +235,8 @@ class BillingService {
 
     await batch.commit();
 
-    // Update Analytics (Async Fire-and-Forget for performance)
-    _analyticsService.updateDailyAnalytics(bill, branchId);
+    // Update Analytics (Awaited for 100% ledger consistency)
+    await _analyticsService.updateDailyAnalytics(bill, branchId);
 
     return bill;
   }

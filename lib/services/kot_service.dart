@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../domain/models/kot_model.dart';
@@ -31,6 +32,48 @@ class KOTService {
   CollectionReference get _tableCollection => _branchRef.collection('tables');
   DocumentReference get _counterDoc => _branchRef.collection('counters').doc('global');
 
+  static Future<void> _kotLock = Future.value();
+
+  /// Atomically allocates the next sequential KOT number using a FIFO async queue
+  /// combined with an isolated single-document Firestore transaction.
+  /// Prevents concurrency collisions both locally and across distributed POS terminals.
+  Future<int> _allocateNextKotNumber(String todayStr) async {
+    final previousLock = _kotLock;
+    final completer = Completer<void>();
+    _kotLock = completer.future;
+
+    try {
+      await previousLock;
+      return await _firestore.runTransaction<int>((transaction) async {
+        final counterSnapshot = await transaction.get(_counterDoc);
+        int kotNumber = 1001;
+        if (counterSnapshot.exists) {
+          final counterData = counterSnapshot.data() as Map<String, dynamic>;
+          final String lastReset = counterData['lastResetDate'] ?? '';
+
+          if (lastReset == todayStr) {
+            kotNumber = (counterData['kotCounter'] ?? 1000) + 1;
+          } else {
+            kotNumber = 1001;
+          }
+        }
+
+        transaction.set(
+          _counterDoc,
+          {
+            'kotCounter': kotNumber,
+            'lastResetDate': todayStr,
+          },
+          SetOptions(merge: true),
+        );
+
+        return kotNumber;
+      });
+    } finally {
+      completer.complete();
+    }
+  }
+
   // Create KOT for a table
   Future<KOTModel> createKOT({
     required String tableId,
@@ -48,19 +91,21 @@ class KOTService {
 
       final dailyStatRef = _branchRef.collection('daily_stats').doc(todayStr);
 
+      // 1. Allocate unique sequential KOT number atomically (concurrency collision protection)
+      final kotNumber = await _allocateNextKotNumber(todayStr);
+      _logDiagnostic('[ALLOCATE ATOMIC] Guaranteed unique KOT #$kotNumber obtained via transaction');
+
       // Parallelize initial reads to minimize pre-write latency
       final initialReads = await Future.wait([
         _tableCollection.doc(tableId).get(),
-        _counterDoc.get(),
         dailyStatRef.get(),
       ]);
 
       final tableSnapshot = initialReads[0];
-      final counterSnapshot = initialReads[1];
-      final dailyStatSnapshot = initialReads[2];
+      final dailyStatSnapshot = initialReads[1];
 
       if (!tableSnapshot.exists) throw Exception('Table not found');
-      _logDiagnostic('[READ PARALLEL] table, counter, and daily_stats obtained');
+      _logDiagnostic('[READ PARALLEL] table and daily_stats obtained');
 
       final tableData = tableSnapshot.data() as Map<String, dynamic>;
       String? orderId = tableData['activeOrderId'];
@@ -116,27 +161,6 @@ class KOTService {
           'kotIds': currentKotIds,
         });
       }
-
-      // 2. Fetch/Calculate KOT number with Daily Reset (Start from 1001)
-      int kotNumber = 1001;
-      if (counterSnapshot.exists) {
-        final counterData = counterSnapshot.data() as Map<String, dynamic>;
-        final String lastReset = counterData['lastResetDate'] ?? '';
-
-        if (lastReset == todayStr) {
-          kotNumber = (counterData['kotCounter'] ?? 1000) + 1;
-        } else {
-          // New day reset
-          kotNumber = 1001;
-        }
-      }
-
-      // Update counters (Global)
-      _logDiagnostic('[BATCH SET 2] Staging counter write (kotCounter=$kotNumber, lastResetDate=$todayStr)');
-      batch.set(_counterDoc, {
-        'kotCounter': kotNumber,
-        'lastResetDate': todayStr,
-      });
 
       // Update Daily Stats summary using concrete client timestamp
       final Map<String, dynamic> dailyStatData = {
