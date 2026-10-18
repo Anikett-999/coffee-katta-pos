@@ -1,8 +1,10 @@
 // COFFEE KATTA POS: WAITER ORDERING & BEVERAGE CUSTOMIZER MODULE
 // Authorized for Coffee Katta Cafe Workflow & Beverage Customization.
 
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:coffee_katta_pos/core/app_theme.dart';
 import 'package:coffee_katta_pos/domain/models/category.dart';
 import 'package:coffee_katta_pos/domain/models/item.dart';
@@ -148,10 +150,123 @@ class CartItem {
       note: note ?? this.note,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'cartId': cartId,
+      'item': item.toJson(),
+      'categoryName': categoryName,
+      'quantity': quantity,
+      'price': price,
+      if (variant != null) 'variant': variant,
+      'note': note,
+    };
+  }
+
+  factory CartItem.fromJson(Map<String, dynamic> json) {
+    final itemData = json['item'];
+    final item = itemData is Map
+        ? Item.fromJson(Map<String, dynamic>.from(itemData))
+        : Item(
+            itemId: json['cartId'] as String? ?? const Uuid().v4(),
+            name: 'Item',
+            categoryId: json['categoryName'] as String? ?? '',
+            price: (json['price'] as num?)?.toDouble() ?? 0.0,
+          );
+    return CartItem(
+      cartId: json['cartId'] as String? ?? const Uuid().v4(),
+      item: item,
+      categoryName: json['categoryName'] as String? ?? '',
+      quantity: (json['quantity'] as num?)?.toInt() ?? 1,
+      price: (json['price'] as num?)?.toDouble(),
+      variant: json['variant'] as String?,
+      note: json['note'] as String? ?? '',
+    );
+  }
 }
 
 class CartNotifier extends StateNotifier<List<CartItem>> {
-  CartNotifier() : super([]);
+  final String? tableId;
+  final SharedPreferences? prefs;
+  bool _isRestoredFromDraft = false;
+  bool get isRestoredFromDraft => _isRestoredFromDraft;
+
+  CartNotifier({this.tableId, this.prefs}) : super([]) {
+    if (tableId != null && tableId!.isNotEmpty) {
+      loadSavedDraft();
+    }
+  }
+
+  static String storageKey(String tableId) => 'draft_cart_$tableId';
+
+  Future<SharedPreferences> _getPrefs() async {
+    if (prefs != null) return prefs!;
+    return await SharedPreferences.getInstance();
+  }
+
+  Future<void> loadSavedDraft() async {
+    if (tableId == null || tableId!.isEmpty) return;
+    try {
+      final p = await _getPrefs();
+      final key = storageKey(tableId!);
+      final rawJson = p.getString(key);
+      if (rawJson != null && rawJson.isNotEmpty) {
+        final decoded = jsonDecode(rawJson);
+        List<dynamic> itemsJson;
+        if (decoded is Map<String, dynamic> && decoded.containsKey('items')) {
+          final savedAt = decoded['savedAt'] as int?;
+          if (savedAt != null) {
+            final age = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(savedAt));
+            if (age.inHours >= 24) {
+              await p.remove(key);
+              return;
+            }
+          }
+          itemsJson = decoded['items'] as List<dynamic>;
+        } else if (decoded is List<dynamic>) {
+          itemsJson = decoded;
+        } else {
+          return;
+        }
+
+        final items = itemsJson
+            .map((e) => CartItem.fromJson(Map<String, dynamic>.from(e as Map)))
+            .where((i) => i.quantity > 0)
+            .toList();
+
+        if (items.isNotEmpty && mounted && state.isEmpty) {
+          _isRestoredFromDraft = true;
+          state = items;
+        }
+      }
+    } catch (e) {
+      debugPrint('[CartNotifier] Error restoring draft cart for $tableId: $e');
+    }
+  }
+
+  Future<void> persistDraft() async {
+    if (tableId == null || tableId!.isEmpty) return;
+    try {
+      final p = await _getPrefs();
+      final key = storageKey(tableId!);
+      if (state.isEmpty) {
+        await p.remove(key);
+      } else {
+        final payload = {
+          'savedAt': DateTime.now().millisecondsSinceEpoch,
+          'items': state.map((e) => e.toJson()).toList(),
+        };
+        await p.setString(key, jsonEncode(payload));
+      }
+    } catch (e) {
+      debugPrint('[CartNotifier] Error saving draft cart for $tableId: $e');
+    }
+  }
+
+  void dismissRestoredNotice() {
+    _isRestoredFromDraft = false;
+    state = [...state];
+  }
 
   void addItem(
     Item item,
@@ -160,6 +275,7 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
     double? price,
     String note = '',
   }) {
+    _isRestoredFromDraft = false;
     final effectivePrice = price ?? item.price;
     final index = state.indexWhere((i) =>
         i.item.itemId == item.itemId &&
@@ -186,9 +302,11 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
         ),
       ];
     }
+    persistDraft();
   }
 
   void updateQuantity(String cartId, int delta) {
+    _isRestoredFromDraft = false;
     state = state
         .map((i) {
           if (i.cartId == cartId) {
@@ -199,25 +317,34 @@ class CartNotifier extends StateNotifier<List<CartItem>> {
         })
         .where((i) => i.quantity > 0)
         .toList();
+    persistDraft();
   }
 
   void removeItem(String cartId) {
+    _isRestoredFromDraft = false;
     state = state.where((i) => i.cartId != cartId).toList();
+    persistDraft();
   }
 
   void updateNote(String cartId, String note) {
+    _isRestoredFromDraft = false;
     state = [
       for (final i in state)
         if (i.cartId == cartId) i.copyWith(note: note) else i
     ];
+    persistDraft();
   }
 
-  void clear() => state = [];
+  void clear() {
+    _isRestoredFromDraft = false;
+    state = [];
+    persistDraft();
+  }
 
   double get total => state.fold(0.0, (sum, i) => sum + (i.price * i.quantity));
 }
 
-final cartProvider = StateNotifierProvider.family<CartNotifier, List<CartItem>, String>((ref, tableId) => CartNotifier());
+final cartProvider = StateNotifierProvider.family<CartNotifier, List<CartItem>, String>((ref, tableId) => CartNotifier(tableId: tableId));
 
 // --- Core Screen ---
 class OrderScreen extends ConsumerStatefulWidget {
@@ -2260,6 +2387,7 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
     return Consumer(
       builder: (context, ref, child) {
         final cart = ref.watch(cartProvider(widget.table.tableId));
+        final cartNotifier = ref.read(cartProvider(widget.table.tableId).notifier);
         if (cart.isEmpty) {
           return Center(
             child: Column(
@@ -2281,12 +2409,58 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
           );
         }
 
+        final showRestoredBanner = cartNotifier.isRestoredFromDraft;
+
         return ListView.separated(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          itemCount: cart.length,
+          itemCount: cart.length + (showRestoredBanner ? 1 : 0),
           separatorBuilder: (context, index) => const SizedBox(height: 8),
           itemBuilder: (context, index) {
-            final i = cart[index];
+            if (showRestoredBanner && index == 0) {
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.amber.shade300),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.history_edu, size: 18, color: Colors.amber.shade800),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Restored unsent draft order',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.amber.shade900,
+                        ),
+                      ),
+                    ),
+                    InkWell(
+                      onTap: () {
+                        cartNotifier.clear();
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        child: Text(
+                          'Discard',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.red.shade700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            final actualIndex = showRestoredBanner ? index - 1 : index;
+            final i = cart[actualIndex];
             final lineTotal = i.price * i.quantity;
 
             return Container(
