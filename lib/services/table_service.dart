@@ -3,11 +3,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../domain/models/table_model.dart';
 
 class TableService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseFirestore _firestore;
   final String businessId = 'coffee_katta';
   final String branchId;
 
-  TableService({required this.branchId});
+  TableService({required this.branchId, FirebaseFirestore? firestore})
+      : _firestore = firestore ?? FirebaseFirestore.instance;
 
   DocumentReference get _branchRef => _firestore
       .collection('businesses')
@@ -18,6 +19,7 @@ class TableService {
   CollectionReference get _tableCollection => _branchRef.collection('tables');
   CollectionReference get _orderCollection => _branchRef.collection('orders');
   CollectionReference get _kotCollection => _branchRef.collection('kots');
+  CollectionReference get _billCollection => _branchRef.collection('bills');
 
   // Stream of all tables for the current branch
   Stream<List<TableModel>> watchTables() {
@@ -135,44 +137,79 @@ class TableService {
     await docRef.delete();
   }
 
-  // Clear table after successful billing or admin action
-  Future<void> clearTable(String tableId) async {
+  // Clear table after successful billing or explicit manager abandonment override
+  Future<void> clearTable(
+    String tableId, {
+    String? abandonReason,
+    String? authorizedBy,
+  }) async {
     final tableRef = _tableCollection.doc(tableId);
     final tableSnap = await tableRef.get();
 
-    if (tableSnap.exists) {
-      final tableData = tableSnap.data() as Map<String, dynamic>?;
-      final activeOrderId = tableData?['activeOrderId'] as String?;
+    if (!tableSnap.exists) {
+      throw Exception('Table $tableId does not exist');
+    }
 
-      if (activeOrderId != null && activeOrderId.isNotEmpty) {
-        // Close the order
+    final tableData = tableSnap.data() as Map<String, dynamic>? ?? {};
+    final activeOrderId = tableData['activeOrderId'] as String?;
+    final double totalAmount = (tableData['totalAmount'] as num?)?.toDouble() ?? 0.0;
+    final int itemCount = (tableData['itemCount'] as num?)?.toInt() ?? 0;
+
+    if (activeOrderId != null && activeOrderId.isNotEmpty) {
+      // 1. Audit Check: Check if a settled bill exists for this order
+      final billSnap = await _billCollection
+          .where('orderId', isEqualTo: activeOrderId)
+          .limit(1)
+          .get();
+
+      final bool isBilled = billSnap.docs.isNotEmpty;
+
+      // If table has orders/items/balance and NO bill has been generated:
+      if (!isBilled && (totalAmount > 0 || itemCount > 0)) {
+        // Must provide an explicit abandonment reason (min 5 chars)
+        if (abandonReason == null || abandonReason.trim().length < 5) {
+          throw Exception(
+            'Cannot clear table: Active order $activeOrderId has not been billed (₹${totalAmount.toStringAsFixed(2)}). '
+            'Please settle the bill in checkout or provide a valid manager abandonment reason (min 5 characters).',
+          );
+        }
+
+        // Mark order as abandoned with audit details
+        await _orderCollection.doc(activeOrderId).update({
+          'status': 'abandoned',
+          'abandonReason': abandonReason.trim(),
+          'abandonedBy': authorizedBy ?? 'Unknown Staff',
+          'closedAt': FieldValue.serverTimestamp(),
+        });
+      } else {
+        // Table is either billed or was an empty order (0 items / 0 amount)
         await _orderCollection.doc(activeOrderId).update({
           'status': 'closed',
           'closedAt': FieldValue.serverTimestamp(),
         });
+      }
 
-        // Ensure all KOT items for this order are marked served
-        final kotSnaps = await _kotCollection.where('orderId', isEqualTo: activeOrderId).get();
-        if (kotSnaps.docs.isNotEmpty) {
-          final batch = _firestore.batch();
-          for (final doc in kotSnaps.docs) {
-            final kotData = doc.data() as Map<String, dynamic>;
-            final items = List<Map<String, dynamic>>.from(
-              (kotData['items'] as List<dynamic>? ?? []).map((i) => Map<String, dynamic>.from(i as Map)),
-            );
-            bool hasChanges = false;
-            for (var item in items) {
-              if (item['status'] != 'served') {
-                item['status'] = 'served';
-                hasChanges = true;
-              }
-            }
-            if (hasChanges) {
-              batch.update(doc.reference, {'items': items});
+      // Ensure all KOT items for this order are marked served
+      final kotSnaps = await _kotCollection.where('orderId', isEqualTo: activeOrderId).get();
+      if (kotSnaps.docs.isNotEmpty) {
+        final batch = _firestore.batch();
+        for (final doc in kotSnaps.docs) {
+          final kotData = doc.data() as Map<String, dynamic>;
+          final items = List<Map<String, dynamic>>.from(
+            (kotData['items'] as List<dynamic>? ?? []).map((i) => Map<String, dynamic>.from(i as Map)),
+          );
+          bool hasChanges = false;
+          for (var item in items) {
+            if (item['status'] != 'served') {
+              item['status'] = 'served';
+              hasChanges = true;
             }
           }
-          await batch.commit();
+          if (hasChanges) {
+            batch.update(doc.reference, {'items': items});
+          }
         }
+        await batch.commit();
       }
     }
 

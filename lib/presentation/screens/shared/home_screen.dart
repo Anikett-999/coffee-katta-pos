@@ -11,6 +11,8 @@ import '../../providers/table_provider.dart';
 import '../../../services/table_service.dart';
 import '../../widgets/global/editorial_background.dart';
 import '../../widgets/global/coffee_katta_brand_badge.dart';
+import '../../../domain/models/table_model.dart';
+import '../../providers/auth_provider.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -223,10 +225,7 @@ class _OperationalHomeScreenState extends ConsumerState<OperationalHomeScreen> {
                     isAdmin: activeRole == 'admin',
                     onClear: branchId == null
                         ? null
-                        : () async {
-                            final service = TableService(branchId: branchId);
-                            await service.clearTable(table.tableId);
-                          },
+                        : () => _handleClearTable(context, TableService(branchId: branchId), table),
                   );
                 },
               );
@@ -306,6 +305,152 @@ class _OperationalHomeScreenState extends ConsumerState<OperationalHomeScreen> {
       ),
       drawer: const AppDrawer(),
       body: EditorialBackground(child: content),
+    );
+  }
+
+  Future<void> _handleClearTable(
+    BuildContext context,
+    TableService service,
+    TableModel table,
+  ) async {
+    try {
+      await service.clearTable(table.tableId);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Table ${table.name} has been reset.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      _showUnbilledClearDialog(context, service, table);
+    }
+  }
+
+  void _showUnbilledClearDialog(
+    BuildContext context,
+    TableService service,
+    TableModel table,
+  ) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text('Unbilled Order Warning', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              ),
+            ],
+          ),
+          content: Text(
+            'Table ${table.name} has active unbilled food items (₹${table.totalAmount.toStringAsFixed(2)}).\n\n'
+            'Clearing this table without settling the bill will cause lost revenue.\n\n'
+            'Please settle the bill in checkout, or enter an authorized manager abandonment reason.',
+            style: const TextStyle(fontSize: 14),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryCoffee),
+              onPressed: () {
+                Navigator.pop(ctx);
+                _showAbandonReasonDialog(context, service, table);
+              },
+              child: const Text('Manager Void', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showAbandonReasonDialog(
+    BuildContext context,
+    TableService service,
+    TableModel table,
+  ) {
+    final reasonController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Manager Void / Abandon Reason', style: TextStyle(fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Please enter an audit reason for clearing Table ${table.name} without payment (min 5 chars):',
+                style: const TextStyle(fontSize: 13, color: Colors.black87),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: reasonController,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: 'e.g. Guest walked out, Food spilled/cancelled',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () async {
+                final reason = reasonController.text.trim();
+                if (reason.length < 5) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Reason must be at least 5 characters.'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+                Navigator.pop(ctx);
+                try {
+                  final authUser = ref.read(authServiceProvider).currentUser;
+                  await service.clearTable(
+                    table.tableId,
+                    abandonReason: reason,
+                    authorizedBy: authUser?.uid ?? 'Manager',
+                  );
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Table ${table.name} marked abandoned and cleared.'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                } catch (err) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error: $err'), backgroundColor: Colors.red),
+                    );
+                  }
+                }
+              },
+              child: const Text('Confirm Void', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
     );
   }
 }
