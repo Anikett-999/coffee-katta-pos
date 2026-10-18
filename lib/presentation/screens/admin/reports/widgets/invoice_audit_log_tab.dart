@@ -13,6 +13,7 @@ import '../../../../providers/analytics_provider.dart';
 import '../../../../providers/auth_provider.dart';
 import '../../../../providers/dashboard_provider.dart';
 import '../../../../../services/billing_service.dart';
+import '../../../../../services/analytics_service.dart';
 
 class InvoiceAuditLogTab extends ConsumerStatefulWidget {
   final String branchId;
@@ -927,16 +928,22 @@ class _InvoiceAuditLogTabState extends ConsumerState<InvoiceAuditLogTab> with Au
   void _showVoidBillDialog(BillModel bill) {
     String selectedPreset = 'Wrong Table Billed';
     final reasonController = TextEditingController(text: 'Wrong Table Billed');
+    final overrideNoteController = TextEditingController();
 
     final now = DateTime.now();
     final isSameDay = bill.createdAt.year == now.year &&
         bill.createdAt.month == now.month &&
         bill.createdAt.day == now.day;
     final isRecent = now.difference(bill.createdAt).inHours < 2;
-    final isEligibleForRestoration = isSameDay && isRecent;
 
     bool restoreTable = false;
     bool isSubmitting = false;
+    bool hasCheckedShift = false;
+    bool isShiftClosed = false;
+    bool allowOverride = false;
+
+    final billDateStr =
+        "${bill.createdAt.year}-${bill.createdAt.month.toString().padLeft(2, '0')}-${bill.createdAt.day.toString().padLeft(2, '0')}";
 
     final presets = [
       'Wrong Table Billed',
@@ -954,6 +961,19 @@ class _InvoiceAuditLogTabState extends ConsumerState<InvoiceAuditLogTab> with Au
       builder: (dialogCtx) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
+            if (!hasCheckedShift) {
+              hasCheckedShift = true;
+              AnalyticsService().isShiftClosedForDate(widget.branchId, billDateStr).then((closed) {
+                if (context.mounted) {
+                  setDialogState(() {
+                    isShiftClosed = closed;
+                  });
+                }
+              });
+            }
+
+            final isEligibleForRestoration = isSameDay && isRecent && !isShiftClosed;
+
             return AlertDialog(
               backgroundColor: Colors.white,
               shape: RoundedRectangleBorder(
@@ -1089,7 +1109,7 @@ class _InvoiceAuditLogTabState extends ConsumerState<InvoiceAuditLogTab> with Au
                         title: Text(
                           isEligibleForRestoration
                               ? 'Restore Table & Re-open Order'
-                              : 'Restore Table (Disabled for Past Bills)',
+                              : 'Restore Table (Disabled for Closed/Past Shifts)',
                           style: GoogleFonts.epilogue(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
@@ -1099,7 +1119,9 @@ class _InvoiceAuditLogTabState extends ConsumerState<InvoiceAuditLogTab> with Au
                         subtitle: Text(
                           isEligibleForRestoration
                               ? 'Optional: Re-opens ${bill.tableName} on the floor for immediate cashier correction.'
-                              : 'Bill is from ${DateFormat('dd MMM, hh:mm a').format(bill.createdAt)}. Historical tables cannot be re-opened on today\'s floor.',
+                              : isShiftClosed
+                                  ? 'This shift has been closed and reconciled. Tables cannot be re-opened.'
+                                  : 'Bill is from ${DateFormat('dd MMM, hh:mm a').format(bill.createdAt)}. Historical tables cannot be re-opened.',
                           style: GoogleFonts.epilogue(
                             fontSize: 10.5,
                             color: isEligibleForRestoration ? Colors.grey[600] : Colors.grey[500],
@@ -1107,6 +1129,68 @@ class _InvoiceAuditLogTabState extends ConsumerState<InvoiceAuditLogTab> with Au
                         ),
                       ),
                     ),
+                    if (isShiftClosed) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.amber[800]!),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.lock_clock_rounded, color: Colors.amber[900], size: 18),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Shift Closed (Z-Report Finalized)',
+                                    style: GoogleFonts.epilogue(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.amber[900],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'The shift for this bill ($billDateStr) has already been closed and audited. Voiding will record a permanent post-shift adjustment audit.',
+                              style: GoogleFonts.epilogue(fontSize: 11, color: AppTheme.textDark),
+                            ),
+                            const SizedBox(height: 8),
+                            SwitchListTile(
+                              value: allowOverride,
+                              onChanged: (val) => setDialogState(() => allowOverride = val),
+                              title: Text(
+                                'Super-Admin Override',
+                                style: GoogleFonts.epilogue(fontSize: 12, fontWeight: FontWeight.w700),
+                              ),
+                              contentPadding: EdgeInsets.zero,
+                              dense: true,
+                              activeColor: AppTheme.espressoBrown,
+                            ),
+                            if (allowOverride) ...[
+                              const SizedBox(height: 6),
+                              TextField(
+                                controller: overrideNoteController,
+                                maxLines: 2,
+                                style: GoogleFonts.epilogue(fontSize: 12, color: AppTheme.textDark),
+                                decoration: InputDecoration(
+                                  hintText: 'Enter Super-Admin justification (min 5 characters)...',
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -1140,6 +1224,27 @@ class _InvoiceAuditLogTabState extends ConsumerState<InvoiceAuditLogTab> with Au
                             return;
                           }
 
+                          if (isShiftClosed) {
+                            if (!allowOverride) {
+                              messenger.showSnackBar(
+                                const SnackBar(
+                                  content: Text('Shift is closed. Super-Admin override is required to void this bill.'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                              return;
+                            }
+                            if (overrideNoteController.text.trim().length < 5) {
+                              messenger.showSnackBar(
+                                const SnackBar(
+                                  content: Text('Please enter an admin justification note (minimum 5 characters).'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                              return;
+                            }
+                          }
+
                           setDialogState(() => isSubmitting = true);
                           try {
                             final user = ref.read(userModelProvider).value;
@@ -1153,6 +1258,9 @@ class _InvoiceAuditLogTabState extends ConsumerState<InvoiceAuditLogTab> with Au
                               voidedBy: voidedBy,
                               voidReason: reason,
                               restoreTable: restoreTable,
+                              allowPostShiftOverride: allowOverride,
+                              authorizedByAdminId: user?.userId ?? voidedBy,
+                              adminOverrideNote: overrideNoteController.text.trim(),
                             );
 
                             ref.invalidate(billsForPeriodProvider(widget.branchId));

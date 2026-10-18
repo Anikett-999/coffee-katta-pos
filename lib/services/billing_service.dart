@@ -6,12 +6,18 @@ import '../domain/models/table_model.dart';
 import 'analytics_service.dart';
 
 class BillingService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseFirestore _firestore;
   final String businessId = 'coffee_katta';
   final String branchId;
-  final AnalyticsService _analyticsService = AnalyticsService();
+  final AnalyticsService _analyticsService;
 
-  BillingService({required this.branchId});
+  BillingService({
+    required this.branchId,
+    FirebaseFirestore? firestore,
+    AnalyticsService? analyticsService,
+  })  : _firestore = firestore ?? FirebaseFirestore.instance,
+        _analyticsService = analyticsService ??
+            AnalyticsService(firestore: firestore ?? FirebaseFirestore.instance);
 
   DocumentReference get _branchRef => _firestore
       .collection('businesses')
@@ -291,6 +297,9 @@ class BillingService {
     required String voidedBy,
     required String voidReason,
     bool restoreTable = false,
+    bool allowPostShiftOverride = false,
+    String? authorizedByAdminId,
+    String? adminOverrideNote,
   }) async {
     if (voidReason.trim().length < 3) {
       throw Exception('A valid reason (minimum 3 characters) is required to void a bill.');
@@ -313,7 +322,7 @@ class BillingService {
 
     final now = DateTime.now();
 
-    // Guard: Only allow table restoration if the bill was created TODAY and within the last 3 hours
+    // Guard: Determine creation date & check if the shift is closed
     DateTime billCreatedAt = now;
     final rawCreatedAt = billData['createdAt'];
     if (rawCreatedAt is Timestamp) {
@@ -324,11 +333,28 @@ class BillingService {
       billCreatedAt = DateTime.tryParse(rawCreatedAt) ?? now;
     }
 
+    final billDateStr =
+        "${billCreatedAt.year}-${billCreatedAt.month.toString().padLeft(2, '0')}-${billCreatedAt.day.toString().padLeft(2, '0')}";
+
+    // Check if shift is closed for this bill's date
+    final isClosed = await _analyticsService.isShiftClosedForDate(branchId, billDateStr);
+    if (isClosed) {
+      if (!allowPostShiftOverride) {
+        throw Exception(
+          'Cannot void invoice: The shift for $billDateStr has already been closed and reconciled with a Z-Report. '
+          'Historical voiding requires Super-Admin override authorization.',
+        );
+      }
+      if (adminOverrideNote == null || adminOverrideNote.trim().length < 5) {
+        throw Exception('A detailed Super-Admin override note (minimum 5 characters) is required to void a bill from a closed shift.');
+      }
+    }
+
     final isSameDay = billCreatedAt.year == now.year &&
         billCreatedAt.month == now.month &&
         billCreatedAt.day == now.day;
     final isRecent = now.difference(billCreatedAt).inHours < 3;
-    final shouldRestoreTable = restoreTable && isSameDay && isRecent;
+    final shouldRestoreTable = restoreTable && isSameDay && isRecent && !isClosed;
 
     DocumentReference? tableRef;
     DocumentSnapshot? tableSnap;
@@ -348,17 +374,40 @@ class BillingService {
       orderSnap = restoreResults[1];
     }
 
-    // Atomic Batch Write
+    // Atomic Batch Write (instant, 100% crash-proof on Windows desktop)
     final batch = _firestore.batch();
 
     // 1. Mark bill as voided
-    batch.update(billDocRef, {
+    final Map<String, dynamic> billUpdates = {
       'isVoided': true,
       'voidedAt': Timestamp.fromDate(now),
       'voidedBy': voidedBy,
       'voidReason': voidReason.trim(),
       'tableRestored': shouldRestoreTable,
-    });
+    };
+
+    if (isClosed && allowPostShiftOverride) {
+      billUpdates['postShiftVoid'] = true;
+      billUpdates['authorizedByAdminId'] = authorizedByAdminId ?? voidedBy;
+      billUpdates['adminOverrideNote'] = adminOverrideNote?.trim();
+
+      // Write audit trail into shift_adjustments collection
+      final adjustmentRef = _branchRef.collection('shift_adjustments').doc();
+      batch.set(adjustmentRef, {
+        'adjustmentId': adjustmentRef.id,
+        'adjustmentType': 'post_shift_void',
+        'billId': billId,
+        'billDate': billDateStr,
+        'originalTotal': (billData['total'] as num?)?.toDouble() ?? 0.0,
+        'authorizedBy': authorizedByAdminId ?? voidedBy,
+        'voidedBy': voidedBy,
+        'reason': voidReason.trim(),
+        'adminNote': adminOverrideNote?.trim(),
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+    }
+
+    batch.update(billDocRef, billUpdates);
 
     // 2. Optionally restore table and order so staff can re-bill / fix mistakes
     if (shouldRestoreTable && tableRef != null && tableSnap != null && tableSnap.exists) {

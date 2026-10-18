@@ -1,7 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:coffee_katta_pos/domain/models/bill_model.dart';
 import 'package:coffee_katta_pos/domain/models/branch_model.dart';
 import 'package:coffee_katta_pos/services/pdf_service.dart';
+import 'package:coffee_katta_pos/services/billing_service.dart';
+import 'package:coffee_katta_pos/services/analytics_service.dart';
 
 void main() {
   group('P0-3: Bill Void / Cancel / Refund Tests', () {
@@ -161,6 +164,269 @@ void main() {
       final pdfBytes = await PdfService.generateBillPdf(voidedBill, branch);
       expect(pdfBytes, isNotNull);
       expect(pdfBytes.length, isPositive);
+    });
+
+    test('Open Shift: voidBill succeeds normally with valid reason', () async {
+      final fakeFirestore = FakeFirebaseFirestore();
+      final billingService = BillingService(
+        branchId: 'latur_main',
+        firestore: fakeFirestore,
+      );
+
+      final now = DateTime.now();
+      final billRef = fakeFirestore
+          .collection('businesses')
+          .doc('coffee_katta')
+          .collection('branches')
+          .doc('latur_main')
+          .collection('bills')
+          .doc('INV-261019-001');
+
+      await billRef.set({
+        'billId': 'INV-261019-001',
+        'orderId': 'ORD-101',
+        'tableId': 'T1',
+        'tableName': 'Table 1',
+        'userName': 'Cashier 1',
+        'items': [
+          {'name': 'Cold Coffee', 'category': 'Katta Coffee', 'qty': 1, 'price': 60.0, 'note': ''}
+        ],
+        'subtotal': 60.0,
+        'total': 60.0,
+        'payments': [
+          {'mode': 'cash', 'amount': 60.0}
+        ],
+        'createdBy': 'user_1',
+        'createdAt': now,
+        'isVoided': false,
+      });
+
+      final result = await billingService.voidBill(
+        billId: 'INV-261019-001',
+        voidedBy: 'Manager John',
+        voidReason: 'Customer changed mind before preparation',
+      );
+
+      expect(result.isVoided, isTrue);
+      expect(result.voidedBy, equals('Manager John'));
+
+      final docSnap = await billRef.get();
+      expect(docSnap.data()!['isVoided'], isTrue);
+      expect(docSnap.data()!['voidReason'], equals('Customer changed mind before preparation'));
+      expect(docSnap.data()!['postShiftVoid'], isNull);
+    });
+
+    test('Closed Shift: voidBill WITHOUT admin override is strictly blocked', () async {
+      final fakeFirestore = FakeFirebaseFirestore();
+      final analyticsService = AnalyticsService(firestore: fakeFirestore);
+      final billingService = BillingService(
+        branchId: 'latur_main',
+        firestore: fakeFirestore,
+        analyticsService: analyticsService,
+      );
+
+      final now = DateTime.now();
+      final todayStr = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+
+      // Close shift by adding shift closing to daily_stats
+      await fakeFirestore
+          .collection('businesses')
+          .doc('coffee_katta')
+          .collection('branches')
+          .doc('latur_main')
+          .collection('daily_stats')
+          .doc(todayStr)
+          .set({
+        'lastShiftClosing': {
+          'closingId': 'shift_test_1',
+          'date': todayStr,
+          'totalBills': 10,
+          'netRevenue': 1500.0,
+        },
+      });
+
+      final billRef = fakeFirestore
+          .collection('businesses')
+          .doc('coffee_katta')
+          .collection('branches')
+          .doc('latur_main')
+          .collection('bills')
+          .doc('INV-CLOSED-001');
+
+      await billRef.set({
+        'billId': 'INV-CLOSED-001',
+        'orderId': 'ORD-CLOSED',
+        'tableId': 'T2',
+        'tableName': 'Table 2',
+        'userName': 'Cashier 1',
+        'items': [],
+        'subtotal': 100.0,
+        'total': 100.0,
+        'payments': [],
+        'createdBy': 'user_1',
+        'createdAt': now,
+        'isVoided': false,
+      });
+
+      // Attempting to void without override MUST throw
+      expect(
+        () => billingService.voidBill(
+          billId: 'INV-CLOSED-001',
+          voidedBy: 'Cashier 1',
+          voidReason: 'Mistake in order',
+          allowPostShiftOverride: false,
+        ),
+        throwsA(isA<Exception>().having(
+          (e) => e.toString(),
+          'message',
+          contains('already been closed and reconciled with a Z-Report'),
+        )),
+      );
+
+      // Verify bill remains active in Firestore
+      final snap = await billRef.get();
+      expect(snap.data()!['isVoided'], isFalse);
+    });
+
+    test('Closed Shift: voidBill WITH admin override succeeds and writes shift_adjustments audit', () async {
+      final fakeFirestore = FakeFirebaseFirestore();
+      final analyticsService = AnalyticsService(firestore: fakeFirestore);
+      final billingService = BillingService(
+        branchId: 'latur_main',
+        firestore: fakeFirestore,
+        analyticsService: analyticsService,
+      );
+
+      final now = DateTime.now();
+      final todayStr = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+
+      // Seed closed shift in daily_stats
+      await fakeFirestore
+          .collection('businesses')
+          .doc('coffee_katta')
+          .collection('branches')
+          .doc('latur_main')
+          .collection('daily_stats')
+          .doc(todayStr)
+          .set({
+        'lastShiftClosing': {'closingId': 'shift_test_1'},
+      });
+
+      final billRef = fakeFirestore
+          .collection('businesses')
+          .doc('coffee_katta')
+          .collection('branches')
+          .doc('latur_main')
+          .collection('bills')
+          .doc('INV-CLOSED-002');
+
+      await billRef.set({
+        'billId': 'INV-CLOSED-002',
+        'orderId': 'ORD-CLOSED-2',
+        'tableId': 'T3',
+        'tableName': 'Table 3',
+        'userName': 'Cashier 1',
+        'items': [],
+        'subtotal': 250.0,
+        'total': 250.0,
+        'payments': [],
+        'createdBy': 'user_1',
+        'createdAt': now,
+        'isVoided': false,
+      });
+
+      final result = await billingService.voidBill(
+        billId: 'INV-CLOSED-002',
+        voidedBy: 'Supervisor Rita',
+        voidReason: 'Credit card chargeback dispute',
+        allowPostShiftOverride: true,
+        authorizedByAdminId: 'admin_super_1',
+        adminOverrideNote: 'Approved by GM for bank chargeback investigation',
+      );
+
+      expect(result.isVoided, isTrue);
+
+      final billSnap = await billRef.get();
+      expect(billSnap.data()!['isVoided'], isTrue);
+      expect(billSnap.data()!['postShiftVoid'], isTrue);
+      expect(billSnap.data()!['authorizedByAdminId'], equals('admin_super_1'));
+
+      // Verify audit trail in shift_adjustments collection
+      final adjustments = await fakeFirestore
+          .collection('businesses')
+          .doc('coffee_katta')
+          .collection('branches')
+          .doc('latur_main')
+          .collection('shift_adjustments')
+          .get();
+
+      expect(adjustments.docs.length, equals(1));
+      final adjData = adjustments.docs.first.data();
+      expect(adjData['adjustmentType'], equals('post_shift_void'));
+      expect(adjData['billId'], equals('INV-CLOSED-002'));
+      expect(adjData['originalTotal'], equals(250.0));
+      expect(adjData['authorizedBy'], equals('admin_super_1'));
+      expect(adjData['adminNote'], contains('Approved by GM'));
+    });
+
+    test('Closed Shift: voidBill rejects short admin override notes (< 5 chars)', () async {
+      final fakeFirestore = FakeFirebaseFirestore();
+      final billingService = BillingService(
+        branchId: 'latur_main',
+        firestore: fakeFirestore,
+      );
+
+      final now = DateTime.now();
+      final todayStr = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+
+      await fakeFirestore
+          .collection('businesses')
+          .doc('coffee_katta')
+          .collection('branches')
+          .doc('latur_main')
+          .collection('daily_stats')
+          .doc(todayStr)
+          .set({
+        'lastShiftClosing': {'closingId': 'shift_test_1'},
+      });
+
+      final billRef = fakeFirestore
+          .collection('businesses')
+          .doc('coffee_katta')
+          .collection('branches')
+          .doc('latur_main')
+          .collection('bills')
+          .doc('INV-CLOSED-003');
+
+      await billRef.set({
+        'billId': 'INV-CLOSED-003',
+        'orderId': 'ORD-CLOSED-3',
+        'tableId': 'T4',
+        'tableName': 'Table 4',
+        'userName': 'Cashier 1',
+        'items': [],
+        'subtotal': 150.0,
+        'total': 150.0,
+        'payments': [],
+        'createdBy': 'user_1',
+        'createdAt': now,
+        'isVoided': false,
+      });
+
+      expect(
+        () => billingService.voidBill(
+          billId: 'INV-CLOSED-003',
+          voidedBy: 'Supervisor Rita',
+          voidReason: 'Mistake',
+          allowPostShiftOverride: true,
+          adminOverrideNote: 'ok', // too short (< 5 chars)
+        ),
+        throwsA(isA<Exception>().having(
+          (e) => e.toString(),
+          'message',
+          contains('minimum 5 characters'),
+        )),
+      );
     });
   });
 }

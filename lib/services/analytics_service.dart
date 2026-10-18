@@ -12,8 +12,11 @@ import 'package:intl/intl.dart';
 
 
 class AnalyticsService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseFirestore _firestore;
   static const String _businessId = 'coffee_katta';
+
+  AnalyticsService({FirebaseFirestore? firestore})
+      : _firestore = firestore ?? FirebaseFirestore.instance;
 
   DocumentReference _getBranchRef(String branchId) {
     return _firestore
@@ -782,14 +785,51 @@ class AnalyticsService {
     }, SetOptions(merge: true));
   }
 
+  /// Check if a shift has been closed / Z-Report submitted for a given date
+  Future<bool> isShiftClosedForDate(String branchId, String dateStr) async {
+    try {
+      final branchRef = _getBranchRef(branchId);
+      // 1. Check direct daily_stats document (fast & index-free)
+      final dailySnap = await branchRef.collection('daily_stats').doc(dateStr).get();
+      if (dailySnap.exists) {
+        final data = dailySnap.data();
+        if (data != null && data['lastShiftClosing'] != null) {
+          return true;
+        }
+      }
+
+      // 2. Query shift_closings collection by date (index-free single field query)
+      final shiftSnap = await branchRef
+          .collection('shift_closings')
+          .where('date', isEqualTo: dateStr)
+          .limit(1)
+          .get();
+      if (shiftSnap.docs.isNotEmpty) {
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error checking shift closed status: $e');
+      return false;
+    }
+  }
+
   /// Get latest saved shift closing for a branch and date
   Future<Map<String, dynamic>?> getLatestShiftClosing(String branchId, String dateStr) async {
     try {
       final branchRef = _getBranchRef(branchId);
+      // Check direct daily_stats first
+      final dailySnap = await branchRef.collection('daily_stats').doc(dateStr).get();
+      if (dailySnap.exists) {
+        final data = dailySnap.data();
+        if (data != null && data['lastShiftClosing'] is Map) {
+          return Map<String, dynamic>.from(data['lastShiftClosing'] as Map);
+        }
+      }
+
       final snap = await branchRef
           .collection('shift_closings')
           .where('date', isEqualTo: dateStr)
-          .orderBy('timestamp', descending: true)
           .limit(1)
           .get();
       if (snap.docs.isNotEmpty) {
