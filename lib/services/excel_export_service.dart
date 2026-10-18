@@ -668,6 +668,23 @@ class ExcelExportService {
   // ---------------------------------------------------------------------------
   // HELPER: CELL ASSIGNMENT WITH CELLVALUE TYPES
   // ---------------------------------------------------------------------------
+  /// Neutralizes spreadsheet formula/macro/DDE injection for exported Excel cells
+  static String sanitizeCellValue(dynamic value) {
+    if (value == null) return '';
+    if (value is num) return value.toString();
+    String str = value.toString();
+    final trimmed = str.trimLeft();
+    if (trimmed.startsWith('=') ||
+        trimmed.startsWith('+') ||
+        trimmed.startsWith('-') ||
+        trimmed.startsWith('@') ||
+        trimmed.startsWith('\t') ||
+        trimmed.startsWith('\r')) {
+      return "'$str";
+    }
+    return str;
+  }
+
   static void _setCell(
     Sheet sheet,
     int col,
@@ -684,7 +701,7 @@ class ExcelExportService {
     } else if (isInt && value is num) {
       cell.value = IntCellValue(value.toInt());
     } else {
-      cell.value = TextCellValue(value?.toString() ?? '');
+      cell.value = TextCellValue(sanitizeCellValue(value));
     }
 
     if (style != null) {

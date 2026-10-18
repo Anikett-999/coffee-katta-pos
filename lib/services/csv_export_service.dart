@@ -8,14 +8,33 @@ import '../domain/models/branch_model.dart';
 import '../domain/models/bill_model.dart';
 
 class CsvExportService {
-  static String _escapeCsv(dynamic value) {
+  /// Neutralizes spreadsheet formula/macro/DDE injection for exported CSV fields
+  static String sanitizeCsvField(dynamic value) {
+    if (value == null) return '';
+    if (value is num) return value.toString();
+    String str = value.toString();
+    final trimmed = str.trimLeft();
+    if (trimmed.startsWith('=') ||
+        trimmed.startsWith('+') ||
+        trimmed.startsWith('-') ||
+        trimmed.startsWith('@') ||
+        trimmed.startsWith('\t') ||
+        trimmed.startsWith('\r')) {
+      return "'$str";
+    }
+    return str;
+  }
+
+  static String escapeCsv(dynamic value) {
     if (value == null) return '""';
-    final str = value.toString();
+    final str = sanitizeCsvField(value);
     if (str.contains(',') || str.contains('"') || str.contains('\n') || str.contains('\r')) {
       return '"${str.replaceAll('"', '""')}"';
     }
     return str;
   }
+
+  static String _escapeCsv(dynamic value) => escapeCsv(value);
 
   /// Generates a comprehensive CSV summary of sales, payments, categories, and items
   static String generateSummaryCsv({
