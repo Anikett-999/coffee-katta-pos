@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../../core/app_theme.dart';
 
 /// Standard Coffee Katta Brand Header Logo Component.
 /// Uses the official Beardman Mascot avatar (`assets/branding/app_icon.png`)

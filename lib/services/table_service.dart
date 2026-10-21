@@ -83,6 +83,25 @@ class TableService {
     return controller.stream;
   }
 
+  // Stream a single table by tableId
+  Stream<TableModel> watchTable(String tableId) {
+    return _tableCollection.doc(tableId).snapshots().map((snapshot) {
+      if (!snapshot.exists) {
+        throw Exception('Table $tableId not found');
+      }
+      final raw = snapshot.data() as Map<String, dynamic>?;
+      if (raw == null) throw Exception('Table data is null');
+      final data = Map<String, dynamic>.from(raw);
+      if (!data.containsKey('tableId') || (data['tableId'] as String).isEmpty) {
+        data['tableId'] = snapshot.id;
+      }
+      if (data['updatedAt'] is Timestamp) {
+        data['updatedAt'] = (data['updatedAt'] as Timestamp).toDate().toIso8601String();
+      }
+      return TableModel.fromJson(data);
+    });
+  }
+
   // Create a new table (Admin only)
   Future<void> createTable(String name, int capacity) async {
     final docRef = _tableCollection.doc();

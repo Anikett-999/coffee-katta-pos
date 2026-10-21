@@ -199,5 +199,11 @@ void main() {
         throwsA(isA<Exception>()),
       );
     });
+
+    test('6. watchTable streams single table updates reactively', () async {
+      final initial = await tableService.watchTable('T1').first;
+      expect(initial.tableId, equals('T1'));
+      expect(initial.status, equals('available'));
+    });
   });
 }

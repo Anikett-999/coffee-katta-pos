@@ -15,3 +15,9 @@ final tablesStreamProvider = StreamProvider<List<TableModel>>((ref) {
   final service = ref.watch(tableServiceProvider);
   return service.watchTables();
 });
+
+// StreamProvider for a single Table by tableId
+final singleTableStreamProvider = StreamProvider.family<TableModel, String>((ref, tableId) {
+  final service = ref.watch(tableServiceProvider);
+  return service.watchTable(tableId);
+});

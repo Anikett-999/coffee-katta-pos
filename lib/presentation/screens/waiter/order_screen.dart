@@ -17,6 +17,7 @@ import 'package:coffee_katta_pos/services/kot_service.dart';
 import 'package:coffee_katta_pos/presentation/providers/auth_provider.dart';
 import 'package:coffee_katta_pos/presentation/providers/printer_provider.dart';
 import 'package:coffee_katta_pos/presentation/providers/active_branch_provider.dart';
+import 'package:coffee_katta_pos/presentation/providers/table_provider.dart';
 import 'package:coffee_katta_pos/presentation/widgets/global/profile_menu.dart';
 import 'package:coffee_katta_pos/presentation/widgets/global/base_widgets.dart'; // Added for LoadingIndicator
 import 'package:coffee_katta_pos/presentation/widgets/global/editorial_background.dart';
@@ -476,10 +477,13 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text('Order Saved Successfully! 🟢', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                const SizedBox(height: 8),
+                const Text('Kitchen printing failed. 🔴', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
                 const SizedBox(height: 12),
-                const Text('But printing failed. 🔴', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
-                const SizedBox(height: 16),
-                const Text('What would you like to do?'),
+                Text(
+                  'KOT #${kot?.kotNumber ?? ''} is registered in the database, but kitchen slip did not print.\n\nChoose an action:',
+                  style: const TextStyle(fontSize: 13),
+                ),
               ],
             ),
             actions: [
@@ -488,7 +492,7 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                   if (Navigator.canPop(context)) Navigator.pop(context);
                   _sendToKitchen(existingKOT: kot);
                 },
-                child: const Text('RETRY PRINT'),
+                child: const Text('RETRY PRINT', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
               TextButton(
                 onPressed: () {
@@ -502,7 +506,7 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                     }
                   });
                 },
-                child: const Text('FINISH (MANUAL)', style: TextStyle(color: AppTheme.maroon)),
+                child: const Text('FINISH (MANUAL)', style: TextStyle(color: AppTheme.maroon, fontWeight: FontWeight.bold)),
               ),
               TextButton(
                 onPressed: () {
@@ -511,7 +515,61 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                     ref.read(cartProvider(widget.table.tableId).notifier).clear();
                   }
                 },
-                child: const Text('STAY HERE'),
+                child: const Text('STAY HERE', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              TextButton(
+                onPressed: () async {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('Cancel This Order?'),
+                      content: Text(
+                        'Are you sure you want to cancel KOT #${kot?.kotNumber ?? ''}?\n\n'
+                        'This will delete the unprinted KOT and release Table ${widget.table.name} back to Available.',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: const Text('NO, KEEP'),
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: () => Navigator.pop(ctx, true),
+                          child: const Text('YES, CANCEL ORDER'),
+                        ),
+                      ],
+                    ),
+                  );
+
+                  if (confirm == true && mounted) {
+                    if (Navigator.canPop(context)) Navigator.pop(context);
+                    try {
+                      await ref.read(kotServiceProvider).cancelUnprintedKot(
+                        kotId: kot!.kotId,
+                        tableId: widget.table.tableId,
+                      );
+                      ref.read(cartProvider(widget.table.tableId).notifier).clear();
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('Order cancelled. Table is now available.'),
+                          backgroundColor: AppTheme.deepGreen,
+                        ));
+                        if (Navigator.canPop(context)) Navigator.pop(context);
+                      }
+                    } catch (err) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text('Failed to cancel order: $err'),
+                          backgroundColor: Colors.red,
+                        ));
+                      }
+                    }
+                  }
+                },
+                child: const Text('CANCEL ORDER', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -808,11 +866,144 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
     );
   }
 
+  Future<void> _confirmClearDraftCart() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Clear Draft Order?'),
+        content: Text('Are you sure you want to discard all items currently in the cart for Table ${widget.table.name}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('NO, KEEP'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('DISCARD ITEMS'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      ref.read(cartProvider(widget.table.tableId).notifier).clear();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Draft items cleared. Table remains available.'),
+          backgroundColor: Colors.grey,
+        ),
+      );
+    }
+  }
+
+  Future<void> _confirmCancelUnprintedKot(KOTModel kot) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Cancel KOT #${kot.kotNumber}?'),
+        content: Text(
+          'Are you sure you want to cancel KOT #${kot.kotNumber}?\n\n'
+          'If this is the only active KOT, Table ${widget.table.name} will be released back to Available.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('NO, KEEP'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('YES, CANCEL KOT'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      try {
+        await ref.read(kotServiceProvider).cancelUnprintedKot(
+          kotId: kot.kotId,
+          tableId: widget.table.tableId,
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('KOT #${kot.kotNumber} cancelled.'),
+              backgroundColor: AppTheme.deepGreen,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to cancel KOT: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Widget _buildPrintPendingBanner(TableModel currentTable) {
+    return Container(
+      width: double.infinity,
+      color: const Color(0xFFFFF3CD),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          const Icon(Icons.print_disabled_rounded, color: Color(0xFF856404), size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '⚠️ Print Pending: ${currentTable.unprintedKotCount} unprinted ticket(s)',
+                  style: const TextStyle(
+                    color: Color(0xFF856404),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12.5,
+                  ),
+                ),
+                const Text(
+                  'Kitchen did not receive the printed slip. Tap reprint or view order.',
+                  style: TextStyle(
+                    color: Color(0xFF856404),
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF856404),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              minimumSize: const Size(0, 32),
+            ),
+            icon: const Icon(Icons.print_rounded, size: 14),
+            label: const Text('REPRINT / VIEW', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+            onPressed: () => _showOrderHistory(context),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Determine screen layout boundaries (900px is the crossover point)
     final isDesktop = MediaQuery.of(context).size.width > 900;
-    final tableName = widget.table.name.replaceAll('Table ', '');
+    final currentTable = ref.watch(singleTableStreamProvider(widget.table.tableId)).value ?? widget.table;
+    final tableName = currentTable.name.replaceAll('Table ', '');
 
     final cart = ref.watch(cartProvider(widget.table.tableId));
 
@@ -957,10 +1148,28 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                             ),
                           ),
                           const SizedBox(width: 4),
-                          IconButton(
-                            icon: const Icon(Icons.history_rounded, color: Colors.white, size: 22),
-                            tooltip: 'View Sent Items',
-                            onPressed: () => _showOrderHistory(context),
+                          Stack(
+                            alignment: Alignment.topRight,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.history_rounded, color: Colors.white, size: 22),
+                                tooltip: 'View Sent Items',
+                                onPressed: () => _showOrderHistory(context),
+                              ),
+                              if (currentTable.unprintedKotCount > 0)
+                                Positioned(
+                                  top: 8,
+                                  right: 8,
+                                  child: Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: const BoxDecoration(
+                                      color: Colors.orange,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                           const ProfileMenu(isDarkHeader: true),
                         ],
@@ -969,14 +1178,22 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                   ),
                 ),
               ),
-            body: LayoutBuilder(
-              builder: (context, constraints) {
-                if (constraints.maxWidth > 900) {
-                  return _buildDesktopLayout();
-                } else {
-                  return _buildMobileLayout();
-                }
-              },
+            body: Column(
+              children: [
+                if (currentTable.unprintedKotCount > 0)
+                  _buildPrintPendingBanner(currentTable),
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      if (constraints.maxWidth > 900) {
+                        return _buildDesktopLayout();
+                      } else {
+                        return _buildMobileLayout();
+                      }
+                    },
+                  ),
+                ),
+              ],
             ),
               bottomNavigationBar: isDesktop ? null : _buildMobileCartBottomBar(),
             ),
@@ -1749,15 +1966,20 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
               ),
               const Divider(),
               Expanded(
-                child: widget.table.activeOrderId == null
-                    ? const Center(
+                child: Consumer(
+                  builder: (context, ref, _) {
+                    final liveTable = ref.watch(singleTableStreamProvider(widget.table.tableId)).value ?? widget.table;
+                    final activeOrderId = liveTable.activeOrderId;
+                    if (activeOrderId == null || activeOrderId.isEmpty) {
+                      return const Center(
                         child: Text(
                           'No active order for this table',
                           style: TextStyle(color: Colors.grey),
                         ),
-                      )
-                    : StreamBuilder<List<KOTModel>>(
-                        stream: ref.read(kotServiceProvider).watchKOTsByOrder(widget.table.activeOrderId!),
+                      );
+                    }
+                    return StreamBuilder<List<KOTModel>>(
+                      stream: ref.read(kotServiceProvider).watchKOTsByOrder(activeOrderId),
                         builder: (context, snapshot) {
                           if (snapshot.connectionState == ConnectionState.waiting) {
                             return const Center(child: CircularProgressIndicator(color: AppTheme.maroon));
@@ -1908,17 +2130,35 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                                                     ],
                                                   ),
                                                 ),
-                                                ElevatedButton.icon(
-                                                  onPressed: () => _sendToKitchen(existingKOT: kot),
-                                                  icon: const Icon(Icons.print, size: 16),
-                                                  label: const Text('PRINT SLIP'),
-                                                  style: ElevatedButton.styleFrom(
-                                                    backgroundColor: AppTheme.maroon,
-                                                    foregroundColor: Colors.white,
-                                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                                    minimumSize: const Size(0, 36),
-                                                    textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                                                  ),
+                                                Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    if (!kot.isPrinted) ...[
+                                                      OutlinedButton.icon(
+                                                        onPressed: () => _confirmCancelUnprintedKot(kot),
+                                                        icon: const Icon(Icons.cancel_outlined, size: 15, color: Colors.red),
+                                                        label: const Text('CANCEL KOT', style: TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.bold)),
+                                                        style: OutlinedButton.styleFrom(
+                                                          side: const BorderSide(color: Colors.red, width: 1.2),
+                                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                                          minimumSize: const Size(0, 34),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                    ],
+                                                    ElevatedButton.icon(
+                                                      onPressed: () => _sendToKitchen(existingKOT: kot),
+                                                      icon: const Icon(Icons.print, size: 16),
+                                                      label: const Text('PRINT SLIP'),
+                                                      style: ElevatedButton.styleFrom(
+                                                        backgroundColor: AppTheme.maroon,
+                                                        foregroundColor: Colors.white,
+                                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                                        minimumSize: const Size(0, 36),
+                                                        textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ),
                                               ],
                                             ),
@@ -1932,7 +2172,9 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                             },
                           );
                         },
-                      ),
+                      );
+                  },
+                ),
               ),
             ],
           ),
@@ -2072,7 +2314,24 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
           padding: const EdgeInsets.all(20),
           child: Column(
             children: [
-              const Text('REVIEW KOT', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('REVIEW KOT', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textDark)),
+                  Consumer(builder: (c, ref, _) {
+                    final cart = ref.watch(cartProvider(widget.table.tableId));
+                    if (cart.isEmpty) return const SizedBox.shrink();
+                    return TextButton.icon(
+                      onPressed: () {
+                        if (Navigator.canPop(ctx)) Navigator.pop(ctx);
+                        _confirmClearDraftCart();
+                      },
+                      icon: const Icon(Icons.delete_sweep_outlined, color: Colors.red, size: 18),
+                      label: const Text('Clear Draft', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                    );
+                  }),
+                ],
+              ),
               const Divider(thickness: 1, color: AppTheme.borderWarm, height: 24),
               Expanded(child: _buildCartList()), 
               const Divider(thickness: 1, color: AppTheme.borderWarm, height: 24),
@@ -2277,20 +2536,34 @@ class _OrderScreenState extends ConsumerState<OrderScreen> {
                     Consumer(builder: (context, ref, _) {
                       final cart = ref.watch(cartProvider(widget.table.tableId));
                       final count = cart.fold(0, (sum, i) => sum + i.quantity);
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryCoffee.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          '$count items',
-                          style: const TextStyle(
-                            color: AppTheme.primaryCoffee,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 11.5,
+                      return Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (count > 0)
+                            IconButton(
+                              icon: const Icon(Icons.delete_sweep_outlined, color: Colors.red, size: 20),
+                              tooltip: 'Clear Draft Cart',
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onPressed: () => _confirmClearDraftCart(),
+                            ),
+                          if (count > 0) const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryCoffee.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '$count items',
+                              style: const TextStyle(
+                                color: AppTheme.primaryCoffee,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 11.5,
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       );
                     }),
                   ],

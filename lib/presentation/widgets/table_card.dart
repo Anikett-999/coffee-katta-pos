@@ -92,35 +92,35 @@ class TableCard extends StatelessWidget {
                             ),
                           ),
                         ),
-                        if (!isOccupied) ...[
+                        if (isBillable && table.activeOrderId != null) ...[
                           const SizedBox(height: 2),
-                          if (table.activeOrderId != null) ...[
-                            Text(
-                              '${table.itemCount} Items', 
-                              style: GoogleFonts.epilogue(
-                                color: AppTheme.textDark.withValues(alpha: 0.65),
-                                fontWeight: FontWeight.w700,
-                                fontSize: 11,
-                              ),
+                          Text(
+                            '${table.itemCount} Items', 
+                            style: GoogleFonts.epilogue(
+                              color: AppTheme.textDark.withValues(alpha: 0.65),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 11,
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '₹${table.totalAmount.toStringAsFixed(0)}',
-                              style: GoogleFonts.epilogue(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                                color: AppTheme.successGreenPrice,
-                              ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '₹${table.totalAmount.toStringAsFixed(0)}',
+                            style: GoogleFonts.epilogue(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: AppTheme.successGreenPrice,
                             ),
-                          ] else
-                            Text(
-                              'Seats: ${table.capacity}', 
-                              style: GoogleFonts.epilogue(
-                                color: AppTheme.textDark.withValues(alpha: 0.55),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                              ),
+                          ),
+                        ] else ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            'Seats: ${table.capacity}', 
+                            style: GoogleFonts.epilogue(
+                              color: AppTheme.textDark.withValues(alpha: 0.55),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
                             ),
+                          ),
                         ],
                       ],
                     ),

@@ -412,15 +412,124 @@ class KOTService {
       batch.update(orderRef, {
         'kotIds': FieldValue.arrayRemove([kotId]),
       });
-      tableUpdates['kotCount'] = currentKotCount > 0 ? currentKotCount - 1 : 0;
+      final newKotCount = currentKotCount > 0 ? currentKotCount - 1 : 0;
+      tableUpdates['kotCount'] = newKotCount;
       if (!isPrinted && currentUnprintedCount > 0) {
         tableUpdates['unprintedKotCount'] = currentUnprintedCount - 1;
+      }
+
+      if (newKotCount == 0) {
+        tableUpdates['status'] = 'available';
+        tableUpdates['activeOrderId'] = null;
+        tableUpdates['totalAmount'] = 0.0;
+        tableUpdates['itemCount'] = 0;
+        tableUpdates['kotCount'] = 0;
+        tableUpdates['unprintedKotCount'] = 0;
+        batch.update(orderRef, {
+          'status': 'cancelled',
+          'closedAt': FieldValue.serverTimestamp(),
+        });
       }
     } else {
       batch.update(kotRef, {
         'items': items,
         'totalAmount': (currentKotTotal - removedLineValue).clamp(0, double.infinity),
       });
+    }
+
+    batch.update(tableRef, tableUpdates);
+    await batch.commit();
+  }
+
+  // Cancel/Void an unprinted KOT and safely revert table status to available if no other KOTs remain
+  Future<void> cancelUnprintedKot({
+    required String kotId,
+    required String tableId,
+  }) async {
+    final kotRef = _kotCollection.doc(kotId);
+    final tableRef = _tableCollection.doc(tableId);
+
+    final results = await Future.wait([
+      kotRef.get(),
+      tableRef.get(),
+    ]);
+
+    final kotSnap = results[0];
+    final tableSnap = results[1];
+
+    if (!kotSnap.exists) {
+      throw Exception('KOT not found');
+    }
+    if (!tableSnap.exists) {
+      throw Exception('Table not found');
+    }
+
+    final kotData = kotSnap.data() as Map<String, dynamic>;
+    final orderId = kotData['orderId'] as String? ?? '';
+    final isPrinted = kotData['isPrinted'] == true;
+    final kotTotal = (kotData['totalAmount'] as num?)?.toDouble() ?? 0.0;
+    final items = (kotData['items'] as List<dynamic>? ?? []);
+    final kotItemCount = items.length;
+
+    final tableData = tableSnap.data() as Map<String, dynamic>;
+    final currentTableTotal = (tableData['totalAmount'] as num?)?.toDouble() ?? 0.0;
+    final currentItemCount = (tableData['itemCount'] as num?)?.toInt() ?? 0;
+    final currentKotCount = (tableData['kotCount'] as num?)?.toInt() ?? 0;
+    final currentUnprintedCount = (tableData['unprintedKotCount'] as num?)?.toInt() ?? 0;
+
+    DocumentSnapshot? orderSnap;
+    if (orderId.isNotEmpty) {
+      orderSnap = await _orderCollection.doc(orderId).get();
+    }
+
+    final batch = _firestore.batch();
+    batch.delete(kotRef);
+
+    final newKotCount = currentKotCount > 0 ? currentKotCount - 1 : 0;
+    final newTotal = (currentTableTotal - kotTotal).clamp(0.0, double.infinity);
+    final newItemCount = (currentItemCount - kotItemCount).clamp(0, 999999);
+    final newUnprinted = (!isPrinted && currentUnprintedCount > 0)
+        ? currentUnprintedCount - 1
+        : currentUnprintedCount;
+
+    final tableUpdates = <String, dynamic>{
+      'totalAmount': newTotal,
+      'itemCount': newItemCount,
+      'kotCount': newKotCount,
+      'unprintedKotCount': newUnprinted,
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+
+    if (orderSnap != null && orderSnap.exists) {
+      final orderData = orderSnap.data() as Map<String, dynamic>;
+      final kotIds = List<String>.from(orderData['kotIds'] as List<dynamic>? ?? []);
+      kotIds.remove(kotId);
+
+      if (kotIds.isEmpty || newKotCount == 0) {
+        batch.update(_orderCollection.doc(orderId), {
+          'kotIds': [],
+          'status': 'cancelled',
+          'closedAt': FieldValue.serverTimestamp(),
+        });
+
+        tableUpdates['status'] = 'available';
+        tableUpdates['activeOrderId'] = null;
+        tableUpdates['totalAmount'] = 0.0;
+        tableUpdates['itemCount'] = 0;
+        tableUpdates['kotCount'] = 0;
+        tableUpdates['unprintedKotCount'] = 0;
+      } else {
+        batch.update(_orderCollection.doc(orderId), {
+          'kotIds': kotIds,
+        });
+      }
+    } else if (newKotCount == 0) {
+      tableUpdates['status'] = 'available';
+      tableUpdates['activeOrderId'] = null;
+      tableUpdates['totalAmount'] = 0.0;
+      tableUpdates['itemCount'] = 0;
+      tableUpdates['kotCount'] = 0;
+      tableUpdates['unprintedKotCount'] = 0;
     }
 
     batch.update(tableRef, tableUpdates);
